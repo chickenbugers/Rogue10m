@@ -2,46 +2,80 @@
 
 ## Branch Roles
 
-- `main`: Stable project history. Keep this branch playable and suitable for backup or release points.
-- `test`: Integration branch for playable testing. Merge completed feature branches here first.
-- `feature/<name>`: Short-lived feature work branched from `test`.
-- `fix/<name>`: Bug fixes branched from `test` unless the bug is already in `main`.
-- `release/<version>`: Optional stabilization branch when preparing a build.
+- `main`: Stable milestone branch. Only merge builds that are playable, backed up, and safe to show.
+- `develop`: Daily integration branch. Code, Blueprint, content, and level work come together here first.
+- `test`: Playtest branch. Promote from `develop` when a build should be tested as a whole.
+- `release/<version>`: Temporary stabilization branch for packaged builds, demos, or milestones.
+- `hotfix/<name>`: Urgent fixes branched from `main` when the stable build itself is broken.
+
+## Work Branches
+
+Create short-lived branches from `develop`.
+
+- `feature/<name>`: Gameplay systems, UI, AI, combat, progression, tools.
+- `content/<name>`: Art, audio, animation, VFX, materials, imported assets.
+- `level/<name>`: Maps, rooms, blockouts, lighting, encounter layout.
+- `balance/<name>`: Tuning values, enemy stats, item tables, spawn pacing.
+- `fix/<name>`: Bugs found during development or playtesting.
 
 ## Default Flow
 
-1. Update local branches.
-2. Create a feature branch from `test`.
-3. Commit focused changes to the feature branch.
-4. Merge or open a PR from `feature/<name>` into `test`.
-5. Test the integrated build on `test`.
-6. Merge `test` into `main` when the build is stable.
+1. Start new work from `develop`.
+2. Merge completed work back into `develop`.
+3. Promote `develop` into `test` for playable test builds.
+4. Test and fix on branches made from `develop`.
+5. Merge `test` into `main` only when the build is stable.
+
+## Promotion Rules
+
+- `develop` can be messy but should compile.
+- `test` should launch, load the default map, and support a real playtest pass.
+- `main` should be a known-good checkpoint.
+- Large binary asset changes should stay focused in `content/*` or `level/*` branches to avoid painful conflicts.
+- Do not merge generated folders such as `Binaries`, `Intermediate`, `Saved`, or `DerivedDataCache`.
 
 ## Commands
 
-Create a feature branch:
+Create a gameplay feature branch:
 
 ```powershell
-git switch test
+git switch develop
 git pull
 git switch -c feature/player-combat
 ```
 
-Push a new feature branch:
+Create a content branch:
+
+```powershell
+git switch develop
+git pull
+git switch -c content/weapon-placeholders
+```
+
+Create a level branch:
+
+```powershell
+git switch develop
+git pull
+git switch -c level/prototype-arena
+```
+
+Push a new work branch:
 
 ```powershell
 git push -u origin feature/player-combat
 ```
 
-After a feature is validated:
+Promote daily integration to playtest:
 
 ```powershell
 git switch test
-git merge feature/player-combat
+git pull
+git merge develop
 git push
 ```
 
-Promote tested work to `main`:
+Promote a tested build to stable:
 
 ```powershell
 git switch main
@@ -55,6 +89,10 @@ git push
 - `feature/run-hud`
 - `feature/player-combat`
 - `feature/enemy-spawner`
-- `feature/room-generation`
 - `feature/upgrade-selection`
+- `content/first-weapon-set`
+- `content/temp-audio`
+- `level/prototype-arena`
+- `level/room-blockouts`
+- `balance/early-run-pacing`
 - `fix/timer-expiry`
