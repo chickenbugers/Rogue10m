@@ -1,0 +1,233 @@
+﻿Rogue10m 개발 로그 - 2026-06-23
+
+작성 목적
+- Tistory 업로드용 일일 개발 기록
+- 기능 개발 항목은 추후 Notion에 정리하기 위한 원본 로그
+
+오늘의 요약
+- Unreal Engine 5.7 기반 Rogue10m 프로젝트의 초기 C++ 개발 환경을 정리했다.
+- 20분 제한 시간을 가진 1인칭 싱글 로그라이크라는 프로젝트 방향에 맞춰 기본 런 타이머 구조를 추가했다.
+- GitHub 저장소 연동, 브랜치 전략, 개발 하네스 문서와 스크립트를 준비했다.
+- 앞으로 기능 개발을 설계, 구현, 빌드, 리뷰, 문서화 흐름으로 관리할 수 있도록 기반을 잡았다.
+
+1. 프로젝트 기본 확인
+- 프로젝트 경로: D:\Project\Rogue10m
+- Unreal Engine 버전: UE 5.7
+- 엔진 설치 경로: D:\Program Files\UE_5.7
+- 기본 프로젝트는 First Person 템플릿 기반이며 C++ 사용 가능 상태였다.
+- 기존 Source/Rogue10m 모듈과 FirstPerson, Shooter, Horror 변형 코드가 포함되어 있었다.
+
+2. 20분 런 타이머 기본 구조 추가
+- 신규 C++ GameState 클래스 추가:
+  - Source/Rogue10m/Rogue10mGameState.h
+  - Source/Rogue10m/Rogue10mGameState.cpp
+- 런 상태 enum을 추가했다.
+  - WaitingToStart
+  - Running
+  - Victory
+  - Defeat
+- 기본 런 시간은 1200초, 즉 20분으로 설정했다.
+- 게임 시작 시 타이머가 자동으로 시작되도록 GameMode에 연결했다.
+- 타이머 종료 시 현재는 Defeat 상태로 전환되도록 했다.
+- RunSeed, CurrentFloor, DefeatedEnemyCount 필드를 추가해 이후 로그라이크 진행 시스템의 기반을 마련했다.
+
+Notion 정리 후보: Run Timer System
+- 목적: 20분 제한 시간 기반의 싱글 런 관리
+- 핵심 클래스: ARogue10mGameState
+- 현재 기능:
+  - StartRun()
+  - FinishRun(bool bVictory)
+  - GetRemainingTimeText()
+  - GetRunProgressAlpha()
+- 다음 확장:
+  - 플레이어 사망과 런 실패 연결
+  - 보스 처치 또는 탈출 조건과 Victory 연결
+  - UI 위젯에서 남은 시간 표시
+  - 런 시드 기반 방 생성 또는 보상 생성
+
+3. HUD 연결용 C++ 베이스 추가
+- 신규 HUD 베이스 클래스 추가:
+  - Source/Rogue10m/Rogue10mRunHUD.h
+  - Source/Rogue10m/Rogue10mRunHUD.cpp
+- BlueprintImplementableEvent를 통해 블루프린트 위젯에서 타이머와 런 상태 변경을 표시할 수 있게 했다.
+- PlayerController에 RunHUDClass를 추가하고, 로컬 플레이어에 HUD를 생성하도록 연결했다.
+
+Notion 정리 후보: Run HUD Bridge
+- 목적: C++ 런 상태를 UMG 위젯으로 전달
+- 핵심 클래스:
+  - URogue10mRunHUD
+  - ARogue10mPlayerController
+- 현재 기능:
+  - BP_UpdateRunTimer
+  - BP_OnRunPhaseChanged
+- 다음 확장:
+  - WBP_RunHUD 제작
+  - 남은 시간 텍스트와 진행 바 연결
+  - Victory/Defeat 화면 표시
+
+4. 프로젝트 문서 추가
+- Docs/Rogue10m_PrototypePlan.md를 추가했다.
+- 현재 프로젝트 가정, 블루프린트 연결 방법, 다음 설계 질문을 정리했다.
+- 전투 방향, 런 구조, 성장 방식, 실패 조건, 비주얼 톤은 아직 결정이 필요하다.
+
+5. GitHub 연동 및 브랜치 전략 설정
+- GitHub 저장소:
+  - https://github.com/chickenbugers/Rogue10m.git
+- 기본 브랜치 구조를 게임 개발에 맞게 설계했다.
+  - main: 안정 마일스톤 브랜치
+  - develop: 일상 개발 통합 브랜치
+  - test: 플레이테스트 브랜치
+- 작업 브랜치 규칙을 추가했다.
+  - feature/<name>: 게임 시스템, UI, AI, 전투
+  - content/<name>: 아트, 사운드, 애니메이션, VFX
+  - level/<name>: 맵, 방, 아레나, 조명
+  - balance/<name>: 스탯, 스폰, 아이템 테이블
+  - fix/<name>: 버그 수정
+- Docs/GitBranchStrategy.md에 브랜치 전략을 문서화했다.
+
+6. 하네스 엔지니어링 설정
+- 참고 저장소:
+  - https://github.com/BaeJongHo/Unreal_Harness
+- Claude 전용 설정을 그대로 복사하지 않고 Codex와 Rogue10m 환경에 맞게 이식했다.
+- 현재 작업 브랜치:
+  - feature/harness-engineering
+- 추가한 파일:
+  - AGENTS.md
+  - Docs/HarnessPipeline.md
+  - Docs/UnrealEngineeringRules.md
+  - Feature/README.md
+  - Feature/architect/README.md
+  - Feature/doc/README.md
+  - Scripts/BuildEditor.ps1
+  - Scripts/CheckGeneratedChanges.ps1
+  - Scripts/NewHarnessFeature.ps1
+- 하네스 파이프라인:
+  1. Architect: 설계 문서 작성
+  2. Implementer: 코드와 설정 구현
+  3. Builder: 빌드 검증
+  4. Reviewer: Unreal 특화 리뷰
+  5. Doc Writer: 개발 결과 문서화
+- 기능 개발 산출물 위치:
+  - Feature/architect/
+  - Feature/doc/
+
+Notion 정리 후보: Codex Unreal Harness
+- 목적: 기능 개발을 설계, 구현, 빌드, 리뷰, 문서화 단계로 관리
+- 핵심 파일:
+  - AGENTS.md
+  - Docs/HarnessPipeline.md
+  - Docs/UnrealEngineeringRules.md
+- 도구:
+  - BuildEditor.ps1: UE 에디터 타깃 빌드
+  - CheckGeneratedChanges.ps1: 생성/캐시 파일 커밋 방지 점검
+  - NewHarnessFeature.ps1: 기능별 설계/개발 문서 템플릿 생성
+
+7. 검증 결과
+- Unreal Header Tool 헤더 파싱은 통과했다.
+- 전체 C++ 빌드는 Unreal Editor Live Coding 활성화 때문에 중단되었다.
+  - 해결 방법: 에디터에서 Ctrl+Alt+F11로 Live Coding 컴파일을 하거나, 에디터를 종료한 뒤 BuildEditor.ps1 또는 Build.bat로 빌드한다.
+- 하네스 PowerShell 스크립트 3개는 문법 검사 통과.
+- Scripts/CheckGeneratedChanges.ps1 실행 통과.
+- GitHub 원격 브랜치 생성 및 push 확인.
+
+8. 현재 남은 결정 사항
+- 전투 방향:
+  - 총기 중심
+  - 근접 중심
+  - 마법/스킬 슈터
+  - 혼합형
+- 20분 런 구조:
+  - 단일 아레나 생존형
+  - 방/층 진행형
+  - 목표 달성 후 탈출형
+- 성장 방식:
+  - 런 중 레벨업 선택지
+  - 아이템 드랍
+  - 영구 성장
+  - 전부 포함
+- 실패 조건:
+  - 타이머 종료
+  - 플레이어 사망
+  - 둘 다
+- 비주얼 톤:
+  - SF
+  - 다크 판타지
+  - 현대 호러
+  - 추상 아레나
+
+9. 다음 작업 후보
+- WBP_RunHUD 제작 및 RunHUDClass 연결
+- 20분 타이머를 실제 화면에 표시
+- 플레이어 사망 조건과 Defeat 연결
+- 기본 적 스폰 시스템 설계
+- 첫 번째 전투 방식 결정
+- feature/run-hud 브랜치에서 HUD 기능 개발 시작
+
+오늘의 결론
+- 프로젝트는 이제 단순 First Person 템플릿에서 20분 런 기반 로그라이크 프로토타입으로 출발할 수 있는 최소 C++ 골격을 갖췄다.
+- GitHub 브랜치 전략과 하네스 문서가 준비되어 이후 기능 개발을 체계적으로 기록하고 검증할 수 있다.
+- 다음 단계는 실제 플레이 화면에서 런 타이머를 보이게 만드는 Run HUD 작업이 적합하다.
+
+---
+
+추가 로그 - 이미지 기반 개발 파이프라인 반영
+
+요청 내용
+- 첨부된 개발 파이프라인 이미지를 기반으로 Rogue10m 개발 구조를 잡기로 했다.
+- 이미지의 큰 흐름은 Pre-production, Production, Testing, Distribution, Post-Production 단계로 구성되어 있다.
+- Production 단계에는 In-development Testing이 연결되어 있고, Testing에는 QA Testing, Distribution에는 Final Build, Post-Production에는 DLC와 Patches가 연결되어 있다.
+- 매 작업마다 DevLog 작성 여부를 확인하는 규칙을 하네스 체크리스트에 포함하기로 했다.
+
+반영 내용
+- AGENTS.md에 Required Per-Command Checklist 섹션을 추가했다.
+- 모든 명령 처리 시 변경사항이 있으면 DevLog/YYYYMMDD.txt를 확인하고 이어 쓰도록 규칙화했다.
+- 오늘 날짜 파일이 없으면 생성하고, 있으면 기존 내용 아래에 추가 작성하도록 명시했다.
+- DevLog는 Tistory 업로드에 적합한 형태로 작성하고, 기능 개발 항목은 Notion 정리 후보로 표시하도록 정했다.
+- Docs/HarnessPipeline.md에 게임 개발 파이프라인 단계를 추가했다.
+- 기존 하네스의 Architect, Implementer, Builder, Reviewer, Doc Writer 흐름을 이미지의 개발 단계에 매핑했다.
+
+개발 파이프라인 매핑
+- Pre-production: Architect 단계, 기능 정의와 설계 문서 작성
+- Production: Implementer 단계, 실제 기능 구현
+- Production / In-development Testing: Builder 단계, 개발 중 빌드와 컴파일 검증
+- Testing / QA Testing: Reviewer 단계, 통합 검증과 Unreal 특화 리뷰
+- Distribution / Final Build: 안정 빌드와 릴리즈 후보 준비
+- Post-Production: DLC, Patches, 후속 수정과 콘텐츠 업데이트
+
+Notion 정리 후보: Rogue10m Development Pipeline
+- 목적: 게임 개발 전체 흐름을 프로젝트 하네스에 맞춰 관리
+- 기준 이미지 단계:
+  - Pre-production
+  - Production
+  - Testing
+  - Distribution
+  - Post-Production
+- 프로젝트 문서:
+  - AGENTS.md
+  - Docs/HarnessPipeline.md
+- 핵심 규칙:
+  - 기능 개발은 설계, 구현, 빌드, 리뷰, 문서화 흐름을 따른다.
+  - 모든 변경 작업은 당일 DevLog에 기록한다.
+  - 기능 단위 결과는 Notion 정리 후보로 남긴다.
+
+다음 작업 후보
+- DevLog 규칙을 실제 커밋 전 체크리스트로 계속 사용한다.
+- 기능 개발을 시작할 때 Scripts/NewHarnessFeature.ps1로 설계/개발 문서 템플릿을 만든다.
+- 첫 기능 후보는 Run HUD 표시 기능이 적합하다.
+
+추가 정리
+- Docs/HarnessPipeline.md의 파이프라인 표 헤더를 정리했다.
+- GitHub 반영 전 문서 구조가 깨져 보이지 않도록 확인했다.
+
+추가 로그 - 하네스 파이프라인 규칙 커밋 준비
+
+요청 내용
+- 이미지 기반 개발 파이프라인과 DevLog 필수 확인 규칙 변경사항을 커밋하기로 했다.
+
+커밋 대상
+- AGENTS.md
+- Docs/HarnessPipeline.md
+- DevLog/20260623.txt
+
+메모
+- 이번 커밋은 문서와 개발 로그 규칙 정리이며 C++ 런타임 코드는 변경하지 않는다.

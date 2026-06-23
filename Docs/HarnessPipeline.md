@@ -10,13 +10,31 @@ The harness keeps those concerns separated so feature work is easier to review, 
 
 ## Pipeline Stages
 
-| Stage | Role | Output |
-| --- | --- | --- |
-| 1 | Architect | `Feature/architect/<date>_<feature>.md` plan |
-| 2 | Implementer | Focused source/config/doc changes |
-| 3 | Builder | Build result and compile-only fixes |
-| 4 | Reviewer | Unreal-specific review findings |
-| 5 | Doc Writer | `Feature/doc/<date>_<feature>.md` result summary |
+| Game Pipeline | Harness Stage | Role | Output |
+| --- | --- | --- | --- |
+| Pre-production | 1 | Architect | `Feature/architect/<date>_<feature>.md` plan |
+| Production | 2 | Implementer | Focused source/config/doc changes |
+| Production / In-development Testing | 3 | Builder | Build result and compile-only fixes |
+| Testing / QA Testing | 4 | Reviewer | Unreal-specific review findings |
+| Distribution / Post-Production | 5 | Doc Writer | `Feature/doc/<date>_<feature>.md` result summary and DevLog update |
+
+## Game Development Pipeline
+
+Rogue10m follows this high-level development structure:
+
+```text
+Pre-production -> Production -> Testing -> Distribution -> Post-Production
+```
+
+- Pre-production: define the feature, scope, player-facing behavior, risks, and implementation plan.
+- Production: implement the feature in C++, config, Blueprint setup instructions, or content organization.
+- In-development Testing: build early and test while the feature is still being produced.
+- Testing / QA Testing: verify integrated behavior on `test` before promoting to `main`.
+- Distribution / Final Build: prepare stable builds, release candidates, and packaged output.
+- Post-Production: handle DLC, patches, fixes, and future content updates.
+
+The lower production/testing/distribution/post-production activities feed back into future packaging and patch work.
+This means every feature should leave enough documentation for future release notes and patch notes.
 
 ## Stage 1: Architect
 
@@ -79,7 +97,7 @@ Findings should identify file and line, severity, impact, and a concrete fix.
 
 ## Stage 5: Doc Writer
 
-Write the result to `Feature/doc/`.
+Write the result to `Feature/doc/` and update the daily DevLog.
 
 Include:
 
@@ -90,6 +108,20 @@ Include:
 - review result
 - editor or Blueprint setup still required
 - test notes for the next playtest
+
+## DevLog Rule
+
+Every command that changes the repository must update the daily log:
+
+```text
+DevLog/YYYYMMDD.txt
+```
+
+- Create `DevLog/` if missing.
+- Create the date file if missing.
+- Append if the file already exists.
+- Keep the text suitable for Tistory.
+- Mark feature-level summaries as Notion candidates.
 
 ## When To Use The Full Pipeline
 

@@ -18,13 +18,36 @@ It adapts the harness engineering ideas from `BaeJongHo/Unreal_Harness` to this 
 
 Use this pipeline for meaningful gameplay, tool, UI, AI, content, level, or balance work:
 
-1. Architect: inspect code and write a plan in `Feature/architect/`.
-2. Implementer: make scoped code/config/doc changes.
-3. Builder: run the relevant build command and fix local compile issues only.
-4. Reviewer: review the diff for Unreal-specific risks.
-5. Doc Writer: write the feature result in `Feature/doc/`.
+The high-level game development pipeline is:
+
+1. Pre-production: define the idea, scope, constraints, and design plan.
+2. Production: implement features and run in-development testing.
+3. Testing: run QA-style verification on integrated work.
+4. Distribution: prepare final builds and release candidates.
+5. Post-Production: track DLC, patches, and live fixes.
+
+Codex feature work maps onto that production flow:
+
+1. Architect: inspect code and write a plan in `Feature/architect/` (Pre-production).
+2. Implementer: make scoped code/config/doc changes (Production).
+3. Builder: run the relevant build command and fix local compile issues only (In-development testing).
+4. Reviewer: review the diff for Unreal-specific risks (Testing / QA).
+5. Doc Writer: write the feature result in `Feature/doc/` and update `DevLog/YYYYMMDD.txt`.
 
 Small typo fixes and tiny mechanical edits can skip the full pipeline, but still follow the Unreal rules below.
+
+## Required Per-Command Checklist
+
+Check this list on every user command before finishing:
+
+- Confirm whether the request changes code, config, docs, branch state, build settings, assets, or project structure.
+- If anything changed, update the daily development log in `DevLog/YYYYMMDD.txt`.
+- If the daily log file does not exist, create `DevLog/` and the date file first.
+- Append to the existing daily file instead of replacing prior entries.
+- Write DevLog entries in a Tistory-friendly format.
+- When a feature is developed, add a clearly marked Notion summary candidate inside the DevLog.
+- Before any GitHub commit or push summary, list the changed files and a short explanation.
+- Do not commit unless the user explicitly confirms.
 
 ## Unreal Engineering Rules
 
