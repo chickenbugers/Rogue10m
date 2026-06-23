@@ -11,9 +11,19 @@ class UInputComponent;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
+class URogue10mInventoryComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
+
+UENUM(BlueprintType)
+enum class ERogue10mWeaponType : uint8
+{
+	Unarmed,
+	Sword,
+	Staff,
+	Bow
+};
 
 /**
  *  A basic first person character
@@ -30,6 +40,10 @@ class ARogue10mCharacter : public ACharacter
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FirstPersonCameraComponent;
+
+	/** Inventory and equipment data for the character. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<URogue10mInventoryComponent> InventoryComponent;
 
 protected:
 
@@ -48,6 +62,28 @@ protected:
 	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	class UInputAction* MouseLookAction;
+
+	/** Current weapon type. The character starts unarmed. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|Combat")
+	ERogue10mWeaponType EquippedWeaponType = ERogue10mWeaponType::Unarmed;
+
+	/** Damage applied by the default unarmed attack. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Unarmed", meta=(ClampMin="0.0"))
+	float UnarmedDamage = 5.0f;
+
+	/** Forward reach of the default unarmed attack. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Unarmed", meta=(ClampMin="1.0"))
+	float UnarmedRange = 180.0f;
+
+	/** Trace radius for the default unarmed attack. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Unarmed", meta=(ClampMin="1.0"))
+	float UnarmedTraceRadius = 24.0f;
+
+	/** Minimum time between unarmed attacks. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Unarmed", meta=(ClampMin="0.01"))
+	float UnarmedAttackInterval = 0.55f;
+
+	float LastAttackTime = -1000.0f;
 	
 public:
 	ARogue10mCharacter();
@@ -76,6 +112,22 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
 
+	/** Handles primary attack inputs from controls. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
+	virtual void DoPrimaryAttack();
+
+	/** Performs the default unarmed attack. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
+	virtual void DoUnarmedAttack();
+
+	/** Toggles the prototype inventory panel. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory")
+	virtual void DoToggleInventory();
+
+	/** Toggles the prototype item window. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory")
+	virtual void DoToggleItemWindow();
+
 protected:
 
 	/** Set up input action bindings */
@@ -89,6 +141,9 @@ public:
 
 	/** Returns first person camera component **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
+
+	/** Returns inventory component **/
+	URogue10mInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
 };
 

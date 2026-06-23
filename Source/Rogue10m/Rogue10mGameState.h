@@ -33,6 +33,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Run")
 	void StartRun();
 
+	/** Starts a new run with a temporary duration override for prototypes and tests. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Run")
+	void StartRunWithDuration(float NewRunDurationSeconds);
+
 	/** Finishes the current run. */
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Run")
 	void FinishRun(bool bVictory);
@@ -53,6 +57,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Run")
 	bool IsRunActive() const { return RunPhase == ERogue10mRunPhase::Running; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Run")
+	ERogue10mRunPhase GetRunPhase() const { return RunPhase; }
 
 	UPROPERTY(BlueprintAssignable, Category="Rogue10m|Run")
 	FRogue10mRunTimerUpdated OnRunTimerUpdated;

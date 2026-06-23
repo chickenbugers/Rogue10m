@@ -7,11 +7,14 @@
 #include "Rogue10mGameMode.generated.h"
 
 class ARogue10mGameState;
+class APawn;
+class APlayerController;
+class AHUD;
 
 /**
  *  GameMode for the single-player roguelike run.
  */
-UCLASS(abstract)
+UCLASS()
 class ARogue10mGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
@@ -21,6 +24,12 @@ public:
 
 protected:
 	virtual void StartPlay() override;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Prototype")
+	bool bUsePrototypeRunDuration = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Prototype", meta=(EditCondition="bUsePrototypeRunDuration", ClampMin="1.0"))
+	float PrototypeRunDurationSeconds = 30.0f;
 };
 
 

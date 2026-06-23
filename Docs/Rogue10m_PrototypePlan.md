@@ -4,7 +4,7 @@
 
 - Engine association: UE 5.7 project installed under `D:\Program Files\UE_5.7`.
 - Default map: `/Game/FirstPerson/Lvl_FirstPerson`.
-- Default game mode: `/Game/FirstPerson/Blueprints/BP_FirstPersonGameMode`.
+- Default game mode: `/Script/Rogue10m.Rogue10mGameMode`.
 - C++ run state: `ARogue10mGameState`.
 - C++ HUD base: `URogue10mRunHUD`.
 
@@ -14,8 +14,29 @@
 - Each run starts automatically when play begins.
 - Default run duration is 20 minutes.
 - Timer expiry currently ends the run as defeat.
-- Victory condition is left open for the first prototype.
+- Victory condition: defeat the boss within 20 minutes.
 - Run seed, current floor, and defeated enemy count are tracked in C++ for later systems.
+- The character starts unarmed and can attack with fists.
+- Weapon mastery progresses by weapon type: sword, staff, bow, and future types.
+- Character customization is cosmetic only and does not affect stats.
+
+## Map Structure
+
+### Start Map
+
+The start map is a hub with NPC-driven systems.
+
+- Item NPC: lets the player receive or manage items.
+- Trait NPC: lets the player spend previously earned points on simple trait upgrades.
+- Difficulty NPC: lets the player adjust run difficulty.
+- Story NPC: introduces the game's starting story and run premise.
+
+### Play Map
+
+- First-person open-world combat map.
+- Target size: from one edge to the opposite edge should take about 5 minutes on foot.
+- Exact world dimensions are still undecided and should be tuned after movement speed is finalized.
+- The boss must be defeated within 20 minutes or the run fails.
 
 ## Blueprint Hookup
 
@@ -26,8 +47,8 @@
 
 ## Design Questions
 
-1. Combat direction: gun-focused shooter, melee-first, magic/ability shooter, or mixed?
-2. Run structure: one continuous arena for 20 minutes, floor-by-floor rooms, or extraction after objectives?
-3. Player growth: level-up choices during the run, loot drops, permanent upgrades, or all three?
-4. Failure condition: timer reaches zero, player death, or both?
+1. Exact start map NPC layout and interaction range.
+2. Play map traversal size after finalizing movement speed.
+3. Boss spawn timing and boss arena rules.
+4. Item reward table after boss clear.
 5. Visual tone: sci-fi, dark fantasy, modern horror, abstract arena, or another direction?

@@ -32,6 +32,12 @@ void ARogue10mGameState::StartRun()
 	GetWorldTimerManager().SetTimer(RunTimerHandle, this, &ARogue10mGameState::TickRunTimer, 1.0f, true);
 }
 
+void ARogue10mGameState::StartRunWithDuration(float NewRunDurationSeconds)
+{
+	RunDurationSeconds = FMath::Max(1.0f, NewRunDurationSeconds);
+	StartRun();
+}
+
 void ARogue10mGameState::FinishRun(bool bVictory)
 {
 	GetWorldTimerManager().ClearTimer(RunTimerHandle);
