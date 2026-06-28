@@ -12,6 +12,7 @@ class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
 class URogue10mInventoryComponent;
+class URogue10mVitalsComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -44,6 +45,10 @@ class ARogue10mCharacter : public ACharacter
 	/** Inventory and equipment data for the character. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<URogue10mInventoryComponent> InventoryComponent;
+
+	/** Health, mana, and stamina data for the character. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<URogue10mVitalsComponent> VitalsComponent;
 
 protected:
 
@@ -156,6 +161,9 @@ public:
 
 	/** Returns inventory component **/
 	URogue10mInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
+	/** Returns vitals component **/
+	URogue10mVitalsComponent* GetVitalsComponent() const { return VitalsComponent; }
 
 	/** Returns whether the run failure has killed this character. **/
 	UFUNCTION(BlueprintPure, Category="Rogue10m|State")

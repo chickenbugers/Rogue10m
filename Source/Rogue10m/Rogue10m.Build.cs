@@ -25,6 +25,11 @@ public class Rogue10m : ModuleRules
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Rogue10m",
+			"Rogue10m/Core",
+			"Rogue10m/Character",
+			"Rogue10m/Components",
+			"Rogue10m/UI",
+			"Rogue10m/World",
 			"Rogue10m/Variant_Horror",
 			"Rogue10m/Variant_Horror/UI",
 			"Rogue10m/Variant_Shooter",

@@ -61,7 +61,13 @@ struct FRogue10mItemStack
 	ERogue10mItemCategory Category = ERogue10mItemCategory::Material;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Items")
+	ERogue10mInventorySlotType EquipSlotType = ERogue10mInventorySlotType::Material;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Items")
 	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Items")
+	FText Description;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Items", meta=(ClampMin="0"))
 	int32 Quantity = 1;
@@ -105,6 +111,15 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Items")
 	int32 GetCrystals() const { return Crystals; }
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
+	bool TryEquipItemFromSlot(int32 ItemSlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
+	bool TryEquipItemToSlot(int32 ItemSlotIndex, ERogue10mInventorySlotType TargetSlotType);
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
+	bool TryMoveItemSlot(int32 SourceItemSlotIndex, int32 TargetItemSlotIndex);
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory")
 	TArray<FRogue10mInventorySlot> LeftEquipmentSlots;
@@ -119,13 +134,14 @@ protected:
 	int32 ItemGridColumns = 10;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items", meta=(ClampMin="0"))
-	int32 Gold = 69261245;
+	int32 Gold = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items", meta=(ClampMin="0"))
-	int32 Crystals = 102145;
+	int32 Crystals = 0;
 
 private:
 	static FRogue10mInventorySlot MakeSlot(ERogue10mInventorySlotType SlotType, const TCHAR* DisplayName, const FLinearColor& SlotColor, bool bLocked, bool bEquipped);
-	static FRogue10mItemStack MakeItem(ERogue10mItemCategory Category, const TCHAR* DisplayName, int32 Quantity, const FLinearColor& ItemColor, bool bLocked = false);
+	static FRogue10mItemStack MakeItem(ERogue10mItemCategory Category, ERogue10mInventorySlotType EquipSlotType, const TCHAR* DisplayName, const TCHAR* Description, int32 Quantity, const FLinearColor& ItemColor, bool bLocked = false);
 	static FRogue10mItemStack MakeEmptyItem();
+	FRogue10mInventorySlot* FindEquipmentSlot(ERogue10mInventorySlotType SlotType);
 };

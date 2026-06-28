@@ -22,8 +22,21 @@ Inventory And Item Windows
   - LeftEquipmentSlots
   - RightEquipmentSlots
   - ItemSlots
-  - Gold
-  - Crystals
+  - Gold display value, currently 0 until a currency component is added
+  - Crystal display value, currently 0 until a currency component is added
+
+[Currency Display Direction]
+Pseudo:
+  Current prototype:
+    InventoryComponent.GetGold returns 0
+    InventoryComponent.GetCrystals returns 0
+    HUD draws these values in the item window footer
+
+  Future currency component:
+    Character or PlayerState owns CurrencyComponent
+    CurrencyComponent stores gold, crystals, and other account/run currencies
+    HUD asks CurrencyComponent for currency values
+    InventoryComponent stops owning currency values directly
 
 [Toggle Flow]
 Pseudo:
@@ -55,7 +68,9 @@ Pseudo:
       Return
     Get owning pawn as Rogue10mCharacter
     Get InventoryComponent
-    Calculate panel size from current canvas
+    Calculate panel size from current canvas:
+      Width = screen width * 0.5
+      Height = screen height * 0.5
     If window position is uninitialized:
       Center window
     Clamp window inside screen
@@ -73,7 +88,9 @@ Pseudo:
       Return
     Get owning pawn as Rogue10mCharacter
     Get InventoryComponent
-    Calculate panel size from current canvas
+    Calculate panel size from current canvas:
+      Width = screen width * 0.3
+      Height = screen height * 0.5
     If window position is uninitialized:
       Center window with small offset
     Clamp window inside screen
@@ -108,6 +125,144 @@ Pseudo:
       ItemWindowPosition = Clamp(mouse - DragOffset)
     If DraggedWindow == Equipment:
       InventoryWindowPosition = Clamp(mouse - DragOffset)
+
+[Item Hover Tooltip Flow]
+Pseudo:
+  HUD.DrawHUD:
+    Reset hovered item state
+    Draw item window
+    Draw hovered item tooltip after item window so it appears on top
+
+  HUD.DrawItemGrid:
+    Read current mouse position
+    For each item slot:
+      Calculate slot rectangle from row and column
+      Draw slot background
+      If slot is empty:
+        Continue
+
+      Draw item icon placeholder and quantity
+      If mouse is inside slot rectangle:
+        Draw hover highlight
+        Store HoveredItem copy
+        Store HoveredItemSlotIndex
+        Store HoveredItemMousePosition
+
+  HUD.DrawHoveredItemTooltip:
+    If no occupied hovered item exists:
+      Return
+    Position tooltip near mouse and clamp it inside screen
+    Draw item name
+    Draw category and quantity
+    If item is equipment:
+      Draw target equipment slot
+    Draw item description
+    Draw action hint:
+      Locked item
+      Not equipable
+      Right-click : Equip
+
+[Right Click Equip Flow]
+Pseudo:
+  HUD.DrawItemGrid:
+    If occupied item is hovered and right mouse was just pressed:
+      InventoryComponent.TryEquipItemFromSlot(item index)
+
+  InventoryComponent.TryEquipItemFromSlot(ItemSlotIndex):
+    If item index is invalid:
+      Return false
+    If item is empty, locked, or not equipment:
+      Return false
+
+    EquipmentSlot = FindEquipmentSlot(item.EquipSlotType)
+    If slot is missing or locked:
+      Return false
+
+    EquipmentSlot.DisplayName = item.DisplayName
+    EquipmentSlot.SlotColor = item.ItemColor
+    EquipmentSlot.bEquipped = true
+    Return true
+
+[Left Click Drag Equip Flow]
+Pseudo:
+  HUD.DrawHUD:
+    Reset equipment slot hit areas for this frame
+    Draw equipment window first so equipment slot rectangles are stored
+    Draw item window
+    Draw dragged item ghost last so it appears above all inventory windows
+
+  HUD.DrawInventorySlots:
+    For each equipment slot:
+      Store hit area:
+        SlotType
+        Position
+        Size
+        Locked state
+      If an item is currently being dragged and item type matches this slot:
+        Draw green drop highlight
+
+  HUD.DrawItemGrid:
+    Read mouse position and left mouse state
+    If item drag is active:
+      Update dragged item mouse position
+      If left mouse was released:
+        DropTarget = FindEquipmentSlotHitArea(mouse position)
+        If DropTarget exists:
+          InventoryComponent.TryEquipItemToSlot(dragged item index, DropTarget.SlotType)
+        Else:
+          ItemDropTarget = item slot under mouse
+          If ItemDropTarget exists:
+            InventoryComponent.TryMoveItemSlot(dragged item index, ItemDropTarget.SlotIndex)
+        Clear dragged item state
+
+    For each occupied item slot:
+      If mouse is hovering this item and left mouse was just pressed:
+        If item is not locked:
+          Store dragged item copy
+          Store dragged item slot index
+          Store dragged item mouse position
+          Hide hover tooltip while dragging
+
+  HUD.DrawDraggedItem:
+    If no drag item exists:
+      Return
+    Draw item ghost centered on mouse
+    If mouse is over matching unlocked equipment slot:
+      Draw "Release : Equip"
+    Else:
+      If mouse is over another item slot:
+        Draw "Release : Move"
+      Else:
+        Draw "Drop on slot"
+
+  InventoryComponent.TryMoveItemSlot(SourceItemSlotIndex, TargetItemSlotIndex):
+    If source or target index is invalid:
+      Return false
+    If source and target are the same:
+      Return false
+    If source is empty or locked:
+      Return false
+    If target is locked:
+      Return false
+    If target is occupied:
+      Swap source and target
+    Else:
+      Move source item into target
+      Clear source slot
+    Return true
+
+  InventoryComponent.TryEquipItemToSlot(ItemSlotIndex, TargetSlotType):
+    If item index is invalid:
+      Return false
+    If item is empty, locked, or not equipment:
+      Return false
+    If item.EquipSlotType does not match TargetSlotType:
+      Return false
+    If target equipment slot is missing or locked:
+      Return false
+    Apply item name and color to equipment slot
+    Set equipment slot equipped
+    Return true
 
 [Expansion Notes]
 - Replace Canvas drawing with UMG widgets when layout complexity grows.

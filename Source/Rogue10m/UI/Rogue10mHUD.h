@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "Rogue10mInventoryComponent.h"
 #include "Rogue10mHUD.generated.h"
 
 enum class ERogue10mDraggedWindow : uint8
@@ -19,6 +20,22 @@ class ARogue10mCharacter;
 class USceneCaptureComponent2D;
 class USkeletalMeshComponent;
 class UTextureRenderTarget2D;
+
+struct FRogue10mEquipmentSlotHitArea
+{
+	ERogue10mInventorySlotType SlotType = ERogue10mInventorySlotType::Material;
+	FVector2D Position = FVector2D::ZeroVector;
+	FVector2D Size = FVector2D::ZeroVector;
+	bool bLocked = false;
+};
+
+struct FRogue10mItemSlotHitArea
+{
+	int32 SlotIndex = INDEX_NONE;
+	FVector2D Position = FVector2D::ZeroVector;
+	FVector2D Size = FVector2D::ZeroVector;
+	bool bLocked = false;
+};
 
 /**
  * Minimal C++ HUD for prototype run state.
@@ -79,15 +96,24 @@ protected:
 private:
 	void DrawRunTimer();
 	void DrawRunResult();
+	void DrawVitals();
+	void DrawVitalBar(const FString& Label, const struct FRogue10mVitalValue& Vital, const FVector2D& Position, const FVector2D& Size, const FLinearColor& FillColor);
 	void DrawInventory();
 	void DrawItemWindow();
 	void DrawInventorySlots(const TArray<struct FRogue10mInventorySlot>& Slots, float X, float Y, float SlotSize, float Gap, bool bRightSide);
-	void DrawItemGrid(const TArray<struct FRogue10mItemStack>& Items, int32 Columns, float X, float Y, float SlotSize, float Gap);
+	void DrawItemGrid(class URogue10mInventoryComponent* InventoryComponent, float X, float Y, float SlotSize, float Gap, float MaxWidth, float MaxHeight);
+	void DrawHoveredItemTooltip();
+	void DrawDraggedItem();
 	void DrawCharacterPreview(const ARogue10mCharacter* RogueCharacter, float X, float Y, float Width, float Height);
 	void UpdateWindowDrag();
 	void UpdateInventoryCursor() const;
 	bool EnsureCharacterPreview(const ARogue10mCharacter* RogueCharacter, int32 RenderTargetWidth, int32 RenderTargetHeight);
 	void UpdateCharacterPreview(const ARogue10mCharacter* RogueCharacter);
+	FString GetItemCategoryText(ERogue10mItemCategory Category) const;
+	FString GetEquipmentSlotText(ERogue10mInventorySlotType SlotType) const;
+	const FRogue10mEquipmentSlotHitArea* FindEquipmentSlotHitArea(const FVector2D& MousePosition) const;
+	const FRogue10mItemSlotHitArea* FindItemSlotHitArea(const FVector2D& MousePosition) const;
+	bool IsItemCompatibleWithSlot(const FRogue10mItemStack& Item, ERogue10mInventorySlotType SlotType) const;
 	bool IsPointInRect(const FVector2D& Point, const FVector2D& RectPosition, const FVector2D& RectSize) const;
 	FVector2D ClampWindowPosition(const FVector2D& Position, const FVector2D& Size) const;
 
@@ -101,6 +127,16 @@ private:
 	FVector2D CharacterPreviewSize = FVector2D::ZeroVector;
 	float CharacterPreviewYaw = 180.0f;
 	float LastCharacterPreviewDragX = 0.0f;
+	bool bHasHoveredItem = false;
+	FRogue10mItemStack HoveredItem;
+	FVector2D HoveredItemMousePosition = FVector2D::ZeroVector;
+	int32 HoveredItemSlotIndex = INDEX_NONE;
+	bool bIsDraggingItem = false;
+	FRogue10mItemStack DraggedItem;
+	FVector2D DraggedItemMousePosition = FVector2D::ZeroVector;
+	int32 DraggedItemSlotIndex = INDEX_NONE;
+	TArray<FRogue10mEquipmentSlotHitArea> EquipmentSlotHitAreas;
+	TArray<FRogue10mItemSlotHitArea> ItemSlotHitAreas;
 
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> CharacterPreviewActor;

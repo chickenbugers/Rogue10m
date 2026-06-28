@@ -15,6 +15,7 @@
 #include "Rogue10m.h"
 #include "Rogue10mHUD.h"
 #include "Rogue10mInventoryComponent.h"
+#include "Rogue10mVitalsComponent.h"
 
 ARogue10mCharacter::ARogue10mCharacter()
 {
@@ -24,6 +25,7 @@ ARogue10mCharacter::ARogue10mCharacter()
 	// Create the first person mesh that will be viewed only by this character's owner
 	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person Mesh"));
 	InventoryComponent = CreateDefaultSubobject<URogue10mInventoryComponent>(TEXT("Inventory Component"));
+	VitalsComponent = CreateDefaultSubobject<URogue10mVitalsComponent>(TEXT("Vitals Component"));
 
 	FirstPersonMesh->SetupAttachment(GetMesh());
 	FirstPersonMesh->SetOnlyOwnerSee(true);

@@ -1,0 +1,83 @@
+Character Vitals
+================
+
+[Purpose]
+- Give the player character simple health, mana, and stamina data.
+- Show health and stamina on the HUD by default.
+- Hide mana and other special resource bars until a feature flag enables them.
+- Keep the system ready for combat damage, spell costs, stamina actions, and regeneration later.
+
+[Runtime State]
+- Character owns:
+  - Rogue10mVitalsComponent
+- VitalsComponent owns:
+  - Health Current / Max
+  - Mana Current / Max
+  - Stamina Current / Max
+  - bShowMana, default false
+
+[Component Flow]
+Pseudo:
+  VitalsComponent constructor:
+    Disable tick
+    Health = 100 / 100
+    Mana = 50 / 50
+    Stamina = 100 / 100
+    bShowMana = false
+
+  SetShowMana(NewValue):
+    bShowMana = NewValue
+
+  SetHealth(NewCurrent):
+    Clamp NewCurrent between 0 and Health.Max
+    Store in Health.Current
+
+  SetMana(NewCurrent):
+    Clamp NewCurrent between 0 and Mana.Max
+    Store in Mana.Current
+
+  SetStamina(NewCurrent):
+    Clamp NewCurrent between 0 and Stamina.Max
+    Store in Stamina.Current
+
+  RestoreAll:
+    Health.Current = Health.Max
+    Mana.Current = Mana.Max
+    Stamina.Current = Stamina.Max
+
+[Character Flow]
+Pseudo:
+  Character constructor:
+    Create VitalsComponent
+
+  GetVitalsComponent:
+    Return VitalsComponent
+
+[HUD Flow]
+Pseudo:
+  HUD.DrawHUD:
+    Draw run timer
+    Draw character vitals
+    Draw other active UI
+
+  HUD.DrawVitals:
+    Get owning pawn as Rogue10mCharacter
+    Get character VitalsComponent
+    If missing:
+      Return
+    Draw HP bar
+    If bShowMana is true:
+      Draw MP bar
+    Draw SP bar
+
+  HUD.DrawVitalBar:
+    FillAlpha = Current / Max
+    Draw dark bar background
+    Draw filled bar by FillAlpha
+    Draw label and numeric value
+
+[Expansion Notes]
+- Damage should call SetHealth(CurrentHealth - Damage).
+- Spell casting should spend mana through SetMana.
+- Sprint, dodge, and charged attacks should spend stamina through SetStamina.
+- Regeneration can be implemented with timers or a component tick only when needed.

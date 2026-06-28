@@ -27,3 +27,62 @@
 [Main Merge]
 - Prepared feature/harness-engineering for merge into main after verifying the feature branch contents.
 - Main merge includes run failure/death flow, equipment character preview, DevLog entries, and feature pseudocode documentation.
+
+[Inventory Item Interaction]
+- Added item hover detection in the item window grid.
+- Added a tooltip panel that shows item name, category, quantity, equipment slot, description, and available action state.
+- Added right-click equip behavior for equipment items.
+- URogue10mInventoryComponent now stores item equip slot type and description data, and can apply equipment items to matching equipment slots.
+- Updated the inventory pseudocode document with hover tooltip and right-click equip flows.
+
+[Notion Summary Candidate]
+- Inventory interaction: item slots now support hover tooltips and right-click equipment assignment. Locked items and non-equipment items are rejected by the equip flow.
+
+[Inventory Drag Equip]
+- Added left-click item dragging from the item window.
+- Equipment slots now register hit areas while drawing, allowing dragged items to be dropped onto matching equipment slots.
+- Dragged items render as a mouse-following ghost with drop feedback.
+- URogue10mInventoryComponent now supports equipping an item to a specific target equipment slot type.
+- Updated the inventory pseudocode document with the drag/drop equip flow.
+
+[Notion Summary Candidate]
+- Inventory drag equip: players can drag an unlocked item from the item window and release it over a matching equipment slot to equip it. Slot compatibility is checked by equipment slot type.
+
+[Inventory Currency Baseline]
+- Reset prototype inventory currency display values to 0.
+- Documented the direction that gold, crystals, and other currency values should later come from a dedicated currency management component instead of being owned by the inventory component.
+
+[Character Vitals]
+- Added URogue10mVitalsComponent for player character health, mana, and stamina data.
+- Attached the vitals component to ARogue10mCharacter.
+- Added simple HUD bars for HP, MP, and SP using the character vitals data.
+- Added CharacterVitals pseudocode documentation for future combat, spell, stamina, and regeneration work.
+
+[Notion Summary Candidate]
+- Character vitals: the player character now owns health, mana, and stamina values through a dedicated component, and the HUD displays those values as simple prototype bars.
+
+[Vitals Visibility]
+- Updated vitals HUD behavior so health and stamina are visible by default.
+- Added a mana visibility flag to URogue10mVitalsComponent.
+- Mana is stored as character data but hidden from HUD until bShowMana is enabled.
+- Updated CharacterVitals pseudocode to describe default and optional stat bar visibility.
+
+[Source Folder Organization]
+- Grouped Source/Rogue10m C++ files into larger feature folders.
+- Core now contains the module entry, game mode, game state, player controller, and camera manager.
+- Character now contains the player character implementation.
+- Components now contains inventory and vitals components.
+- UI now contains HUD and run HUD classes.
+- World now contains map data library code.
+- Updated Rogue10m.Build.cs include paths so existing short include names continue to compile.
+
+[Inventory Layout And Item Move]
+- Resized the item inventory window to 30% of screen width and 50% of screen height.
+- Resized the equipment window to 50% of screen width and 50% of screen height.
+- Updated item grid layout to fit the smaller inventory window.
+- Added item slot drag/drop movement inside the inventory grid.
+- Dropping an item onto an empty slot moves it; dropping onto an occupied slot swaps the two items.
+- Drag/drop onto matching equipment slots still equips the dragged item.
+
+[Notion Summary Candidate]
+- Inventory layout and movement: item inventory and equipment windows now use fixed screen-relative sizes, and items can be rearranged inside the inventory via drag and drop while retaining equipment-slot drop behavior.
