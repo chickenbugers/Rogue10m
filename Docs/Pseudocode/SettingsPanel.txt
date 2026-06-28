@@ -1,0 +1,76 @@
+Settings Panel
+==============
+
+[Purpose]
+- Provide a simple in-game settings panel opened with the O key.
+- Let the player adjust voice volume and look sensitivity.
+- Keep X and Y look sensitivity separate.
+- Provide FPS limit buttons for 60, 120, and 140 FPS.
+
+[Input Flow]
+Pseudo:
+  Character.SetupPlayerInputComponent:
+    Bind O pressed -> DoToggleSettings
+
+  Character.DoToggleSettings:
+    If character is dead:
+      Return
+    Get Rogue10mHUD
+    Toggle settings panel
+    If any blocking UI is visible:
+      Stop movement immediately
+
+  Character.DoAim:
+    If dead or UI is blocking:
+      Return
+    Get look sensitivity X/Y from HUD
+    Apply yaw input multiplied by X sensitivity
+    Apply pitch input multiplied by Y sensitivity
+
+[HUD State]
+Pseudo:
+  HUD owns:
+    bSettingsVisible
+    SettingsWindowPosition
+    DraggedSettingsSlider
+    MasterVolume
+    LookSensitivityX
+    LookSensitivityY
+    CurrentFpsLimit
+
+[Panel Flow]
+Pseudo:
+  HUD.DrawSettingsPanel:
+    If settings panel is hidden:
+      Return
+    Clamp panel position to screen
+    Update settings mouse interaction
+    Draw panel and title bar
+    Draw Voice Volume slider
+    Draw Look Sensitivity X slider
+    Draw Look Sensitivity Y slider
+    Draw FPS buttons for 60, 120, 140
+
+  HUD.UpdateSettingsInteraction:
+    If left mouse is released:
+      Stop dragging slider
+    If left mouse pressed on a slider track:
+      Mark that slider as dragged
+    If a slider is being dragged:
+      Convert mouse X to 0..1 alpha
+      Update matching setting value
+
+  HUD.ApplyFpsLimit:
+    Store selected FPS value
+    Execute console command:
+      t.MaxFPS <value>
+
+  HUD.ApplyAudioVolume:
+    Execute console command:
+      au.GlobalVolumeMultiplier <value>
+
+[Profiling Notes]
+- Settings panel is drawn only when bSettingsVisible is true.
+- Slider hit testing uses fixed checks for three sliders and does not allocate a temporary array per frame.
+- Sensitivity lookup during camera input is one HUD pointer lookup and two float reads.
+- FPS and volume console commands only run when the player changes the related setting.

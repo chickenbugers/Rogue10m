@@ -74,9 +74,41 @@ void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		UE_LOG(LogRogue10m, Error, TEXT("'%s' Failed to find an Enhanced Input Component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
 
-	PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ARogue10mCharacter::DoPrimaryAttack);
+	PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ARogue10mCharacter::DoPrimaryAttackPressed);
+	PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &ARogue10mCharacter::DoPrimaryAttackReleased);
+	PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &ARogue10mCharacter::DoSpecialAttackPressed);
+	PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this, &ARogue10mCharacter::DoSpecialAttackReleased);
 	PlayerInputComponent->BindKey(EKeys::I, IE_Pressed, this, &ARogue10mCharacter::DoToggleInventory);
 	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ARogue10mCharacter::DoToggleItemWindow);
+	PlayerInputComponent->BindKey(EKeys::K, IE_Pressed, this, &ARogue10mCharacter::DoToggleSkillTree);
+	PlayerInputComponent->BindKey(EKeys::O, IE_Pressed, this, &ARogue10mCharacter::DoToggleSettings);
+
+	// 숫자 1~5 키를 하단 퀵 슬롯 UI와 연결합니다.
+	PlayerInputComponent->BindKey(EKeys::One, IE_Pressed, this, &ARogue10mCharacter::DoQuickSlot1);
+	PlayerInputComponent->BindKey(EKeys::Two, IE_Pressed, this, &ARogue10mCharacter::DoQuickSlot2);
+	PlayerInputComponent->BindKey(EKeys::Three, IE_Pressed, this, &ARogue10mCharacter::DoQuickSlot3);
+	PlayerInputComponent->BindKey(EKeys::Four, IE_Pressed, this, &ARogue10mCharacter::DoQuickSlot4);
+	PlayerInputComponent->BindKey(EKeys::Five, IE_Pressed, this, &ARogue10mCharacter::DoQuickSlot5);
+}
+
+float ARogue10mCharacter::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	const float AppliedDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	if (bIsDead || !VitalsComponent || DamageAmount <= 0.0f)
+	{
+		return AppliedDamage;
+	}
+
+	const float NewHealth = VitalsComponent->GetHealth().Current - DamageAmount;
+	VitalsComponent->SetHealth(NewHealth);
+	UE_LOG(LogRogue10m, Log, TEXT("%s took %.1f damage. HP %.1f / %.1f"), *GetNameSafe(this), DamageAmount, VitalsComponent->GetHealth().Current, VitalsComponent->GetHealth().Max);
+
+	if (VitalsComponent->GetHealth().Current <= 0.0f)
+	{
+		Die();
+	}
+
+	return DamageAmount;
 }
 
 
@@ -102,16 +134,34 @@ void ARogue10mCharacter::LookInput(const FInputActionValue& Value)
 
 void ARogue10mCharacter::DoAim(float Yaw, float Pitch)
 {
-	if (!bIsDead && GetController())
+	if (bIsDead || IsInventoryWindowBlockingMovement() || !GetController())
 	{
-		// pass the rotation inputs
-		AddControllerYawInput(Yaw);
-		AddControllerPitchInput(Pitch);
+		return;
 	}
+
+	float SensitivityX = 1.0f;
+	float SensitivityY = 1.0f;
+	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (const ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+		{
+			SensitivityX = RogueHUD->GetLookSensitivityX();
+			SensitivityY = RogueHUD->GetLookSensitivityY();
+		}
+	}
+
+	AddControllerYawInput(Yaw * SensitivityX);
+	AddControllerPitchInput(Pitch * SensitivityY);
 }
 
 void ARogue10mCharacter::DoMove(float Right, float Forward)
 {
+	if (IsInventoryWindowBlockingMovement())
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+		return;
+	}
+
 	if (!bIsDead && GetController())
 	{
 		// pass the move inputs
@@ -122,7 +172,7 @@ void ARogue10mCharacter::DoMove(float Right, float Forward)
 
 void ARogue10mCharacter::DoJumpStart()
 {
-	if (bIsDead)
+	if (bIsDead || IsInventoryWindowBlockingMovement())
 	{
 		return;
 	}
@@ -133,7 +183,7 @@ void ARogue10mCharacter::DoJumpStart()
 
 void ARogue10mCharacter::DoJumpEnd()
 {
-	if (bIsDead)
+	if (bIsDead || IsInventoryWindowBlockingMovement())
 	{
 		return;
 	}
@@ -142,30 +192,24 @@ void ARogue10mCharacter::DoJumpEnd()
 	StopJumping();
 }
 
-void ARogue10mCharacter::DoPrimaryAttack()
+void ARogue10mCharacter::DoPrimaryAttackPressed()
 {
-	if (bIsDead)
-	{
-		return;
-	}
+	BeginCombatAttack(true);
+}
 
-	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
-	{
-		if (const ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>(); RogueHUD && RogueHUD->IsAnyInventoryWindowVisible())
-		{
-			return;
-		}
-	}
+void ARogue10mCharacter::DoPrimaryAttackReleased()
+{
+	EndCombatAttack(true);
+}
 
-	switch (EquippedWeaponType)
-	{
-	case ERogue10mWeaponType::Unarmed:
-		DoUnarmedAttack();
-		break;
-	default:
-		UE_LOG(LogRogue10m, Verbose, TEXT("Weapon attack is not implemented yet."));
-		break;
-	}
+void ARogue10mCharacter::DoSpecialAttackPressed()
+{
+	BeginCombatAttack(false);
+}
+
+void ARogue10mCharacter::DoSpecialAttackReleased()
+{
+	EndCombatAttack(false);
 }
 
 void ARogue10mCharacter::DoToggleItemWindow()
@@ -184,6 +228,10 @@ void ARogue10mCharacter::DoToggleItemWindow()
 	if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
 	{
 		RogueHUD->ToggleItemWindow();
+		if (RogueHUD->IsAnyBlockingWindowVisible())
+		{
+			GetCharacterMovement()->StopMovementImmediately();
+		}
 	}
 }
 
@@ -203,6 +251,7 @@ void ARogue10mCharacter::DoUnarmedAttack()
 	const float CurrentTime = World->GetTimeSeconds();
 	if (CurrentTime - LastAttackTime < UnarmedAttackInterval)
 	{
+		AddCombatScreenLog(TEXT("Attack input accepted, but unarmed trace is on cooldown."), FLinearColor(1.0f, 0.65f, 0.35f, 1.0f));
 		return;
 	}
 
@@ -226,10 +275,12 @@ void ARogue10mCharacter::DoUnarmedAttack()
 	{
 		UGameplayStatics::ApplyDamage(HitResult.GetActor(), UnarmedDamage, GetController(), this, UDamageType::StaticClass());
 		UE_LOG(LogRogue10m, Log, TEXT("Unarmed attack hit %s."), *GetNameSafe(HitResult.GetActor()));
+		AddCombatScreenLog(FString::Printf(TEXT("Unarmed trace hit: %s"), *GetNameSafe(HitResult.GetActor())), FLinearColor(0.35f, 1.0f, 0.62f, 1.0f));
 	}
 	else
 	{
 		UE_LOG(LogRogue10m, Verbose, TEXT("Unarmed attack missed."));
+		AddCombatScreenLog(TEXT("Unarmed trace missed."), FLinearColor(0.85f, 0.86f, 0.9f, 1.0f));
 	}
 }
 
@@ -249,7 +300,82 @@ void ARogue10mCharacter::DoToggleInventory()
 	if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
 	{
 		RogueHUD->ToggleInventory();
+		if (RogueHUD->IsAnyBlockingWindowVisible())
+		{
+			GetCharacterMovement()->StopMovementImmediately();
+		}
 	}
+}
+
+void ARogue10mCharacter::DoToggleSkillTree()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+	{
+		RogueHUD->ToggleSkillTree();
+		if (RogueHUD->IsAnyBlockingWindowVisible())
+		{
+			GetCharacterMovement()->StopMovementImmediately();
+		}
+	}
+}
+
+void ARogue10mCharacter::DoToggleSettings()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+	{
+		RogueHUD->ToggleSettings();
+		if (RogueHUD->IsAnyBlockingWindowVisible())
+		{
+			GetCharacterMovement()->StopMovementImmediately();
+		}
+	}
+}
+
+void ARogue10mCharacter::DoQuickSlot1()
+{
+	ActivateQuickSlot(1);
+}
+
+void ARogue10mCharacter::DoQuickSlot2()
+{
+	ActivateQuickSlot(2);
+}
+
+void ARogue10mCharacter::DoQuickSlot3()
+{
+	ActivateQuickSlot(3);
+}
+
+void ARogue10mCharacter::DoQuickSlot4()
+{
+	ActivateQuickSlot(4);
+}
+
+void ARogue10mCharacter::DoQuickSlot5()
+{
+	ActivateQuickSlot(5);
 }
 
 void ARogue10mCharacter::Die()
@@ -269,6 +395,8 @@ void ARogue10mCharacter::Die()
 		{
 			RogueHUD->SetInventoryVisible(false);
 			RogueHUD->SetItemWindowVisible(false);
+			RogueHUD->SetSkillTreeVisible(false);
+			RogueHUD->SetSettingsVisible(false);
 		}
 	}
 
@@ -276,6 +404,137 @@ void ARogue10mCharacter::Die()
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	UE_LOG(LogRogue10m, Log, TEXT("%s died after the run timer expired."), *GetNameSafe(this));
+	UE_LOG(LogRogue10m, Log, TEXT("%s died."), *GetNameSafe(this));
 	BP_OnRunDeath();
+}
+
+void ARogue10mCharacter::SetEquippedWeaponType(ERogue10mWeaponType NewWeaponType)
+{
+	// 무기 아이템 장착 성공 시 인벤토리 컴포넌트가 호출하는 갱신 지점입니다.
+	EquippedWeaponType = NewWeaponType;
+	UE_LOG(LogRogue10m, Log, TEXT("%s equipped weapon type %d."), *GetNameSafe(this), static_cast<int32>(EquippedWeaponType));
+}
+
+bool ARogue10mCharacter::IsInventoryWindowBlockingMovement() const
+{
+	const APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	const ARogue10mHUD* RogueHUD = PlayerController ? PlayerController->GetHUD<ARogue10mHUD>() : nullptr;
+	return RogueHUD && RogueHUD->IsAnyBlockingWindowVisible();
+}
+
+bool ARogue10mCharacter::CanUseCombatInput() const
+{
+	return !bIsDead && !IsInventoryWindowBlockingMovement();
+}
+
+void ARogue10mCharacter::BeginCombatAttack(bool bPrimaryAttack)
+{
+	if (!CanUseCombatInput())
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	float& PressedTime = bPrimaryAttack ? LeftAttackPressedTime : RightAttackPressedTime;
+	PressedTime = World->GetTimeSeconds();
+
+	const FString ButtonText = bPrimaryAttack ? TEXT("Left Click") : TEXT("Right Click");
+	AddCombatScreenLog(FString::Printf(TEXT("%s pressed - charging check started"), *ButtonText), FLinearColor(0.72f, 0.84f, 1.0f, 1.0f));
+}
+
+void ARogue10mCharacter::EndCombatAttack(bool bPrimaryAttack)
+{
+	if (!CanUseCombatInput())
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	float& PressedTime = bPrimaryAttack ? LeftAttackPressedTime : RightAttackPressedTime;
+	if (PressedTime < 0.0f)
+	{
+		return;
+	}
+
+	const float HeldTime = World->GetTimeSeconds() - PressedTime;
+	PressedTime = -1.0f;
+	ExecuteCombatAttack(bPrimaryAttack, HeldTime >= ChargeAttackThreshold);
+}
+
+void ARogue10mCharacter::ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedAttack)
+{
+	const bool bJumpAttack = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
+	const FString ActionText = GetCombatActionText(bPrimaryAttack, bChargedAttack, bJumpAttack);
+	const FLinearColor LogColor = bPrimaryAttack
+		? FLinearColor(1.0f, 0.72f, 0.42f, 1.0f)
+		: FLinearColor(0.62f, 0.82f, 1.0f, 1.0f);
+
+	AddCombatScreenLog(ActionText, LogColor);
+	UE_LOG(LogRogue10m, Log, TEXT("%s"), *ActionText);
+
+	// 현재는 모든 공격 변형이 같은 주먹 판정 트레이스를 사용합니다.
+	// 이후 무기별/공격별 데미지, 애니메이션, 이펙트를 이 분기에서 교체합니다.
+	switch (EquippedWeaponType)
+	{
+	case ERogue10mWeaponType::Unarmed:
+		DoUnarmedAttack();
+		break;
+	default:
+		AddCombatScreenLog(TEXT("Weapon-specific attack is not implemented yet."), FLinearColor(0.9f, 0.9f, 0.65f, 1.0f));
+		break;
+	}
+}
+
+void ARogue10mCharacter::AddCombatScreenLog(const FString& Message, const FLinearColor& Color) const
+{
+	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+		{
+			RogueHUD->AddCombatLogMessage(Message, Color);
+		}
+	}
+}
+
+FString ARogue10mCharacter::GetCombatActionText(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
+{
+	const FString ButtonText = bPrimaryAttack ? TEXT("Left Click") : TEXT("Right Click");
+	const FString AttackText = bPrimaryAttack ? TEXT("Basic Attack") : TEXT("Special Attack");
+	const FString JumpPrefix = bJumpAttack ? TEXT("Jump ") : TEXT("");
+	const FString ChargePrefix = bChargedAttack ? TEXT("Charged ") : TEXT("");
+	return FString::Printf(TEXT("%s%s%s triggered by %s"), *JumpPrefix, *ChargePrefix, *AttackText, *ButtonText);
+}
+
+bool ARogue10mCharacter::ActivateQuickSlot(int32 SlotNumber)
+{
+	// 사망 상태나 UI 조작 중에는 전투용 퀵 슬롯 입력을 무시합니다.
+	if (bIsDead || IsInventoryWindowBlockingMovement())
+	{
+		return false;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	ARogue10mHUD* RogueHUD = PlayerController ? PlayerController->GetHUD<ARogue10mHUD>() : nullptr;
+	if (!RogueHUD)
+	{
+		return false;
+	}
+
+	const bool bActivated = RogueHUD->ActivateQuickSlot(SlotNumber);
+	if (bActivated)
+	{
+		UE_LOG(LogRogue10m, Verbose, TEXT("Quick slot %d activated."), SlotNumber);
+	}
+
+	return bActivated;
 }

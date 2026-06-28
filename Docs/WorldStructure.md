@@ -63,9 +63,12 @@ This should be tuned after the final player movement speed is decided.
 - The player can attack with fists in the default state.
 - Weapon mastery progresses by weapon type.
 - Planned weapon types:
-  - Sword
-  - Staff
+  - Dagger
+  - Great Sword
+  - Dual Blades
   - Bow
+  - Staff
+  - Knuckle
 
 ## Customization
 

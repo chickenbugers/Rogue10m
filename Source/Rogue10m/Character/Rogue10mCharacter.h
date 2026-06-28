@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Rogue10mWeaponTypes.h"
 #include "Rogue10mCharacter.generated.h"
 
 class UInputComponent;
@@ -16,15 +17,6 @@ class URogue10mVitalsComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
-
-UENUM(BlueprintType)
-enum class ERogue10mWeaponType : uint8
-{
-	Unarmed,
-	Sword,
-	Staff,
-	Bow
-};
 
 /**
  *  A basic first person character
@@ -68,9 +60,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	class UInputAction* MouseLookAction;
 
-	/** Current weapon type. The character starts unarmed. */
+	/** 현재 장착 무기 타입입니다. 캐릭터는 아무 무기도 없는 주먹 상태로 시작합니다. */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|Combat")
 	ERogue10mWeaponType EquippedWeaponType = ERogue10mWeaponType::Unarmed;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character")
+	FText CharacterDisplayName = FText::FromString(TEXT("Rogue"));
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character")
+	FText CharacterJobName = FText::FromString(TEXT("Unassigned"));
 
 	/** Damage applied by the default unarmed attack. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Unarmed", meta=(ClampMin="0.0"))
@@ -88,13 +86,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Unarmed", meta=(ClampMin="0.01"))
 	float UnarmedAttackInterval = 0.55f;
 
+	/** 마우스 버튼을 이 시간 이상 누르고 떼면 차징 공격으로 판정합니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat", meta=(ClampMin="0.05"))
+	float ChargeAttackThreshold = 0.65f;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|State")
 	bool bIsDead = false;
 
 	float LastAttackTime = -1000.0f;
+	float LeftAttackPressedTime = -1.0f;
+	float RightAttackPressedTime = -1.0f;
 	
 public:
 	ARogue10mCharacter();
+	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
 
@@ -122,7 +127,16 @@ protected:
 
 	/** Handles primary attack inputs from controls. */
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
-	virtual void DoPrimaryAttack();
+	virtual void DoPrimaryAttackPressed();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
+	virtual void DoPrimaryAttackReleased();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
+	virtual void DoSpecialAttackPressed();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
+	virtual void DoSpecialAttackReleased();
 
 	/** Performs the default unarmed attack. */
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
@@ -135,6 +149,33 @@ protected:
 	/** Toggles the prototype item window. */
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory")
 	virtual void DoToggleItemWindow();
+
+	/** K 키로 스킬트리 창을 열고 닫습니다. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Skill Tree")
+	virtual void DoToggleSkillTree();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Settings")
+	virtual void DoToggleSettings();
+
+	/** 1번 퀵 슬롯을 사용합니다. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Quick Slot")
+	virtual void DoQuickSlot1();
+
+	/** 2번 퀵 슬롯을 사용합니다. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Quick Slot")
+	virtual void DoQuickSlot2();
+
+	/** 3번 퀵 슬롯을 사용합니다. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Quick Slot")
+	virtual void DoQuickSlot3();
+
+	/** 4번 퀵 슬롯을 사용합니다. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Quick Slot")
+	virtual void DoQuickSlot4();
+
+	/** 5번 퀵 슬롯을 사용합니다. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Quick Slot")
+	virtual void DoQuickSlot5();
 
 public:
 
@@ -168,6 +209,33 @@ public:
 	/** Returns whether the run failure has killed this character. **/
 	UFUNCTION(BlueprintPure, Category="Rogue10m|State")
 	bool IsDead() const { return bIsDead; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Character")
+	FText GetCharacterDisplayName() const { return CharacterDisplayName; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Character")
+	FText GetCharacterJobName() const { return CharacterJobName; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Combat")
+	ERogue10mWeaponType GetEquippedWeaponType() const { return EquippedWeaponType; }
+
+	/** 장비 아이템 장착 결과를 캐릭터의 현재 무기 타입에 반영합니다. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
+	void SetEquippedWeaponType(ERogue10mWeaponType NewWeaponType);
+
+private:
+	// 인벤토리/아이템 창이 열려 있어 캐릭터 이동을 막아야 하는지 확인합니다.
+	bool IsInventoryWindowBlockingMovement() const;
+
+	bool CanUseCombatInput() const;
+	void BeginCombatAttack(bool bPrimaryAttack);
+	void EndCombatAttack(bool bPrimaryAttack);
+	void ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedAttack);
+	void AddCombatScreenLog(const FString& Message, const FLinearColor& Color = FLinearColor::White) const;
+	FString GetCombatActionText(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
+
+	// 숫자 키 입력을 HUD 퀵 슬롯 활성화로 전달합니다.
+	bool ActivateQuickSlot(int32 SlotNumber);
 
 };
 

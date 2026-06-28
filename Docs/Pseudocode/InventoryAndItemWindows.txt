@@ -199,7 +199,9 @@ Pseudo:
         Size
         Locked state
       If an item is currently being dragged and item type matches this slot:
-        Draw green drop highlight
+        Draw pulsing green drop highlight
+      If right mouse is pressed on a slot with an equipped item:
+        InventoryComponent.TryUnequipItemFromSlot(slot type)
 
   HUD.DrawItemGrid:
     Read mouse position and left mouse state
@@ -260,9 +262,40 @@ Pseudo:
       Return false
     If target equipment slot is missing or locked:
       Return false
+    Store previous equipped item if the slot already has one
     Apply item name and color to equipment slot
+    Store item copy as EquipmentSlot.EquippedItem
+    Set EquipmentSlot.bHasEquippedItem = true
     Set equipment slot equipped
+    If previous equipped item exists:
+      Move previous equipped item into source item slot
+    Else:
+      Clear source item slot
     Return true
+
+  InventoryComponent.TryUnequipItemFromSlot(TargetSlotType):
+    Find target equipment slot
+    If slot is missing, locked, or has no equipped item:
+      Return false
+    Find first empty item slot
+    If no empty item slot exists:
+      Return false
+    Move EquipmentSlot.EquippedItem into the empty item slot
+    Clear EquipmentSlot.EquippedItem
+    Set EquipmentSlot.bHasEquippedItem = false
+    Restore slot display name/color
+    If unequipping weapon:
+      Reset character weapon type to Unarmed
+    Return true
+
+[Equipment Preview Framing]
+Pseudo:
+  HUD.UpdateCharacterPreview:
+    Copy current character skeletal mesh and materials
+    Place preview actor below the world
+    Rotate preview mesh forward
+    Use a narrower FOV and a farther camera distance
+    Aim the camera at the character body center so head-to-foot framing is visible
 
 [Expansion Notes]
 - Replace Canvas drawing with UMG widgets when layout complexity grows.

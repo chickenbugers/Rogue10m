@@ -1,0 +1,90 @@
+Quick Slots
+===========
+
+[Purpose]
+- Provide five simple player quick slots bound to number keys 1 through 5.
+- Anchor the quick slot HUD near the bottom-center 6 o'clock area.
+- Show each slot's key number, icon placeholder, label, and cooldown remaining.
+- Keep the first implementation lightweight so future weapon skills, consumables, or abilities can plug into the same slot flow.
+
+[Runtime State]
+- HUD owns:
+  - QuickSlots array
+  - SlotNumber
+  - DisplayName
+  - IconColor
+  - CooldownDuration
+  - CooldownEndTime
+
+[Input Flow]
+Pseudo:
+  Character.SetupPlayerInputComponent:
+    Bind key 1 to DoQuickSlot1
+    Bind key 2 to DoQuickSlot2
+    Bind key 3 to DoQuickSlot3
+    Bind key 4 to DoQuickSlot4
+    Bind key 5 to DoQuickSlot5
+
+  DoQuickSlotN:
+    Call ActivateQuickSlot(N)
+
+  Character.ActivateQuickSlot(SlotNumber):
+    If character is dead:
+      Return false
+    If inventory or item window is open:
+      Return false
+    Get Rogue10mHUD
+    If missing:
+      Return false
+    Call HUD.ActivateQuickSlot(SlotNumber)
+    Return activation result
+
+[Cooldown Flow]
+Pseudo:
+  HUD.ActivateQuickSlot(SlotNumber):
+    Find matching quick slot by number
+    If missing:
+      Return false
+    If cooldown remaining is greater than 0:
+      Return false
+    If slot has a cooldown duration:
+      CooldownEndTime = WorldTime + CooldownDuration
+    Return true
+
+  HUD.GetQuickSlotCooldownRemaining(QuickSlot):
+    Remaining = QuickSlot.CooldownEndTime - WorldTime
+    Return max(Remaining, 0)
+
+[HUD Flow]
+Pseudo:
+  HUD.DrawHUD:
+    Draw run timer
+    Draw vitals
+    Draw character info
+    Draw quick slots
+    Draw modal or inventory windows
+
+  HUD.DrawQuickSlots:
+    SlotSize = small responsive value
+    GroupWidth = 5 slots plus gaps
+    StartX = screen center minus half GroupWidth
+    StartY = screen bottom minus slot height and margin
+    Draw subtle group background
+    For each QuickSlot:
+      DrawQuickSlot
+
+  HUD.DrawQuickSlot:
+    Draw slot border
+    Draw dark slot background
+    Draw colored icon placeholder
+    Draw number key box
+    Draw slot label
+    If cooldown is active:
+      Draw dark cooldown overlay
+      Draw remaining cooldown seconds
+
+[Expansion Notes]
+- Slot data should later come from a quick slot component or ability system instead of being owned directly by HUD.
+- Consumables can call inventory item use logic from the activation branch.
+- Weapon skills can route activation into the equipped weapon or skill component.
+- Cooldown duration should become data-driven per ability, weapon skill, or item.

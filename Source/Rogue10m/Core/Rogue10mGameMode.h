@@ -27,7 +27,7 @@ protected:
 	virtual void StartPlay() override;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Prototype")
-	bool bUsePrototypeRunDuration = true;
+	bool bUsePrototypeRunDuration = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Prototype", meta=(EditCondition="bUsePrototypeRunDuration", ClampMin="1.0"))
 	float PrototypeRunDurationSeconds = 30.0f;

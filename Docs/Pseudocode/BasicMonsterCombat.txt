@@ -1,0 +1,106 @@
+Basic Monster Combat
+====================
+
+[Purpose]
+- Provide a simple monster that can be placed in a map for early combat testing.
+- Let the monster chase the player and perform a basic melee attack.
+- Let the player damage the monster with the existing unarmed attack.
+- Show simple monster info at the 12 o'clock HUD area when the player looks at a monster.
+
+[Runtime State]
+- BasicMonster owns:
+  - MonsterDisplayName
+  - VitalsComponent
+  - DetectionRange
+  - StopDistance
+  - AttackRange
+  - AttackDamage
+  - AttackInterval
+  - TargetCharacter
+  - LastAttackTime
+  - bIsDead
+
+[Monster Movement Flow]
+Pseudo:
+  BeginPlay:
+    Find player character and cache as TargetCharacter
+
+  Tick:
+    If monster is dead:
+      Return
+    If target is missing or dead:
+      Try to find player character again
+    If no valid target:
+      Return
+
+    DistanceToTarget = distance between monster and target
+    If DistanceToTarget > DetectionRange:
+      Return
+
+    If DistanceToTarget > StopDistance:
+      Direction = normalized 2D direction to player
+      Add movement input toward player
+
+[Monster Attack Flow]
+Pseudo:
+  Tick:
+    If DistanceToTarget <= AttackRange:
+      If enough time passed since LastAttackTime:
+        LastAttackTime = current world time
+        ApplyDamage(target, AttackDamage)
+
+[Damage And Death Flow]
+Pseudo:
+  Monster.TakeDamage:
+    If monster is dead:
+      Return
+    Health.Current -= DamageAmount
+    If Health.Current <= 0:
+      Die
+
+  Monster.Die:
+    Set bIsDead = true
+    Stop movement
+    Disable movement
+    Disable collision
+    Destroy actor if bDestroyOnDeath is true
+
+  Character.TakeDamage:
+    If player is dead:
+      Return
+    Health.Current -= DamageAmount
+    If Health.Current <= 0:
+      Character.Die
+
+[Looked At Monster Info Flow]
+Pseudo:
+  HUD.DrawHUD:
+    Draw character vitals
+    Draw character info
+    Draw looked-at monster info
+
+  HUD.FindLookedAtMonster:
+    Get owning Rogue10mCharacter
+    Get first-person camera
+    Sweep forward from camera on Pawn channel
+    Ignore player character
+    If hit actor is BasicMonster:
+      Return monster
+    Else:
+      Return none
+
+  HUD.DrawLookedAtMonsterInfo:
+    If any blocking UI window is visible:
+      Return
+    Monster = FindLookedAtMonster
+    If no monster or missing vitals:
+      Return
+    Draw top-center panel
+    Draw monster name
+    Draw simple state text
+    Draw HP bar and HP numbers
+
+[Expansion Notes]
+- Replace Tick movement with AI behavior tree, StateTree, or EQS once combat roles become clearer.
+- Add hit reactions and attack montages after animation assets are imported.
+- Add monster loot, experience, or proficiency rewards in Monster.Die later.

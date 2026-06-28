@@ -17,7 +17,7 @@
 - Victory condition: defeat the boss within 20 minutes.
 - Run seed, current floor, and defeated enemy count are tracked in C++ for later systems.
 - The character starts unarmed and can attack with fists.
-- Weapon mastery progresses by weapon type: sword, staff, bow, and future types.
+- Weapon mastery progresses by weapon type: dagger, great sword, dual blades, bow, staff, and knuckle.
 - Character customization is cosmetic only and does not affect stats.
 
 ## Map Structure

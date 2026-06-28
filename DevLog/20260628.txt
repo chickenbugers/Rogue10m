@@ -86,3 +86,132 @@
 
 [Notion Summary Candidate]
 - Inventory layout and movement: item inventory and equipment windows now use fixed screen-relative sizes, and items can be rearranged inside the inventory via drag and drop while retaining equipment-slot drop behavior.
+
+[Preview And Timer Testing]
+- Adjusted the equipment character preview to face forward by default.
+- Expanded the equipment preview framing so the character has more space from head to foot.
+- Disabled the 30-second prototype run duration by default so other systems can be tested without automatic Game Over.
+- Updated the run timer pseudocode document to note that the 30-second timer is available but currently disabled by default.
+
+[Basic Monster Combat]
+- Added ARogue10mBasicMonster as a placeable prototype monster.
+- The monster caches the player, moves toward the player inside detection range, and performs a melee attack inside attack range.
+- Added monster health through URogue10mVitalsComponent and death handling.
+- ARogue10mCharacter now handles TakeDamage, subtracts health, and dies when health reaches 0.
+- Added BasicMonsterCombat pseudocode documentation.
+
+[Notion Summary Candidate]
+- Basic monster combat: a simple monster can now chase the player, attack with melee damage, receive unarmed attack damage, and die when its health reaches zero.
+
+[Character Info Panel And UI Movement Lock]
+- Added a top-right 12pt-style character info text panel.
+- The panel shows character name, job, state, weapon, health, optional mana, and stamina.
+- Added character display name and job fields to ARogue10mCharacter for later Blueprint/data setup.
+- Character movement and jump input now stop while inventory or item windows are open.
+- Updated CharacterVitals pseudocode with character info panel and inventory movement lock behavior.
+
+[Quick Slot Prototype]
+- Added a five-slot quick slot HUD anchored near the bottom-center 6 o'clock area.
+- Each slot shows a number key, colored icon placeholder, short label, and cooldown remaining text.
+- Bound keyboard number keys 1 through 5 to the matching quick slot activation path.
+- Quick slot activation is blocked while the character is dead or inventory/item windows are open.
+- Added QuickSlots pseudocode documentation for input, cooldown, HUD drawing, and future skill/item routing.
+
+[Notion Summary Candidate]
+- Quick slots: the player now has five prototype quick slots bound to 1-5. The HUD displays compact bottom-center slots with key labels, icon placeholders, and cooldown feedback, ready for later weapon skills or consumable actions.
+
+[Weapon Type Baseline]
+- Reworked the player weapon type list around the current equippable weapon plan.
+- Current weapon types are Unarmed, Dagger, Great Sword, Dual Blades, Bow, Staff, and Knuckle.
+- Moved weapon type definitions into a shared Rogue10mWeaponTypes header so character, inventory, and HUD code can use the same enum.
+- Added prototype weapon items for dagger, great sword, dual blades, bow, staff, and knuckle to the item inventory data.
+- Weapon item data now stores its weapon type, and equipping a weapon updates the character's EquippedWeaponType.
+- Item tooltips now show weapon type for weapon equipment.
+- Updated prototype/design documentation and first-person combat pseudocode with the new weapon list.
+
+[Notion Summary Candidate]
+- Weapon baseline: equippable weapons are now defined as dagger, great sword, dual blades, bow, staff, and knuckle. Prototype inventory items can be equipped to the weapon slot and update the character's current weapon type for future mastery and skill routing.
+
+[Korean Code Comments]
+- Added UTF-8 Korean comments to the recently changed weapon type, inventory item, quick slot, and character weapon update code.
+- Documented the intent of each weapon enum value, weapon item data, quick slot cooldown state, number-key activation, and weapon equip synchronization.
+- Comments are written to help future Unreal Blueprint/C++ work understand which prototype code is temporary and where later systems should connect.
+
+[Skill Tree Window Prototype]
+- Added a K-key skill tree window toggle.
+- Added a weapon selection screen with weapon cards for dagger, great sword, dual blades, bow, staff, and knuckle.
+- Weapon cards are arranged in a 3-column grid that can expand up to 4 rows for future weapon additions.
+- Clicking a weapon card enters that weapon's skill tree detail screen.
+- Added a Back button to return from the weapon detail screen to the weapon selection screen.
+- The skill tree window can be dragged by its title bar and shows the mouse cursor while open.
+- Character movement, attack, jump, and quick slot usage now treat the skill tree as a blocking UI window.
+- Added SkillTreeWindow pseudocode documentation.
+
+[Notion Summary Candidate]
+- Skill tree window: the player can press K to open a prototype skill tree UI, choose a weapon card, enter that weapon's skill tree page, and return with Back. The current detail page uses placeholder nodes so each weapon can receive a custom skill tree design later.
+
+[Combat Input Variants And HUD Log]
+- Reworked combat mouse input into press/release handling.
+- Left click now routes to basic attack input, and right click routes to special attack input.
+- Holding either mouse button past the charge threshold triggers a charged attack variant when released.
+- Attacking while the character is falling is logged as a jump attack variant.
+- Added HUD combat log messages so basic, special, jump, charged, hit, miss, and cooldown states can be verified on screen.
+- Current prototype attack variants share the unarmed trace while future weapon-specific damage, animation, and effects are pending.
+- Updated FirstPersonCharacterAndCombat pseudocode with the new combat input flow.
+
+[Notion Summary Candidate]
+- Combat input: left click, right click, jump attacks, and charged attacks now route through a shared press/release input flow. The HUD shows recent combat logs so each input variant can be verified in-game before animation and weapon-specific logic are added.
+
+[Looked At Monster Info]
+- Added display-name and death-state accessors to the basic monster.
+- Added a camera-forward monster detection sweep in the HUD.
+- When the player looks at a basic monster, a small 12 o'clock monster info panel is displayed.
+- The monster info panel shows monster name, simple state, HP bar, and HP numbers.
+- Monster info is hidden while blocking UI windows such as inventory, item window, or skill tree are open.
+- Updated BasicMonsterCombat pseudocode with the looked-at monster info flow.
+
+[Notion Summary Candidate]
+- Monster info UI: looking at a basic monster now displays a compact top-center HUD panel with its name, state, and health, giving immediate feedback for combat targeting tests.
+
+[Settings Panel And Profiling]
+- Added an O-key settings panel.
+- Added a voice volume slider that applies au.GlobalVolumeMultiplier through the player controller console command.
+- Added separate X/Y look sensitivity sliders.
+- Character camera input now reads sensitivity X/Y from the HUD and applies them separately to yaw and pitch.
+- Added FPS limit buttons for 60, 120, and 140 FPS using t.MaxFPS.
+- Settings panel is treated as a blocking UI window, so movement, aiming, attack, jump, and quick slot inputs are blocked while it is open.
+- Added SettingsPanel pseudocode documentation.
+
+[Profiling Result]
+- Build/profile command: Measure-Command around Scripts/BuildEditor.ps1 -NoHotReload.
+- Result: build succeeded in 18.86 seconds.
+- Generated/cache validation: CheckGeneratedChanges.ps1 passed.
+- Runtime UI cost review: settings panel draw/update runs only while bSettingsVisible is true.
+- Slider interaction review: fixed checks for three sliders, no temporary array allocation per frame.
+- Input cost review: look sensitivity adds one HUD lookup and two float reads per aim input event.
+- Console command review: FPS and audio console commands run only when the related setting changes.
+
+[Notion Summary Candidate]
+- Settings: the player can press O to open a settings panel, adjust voice volume and separate X/Y look sensitivity with sliders, and choose 60/120/140 FPS limits. Profiling showed a successful editor build in 18.86 seconds, with the settings UI scoped to visible-only drawing and fixed slider hit checks.
+
+[Panel Shortcut Hints]
+- Added a bottom-right HUD shortcut hint group.
+- The shortcut group shows Inventory, Equipment, and Skill Tree panel keys.
+- Current mappings shown are B for Inventory, I for Equipment, and K for Skill Tree.
+- Each row uses a small color icon, key label, panel name, and active/toggle state.
+
+[Notion Summary Candidate]
+- Panel shortcuts: the HUD now shows bottom-right shortcut hints for Inventory, Equipment, and Skill Tree so players can quickly identify the key bindings for core UI panels.
+
+[Inventory Equipment Transfer]
+- Updated equipment slots so they can store the actual equipped item data.
+- Dragging an item from the item window now makes compatible equipment slots pulse.
+- Dropping an item onto a compatible equipment slot equips it.
+- Equipped items are removed from the item window; the source item slot is cleared unless an older equipped item is swapped back.
+- Right-clicking an equipped equipment slot unequips the item into the first empty item slot.
+- Unequipping a weapon resets the character weapon type to Unarmed.
+- Adjusted equipment character preview camera FOV, focus point, and distance to better frame the character from head to foot.
+- Updated InventoryAndItemWindows pseudocode with equip, unequip, pulsing slot highlight, and preview framing flows.
+
+[Notion Summary Candidate]
+- Inventory/equipment transfer: item drag-and-drop now behaves like real equipment movement. Compatible equipment slots pulse while dragging, equipped items leave the item inventory, and right-clicking equipped slots sends items back to the first empty item slot.

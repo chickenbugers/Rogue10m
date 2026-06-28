@@ -58,6 +58,7 @@ Pseudo:
   HUD.DrawHUD:
     Draw run timer
     Draw character vitals
+    Draw character info panel
     Draw other active UI
 
   HUD.DrawVitals:
@@ -75,6 +76,37 @@ Pseudo:
     Draw dark bar background
     Draw filled bar by FillAlpha
     Draw label and numeric value
+
+  HUD.DrawCharacterInfo:
+    Position panel in top-right corner
+    Draw text at small 12pt-style scale
+    Draw:
+      Character name
+      Character job
+      Current state
+      Current weapon
+      Health
+      Mana if bShowMana is true
+      Stamina
+
+[Inventory Movement Lock]
+Pseudo:
+  Character.DoMove:
+    If inventory window or item window is open:
+      Stop movement immediately
+      Return
+
+  Character.DoJumpStart:
+    If inventory window or item window is open:
+      Return
+
+  Character.DoJumpEnd:
+    If inventory window or item window is open:
+      Return
+
+  Character toggles inventory or item window:
+    If any inventory window is now visible:
+      Stop movement immediately
 
 [Expansion Notes]
 - Damage should call SetHealth(CurrentHealth - Damage).

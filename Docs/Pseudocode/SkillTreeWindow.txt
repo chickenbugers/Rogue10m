@@ -1,0 +1,86 @@
+Skill Tree Window
+=================
+
+[Purpose]
+- Provide a prototype skill tree window opened with the K key.
+- Start from a weapon selection screen.
+- Show weapon cards in a grid that supports up to 3 columns and 4 rows.
+- Enter a weapon-specific skill tree screen when a weapon card is clicked.
+- Provide a Back button to return to the weapon selection screen.
+
+[Input Flow]
+Pseudo:
+  Character.SetupPlayerInputComponent:
+    Bind K pressed -> DoToggleSkillTree
+
+  Character.DoToggleSkillTree:
+    If character is dead:
+      Return
+    Get Rogue10mHUD
+    Toggle HUD skill tree visibility
+    If any blocking UI window is visible:
+      Stop character movement immediately
+
+[HUD State]
+Pseudo:
+  HUD owns:
+    bSkillTreeVisible
+    SkillTreeWindowPosition
+    SkillTreeView
+    SelectedSkillTreeWeapon
+    SkillWeaponHitAreas
+
+  SkillTreeView:
+    WeaponSelect
+    WeaponDetail
+
+[Weapon Selection Flow]
+Pseudo:
+  HUD.DrawSkillTree:
+    Draw panel and title bar
+    If SkillTreeView is WeaponSelect:
+      DrawSkillTreeWeaponSelect
+    Else:
+      DrawSkillTreeWeaponDetail
+
+  HUD.DrawSkillTreeWeaponSelect:
+    WeaponTypes = Dagger, GreatSword, DualBlades, Bow, Staff, Knuckle
+    Columns = 3
+    Rows can expand up to 4 with the same layout
+    For each weapon:
+      Draw card background
+      Draw placeholder weapon image color
+      Draw weapon name
+      If card is clicked:
+        SelectedSkillTreeWeapon = clicked weapon
+        SkillTreeView = WeaponDetail
+
+[Weapon Detail Flow]
+Pseudo:
+  HUD.DrawSkillTreeWeaponDetail:
+    Draw Back button
+    If Back is clicked:
+      SkillTreeView = WeaponSelect
+      Return
+
+    Draw selected weapon name
+    Draw temporary common skill nodes
+    Later:
+      Replace temporary nodes with weapon-specific layout and data
+
+[Window Behavior]
+Pseudo:
+  HUD.UpdateWindowDrag:
+    If skill tree title bar is dragged:
+      Move SkillTreeWindowPosition
+
+  HUD.UpdateInventoryCursor:
+    Show mouse cursor if inventory, item window, or skill tree is visible
+
+  Character action checks:
+    Movement, attack, jump, and quick slot use are blocked when any blocking UI window is visible
+
+[Expansion Notes]
+- Weapon card images should later come from texture assets or weapon data assets.
+- Each weapon can have its own node layout, unlock rules, skill costs, and mastery requirements.
+- Skill tree data should eventually move out of HUD and into data assets or a dedicated skill tree component.

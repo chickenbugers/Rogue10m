@@ -3,7 +3,7 @@ Run Timer, Game Over, And Character Death
 
 [Purpose]
 - Run a timed single-player roguelike session.
-- Use 30 seconds during prototype testing.
+- Keep the 30-second prototype timer available but disabled by default while testing other systems.
 - Later replace the prototype duration with the target 20-minute run.
 - When the timer expires, show Game Over and kill the player character.
 
@@ -30,6 +30,14 @@ Pseudo:
       GameState.StartRunWithDuration(PrototypeRunDurationSeconds)
     Else:
       GameState.StartRun()
+
+[Current Prototype Setting]
+Pseudo:
+  bUsePrototypeRunDuration = false
+  PrototypeRunDurationSeconds = 30
+  Result:
+    Run starts without automatic 30-second defeat.
+    Re-enable bUsePrototypeRunDuration when timer failure testing is needed.
 
 [Timer Flow]
 Pseudo:
