@@ -2,12 +2,22 @@
 
 #include "Rogue10mHUD.h"
 
+#include "Components/SceneCaptureComponent2D.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/Canvas.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
 #include "Rogue10mCharacter.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mInventoryComponent.h"
+
+ARogue10mHUD::ARogue10mHUD()
+{
+	CharacterPreviewYaw = 180.0f;
+}
 
 void ARogue10mHUD::DrawHUD()
 {
@@ -81,7 +91,7 @@ void ARogue10mHUD::DrawRunResult()
 		ResultColor = FLinearColor(0.2f, 1.0f, 0.35f, 1.0f);
 		break;
 	case ERogue10mRunPhase::Defeat:
-		ResultText = TEXT("RUN FAILED");
+		ResultText = TEXT("GAME OVER");
 		ResultColor = WarningColor;
 		break;
 	default:
@@ -93,7 +103,7 @@ void ARogue10mHUD::DrawRunResult()
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.65f), CenterX - 48.0f, CenterY - 28.0f, 396.0f, 116.0f);
 	DrawText(ResultText, ResultColor, CenterX, CenterY, nullptr, ResultScale, false);
-	DrawText(TEXT("Prototype run ended after 30 seconds."), TimerColor, CenterX - 20.0f, CenterY + 52.0f, nullptr, 1.1f, false);
+	DrawText(TEXT("The character died when the run timer expired."), TimerColor, CenterX - 20.0f, CenterY + 52.0f, nullptr, 1.1f, false);
 }
 
 void ARogue10mHUD::DrawInventory()
@@ -128,7 +138,7 @@ void ARogue10mHUD::DrawInventory()
 	DrawText(TEXT("INVENTORY"), InventoryTextColor, PanelX + 28.0f, PanelY + 22.0f, nullptr, 1.35f, false);
 	DrawText(TEXT("I : Close  |  Drag title bar"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 250.0f, PanelY + 26.0f, nullptr, 0.85f, false);
 
-	DrawCharacterPreview(PanelX + PanelWidth * 0.33f, PanelY + 82.0f, PanelWidth * 0.34f, PanelHeight - 120.0f);
+	DrawCharacterPreview(RogueCharacter, PanelX + PanelWidth * 0.33f, PanelY + 82.0f, PanelWidth * 0.34f, PanelHeight - 120.0f);
 	DrawInventorySlots(InventoryComponent->GetLeftEquipmentSlots(), PanelX + 34.0f, PanelY + 74.0f, SlotSize, SlotGap, false);
 	DrawInventorySlots(InventoryComponent->GetRightEquipmentSlots(), PanelX + PanelWidth - SlotSize - 34.0f, PanelY + 74.0f, SlotSize, SlotGap, true);
 }
@@ -245,22 +255,122 @@ void ARogue10mHUD::DrawItemGrid(const TArray<FRogue10mItemStack>& Items, int32 C
 	}
 }
 
-void ARogue10mHUD::DrawCharacterPreview(float X, float Y, float Width, float Height)
+void ARogue10mHUD::DrawCharacterPreview(const ARogue10mCharacter* RogueCharacter, float X, float Y, float Width, float Height)
 {
-	DrawRect(FLinearColor(0.02f, 0.035f, 0.055f, 0.8f), X, Y, Width, Height);
-	DrawText(TEXT("UNARMED"), FLinearColor(0.8f, 0.85f, 0.9f, 1.0f), X + Width * 0.5f - 48.0f, Y + 18.0f, nullptr, 1.0f, false);
+	CharacterPreviewPosition = FVector2D(X, Y);
+	CharacterPreviewSize = FVector2D(Width, Height);
 
-	const float CenterX = X + Width * 0.5f;
-	const float HeadY = Y + Height * 0.23f;
-	const float BodyY = Y + Height * 0.38f;
-	const float LegY = Y + Height * 0.66f;
+	const int32 RenderTargetWidth = FMath::Max(256, FMath::RoundToInt(Width * 2.0f));
+	const int32 RenderTargetHeight = FMath::Max(384, FMath::RoundToInt(Height * 2.0f));
+	if (!EnsureCharacterPreview(RogueCharacter, RenderTargetWidth, RenderTargetHeight))
+	{
+		DrawText(TEXT("Character preview unavailable"), FLinearColor(0.75f, 0.82f, 0.9f, 1.0f), X + 20.0f, Y + Height * 0.5f, nullptr, 0.9f, false);
+		return;
+	}
 
-	DrawRect(FLinearColor(0.92f, 0.88f, 0.82f, 1.0f), CenterX - 18.0f, HeadY - 20.0f, 36.0f, 40.0f);
-	DrawRect(FLinearColor(0.015f, 0.015f, 0.018f, 1.0f), CenterX - 46.0f, BodyY - 28.0f, 92.0f, 130.0f);
-	DrawLine(CenterX - 46.0f, BodyY, CenterX - 98.0f, BodyY + 92.0f, FLinearColor(0.015f, 0.015f, 0.018f, 1.0f), 8.0f);
-	DrawLine(CenterX + 46.0f, BodyY, CenterX + 98.0f, BodyY + 92.0f, FLinearColor(0.015f, 0.015f, 0.018f, 1.0f), 8.0f);
-	DrawLine(CenterX - 24.0f, LegY, CenterX - 48.0f, Y + Height - 34.0f, FLinearColor(0.92f, 0.88f, 0.82f, 1.0f), 12.0f);
-	DrawLine(CenterX + 24.0f, LegY, CenterX + 48.0f, Y + Height - 34.0f, FLinearColor(0.92f, 0.88f, 0.82f, 1.0f), 12.0f);
+	UpdateCharacterPreview(RogueCharacter);
+	DrawTexture(CharacterPreviewRenderTarget, X, Y, Width, Height, 0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::White, BLEND_Translucent);
+}
+
+bool ARogue10mHUD::EnsureCharacterPreview(const ARogue10mCharacter* RogueCharacter, int32 RenderTargetWidth, int32 RenderTargetHeight)
+{
+	if (!RogueCharacter || !GetWorld())
+	{
+		return false;
+	}
+
+	if (!CharacterPreviewActor)
+	{
+		CharacterPreviewActor = GetWorld()->SpawnActor<AActor>();
+		if (!CharacterPreviewActor)
+		{
+			return false;
+		}
+
+		CharacterPreviewActor->SetActorHiddenInGame(false);
+		CharacterPreviewActor->SetActorEnableCollision(false);
+	}
+
+	if (!CharacterPreviewMesh)
+	{
+		CharacterPreviewMesh = NewObject<USkeletalMeshComponent>(CharacterPreviewActor);
+		CharacterPreviewMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		CharacterPreviewMesh->SetCastShadow(false);
+		CharacterPreviewMesh->SetVisibility(true);
+		CharacterPreviewMesh->SetHiddenInGame(false);
+		CharacterPreviewMesh->RegisterComponentWithWorld(GetWorld());
+		CharacterPreviewActor->SetRootComponent(CharacterPreviewMesh);
+	}
+
+	if (!CharacterPreviewCapture)
+	{
+		CharacterPreviewCapture = NewObject<USceneCaptureComponent2D>(CharacterPreviewActor);
+		CharacterPreviewCapture->ProjectionType = ECameraProjectionMode::Perspective;
+		CharacterPreviewCapture->FOVAngle = 30.0f;
+		CharacterPreviewCapture->bCaptureEveryFrame = false;
+		CharacterPreviewCapture->bCaptureOnMovement = false;
+		CharacterPreviewCapture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+		CharacterPreviewCapture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+		CharacterPreviewCapture->ShowOnlyComponents.Add(CharacterPreviewMesh);
+		CharacterPreviewCapture->RegisterComponentWithWorld(GetWorld());
+	}
+
+	if (!CharacterPreviewRenderTarget)
+	{
+		CharacterPreviewRenderTarget = NewObject<UTextureRenderTarget2D>(this);
+		CharacterPreviewRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+
+	if (CharacterPreviewRenderTarget->SizeX != RenderTargetWidth || CharacterPreviewRenderTarget->SizeY != RenderTargetHeight)
+	{
+		CharacterPreviewRenderTarget->InitAutoFormat(RenderTargetWidth, RenderTargetHeight);
+		CharacterPreviewCapture->TextureTarget = CharacterPreviewRenderTarget;
+	}
+
+	return CharacterPreviewRenderTarget && CharacterPreviewCapture && CharacterPreviewMesh;
+}
+
+void ARogue10mHUD::UpdateCharacterPreview(const ARogue10mCharacter* RogueCharacter)
+{
+	if (!RogueCharacter || !CharacterPreviewMesh || !CharacterPreviewCapture)
+	{
+		return;
+	}
+
+	const USkeletalMeshComponent* SourceMesh = RogueCharacter->GetMesh();
+	if (!SourceMesh || !SourceMesh->GetSkeletalMeshAsset())
+	{
+		SourceMesh = RogueCharacter->GetFirstPersonMesh();
+	}
+
+	if (!SourceMesh || !SourceMesh->GetSkeletalMeshAsset())
+	{
+		return;
+	}
+
+	if (CharacterPreviewMesh->GetSkeletalMeshAsset() != SourceMesh->GetSkeletalMeshAsset())
+	{
+		CharacterPreviewMesh->SetSkeletalMesh(SourceMesh->GetSkeletalMeshAsset());
+		CharacterPreviewMesh->SetLeaderPoseComponent(const_cast<USkeletalMeshComponent*>(SourceMesh));
+	}
+
+	const int32 MaterialCount = SourceMesh->GetNumMaterials();
+	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+	{
+		CharacterPreviewMesh->SetMaterial(MaterialIndex, SourceMesh->GetMaterial(MaterialIndex));
+	}
+
+	const FVector PreviewLocation = RogueCharacter->GetActorLocation() + FVector(0.0f, 0.0f, -5000.0f);
+	CharacterPreviewActor->SetActorLocation(PreviewLocation);
+	CharacterPreviewMesh->SetWorldLocation(PreviewLocation);
+	CharacterPreviewMesh->SetWorldRotation(FRotator(0.0f, CharacterPreviewYaw, 0.0f));
+
+	const FVector FocusLocation = PreviewLocation + FVector(0.0f, 0.0f, 65.0f);
+	const FVector CameraLocation = FocusLocation + FVector(-230.0f, 0.0f, 18.0f);
+	CharacterPreviewCapture->SetWorldLocation(CameraLocation);
+	CharacterPreviewCapture->SetWorldRotation((FocusLocation - CameraLocation).Rotation());
+	CharacterPreviewCapture->TextureTarget = CharacterPreviewRenderTarget;
+	CharacterPreviewCapture->CaptureScene();
 }
 
 void ARogue10mHUD::UpdateWindowDrag()
@@ -285,6 +395,7 @@ void ARogue10mHUD::UpdateWindowDrag()
 
 	const FVector2D InventorySize(FMath::Min(Canvas->SizeX * 0.86f, 920.0f), FMath::Min(Canvas->SizeY * 0.84f, 620.0f));
 	const FVector2D ItemSize(FMath::Min(Canvas->SizeX * 0.9f, 820.0f), FMath::Min(Canvas->SizeY * 0.88f, 720.0f));
+	const bool bMouseOverItemWindow = bItemWindowVisible && IsPointInRect(MousePosition, ItemWindowPosition, ItemSize);
 
 	if (bPressed)
 	{
@@ -297,6 +408,11 @@ void ARogue10mHUD::UpdateWindowDrag()
 		{
 			DraggedWindow = ERogue10mDraggedWindow::Equipment;
 			DragOffset = MousePosition - InventoryWindowPosition;
+		}
+		else if (bInventoryVisible && !bMouseOverItemWindow && IsPointInRect(MousePosition, CharacterPreviewPosition, CharacterPreviewSize))
+		{
+			DraggedWindow = ERogue10mDraggedWindow::CharacterPreview;
+			LastCharacterPreviewDragX = MousePosition.X;
 		}
 	}
 
@@ -313,6 +429,10 @@ void ARogue10mHUD::UpdateWindowDrag()
 		break;
 	case ERogue10mDraggedWindow::Items:
 		ItemWindowPosition = ClampWindowPosition(MousePosition - DragOffset, ItemSize);
+		break;
+	case ERogue10mDraggedWindow::CharacterPreview:
+		CharacterPreviewYaw = FMath::Fmod(CharacterPreviewYaw + (MousePosition.X - LastCharacterPreviewDragX) * 0.45f, 360.0f);
+		LastCharacterPreviewDragX = MousePosition.X;
 		break;
 	default:
 		break;

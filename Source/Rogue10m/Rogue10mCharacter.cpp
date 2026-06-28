@@ -100,7 +100,7 @@ void ARogue10mCharacter::LookInput(const FInputActionValue& Value)
 
 void ARogue10mCharacter::DoAim(float Yaw, float Pitch)
 {
-	if (GetController())
+	if (!bIsDead && GetController())
 	{
 		// pass the rotation inputs
 		AddControllerYawInput(Yaw);
@@ -110,7 +110,7 @@ void ARogue10mCharacter::DoAim(float Yaw, float Pitch)
 
 void ARogue10mCharacter::DoMove(float Right, float Forward)
 {
-	if (GetController())
+	if (!bIsDead && GetController())
 	{
 		// pass the move inputs
 		AddMovementInput(GetActorRightVector(), Right);
@@ -120,18 +120,33 @@ void ARogue10mCharacter::DoMove(float Right, float Forward)
 
 void ARogue10mCharacter::DoJumpStart()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	// pass Jump to the character
 	Jump();
 }
 
 void ARogue10mCharacter::DoJumpEnd()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	// pass StopJumping to the character
 	StopJumping();
 }
 
 void ARogue10mCharacter::DoPrimaryAttack()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
 		if (const ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>(); RogueHUD && RogueHUD->IsAnyInventoryWindowVisible())
@@ -153,6 +168,11 @@ void ARogue10mCharacter::DoPrimaryAttack()
 
 void ARogue10mCharacter::DoToggleItemWindow()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	if (!PlayerController)
 	{
@@ -167,6 +187,11 @@ void ARogue10mCharacter::DoToggleItemWindow()
 
 void ARogue10mCharacter::DoUnarmedAttack()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	UWorld* World = GetWorld();
 	if (!World || !FirstPersonCameraComponent)
 	{
@@ -208,6 +233,11 @@ void ARogue10mCharacter::DoUnarmedAttack()
 
 void ARogue10mCharacter::DoToggleInventory()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	if (!PlayerController)
 	{
@@ -218,4 +248,32 @@ void ARogue10mCharacter::DoToggleInventory()
 	{
 		RogueHUD->ToggleInventory();
 	}
+}
+
+void ARogue10mCharacter::Die()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		DisableInput(PlayerController);
+
+		if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+		{
+			RogueHUD->SetInventoryVisible(false);
+			RogueHUD->SetItemWindowVisible(false);
+		}
+	}
+
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	UE_LOG(LogRogue10m, Log, TEXT("%s died after the run timer expired."), *GetNameSafe(this));
+	BP_OnRunDeath();
 }

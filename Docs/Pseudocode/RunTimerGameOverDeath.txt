@@ -1,0 +1,92 @@
+Run Timer, Game Over, And Character Death
+========================================
+
+[Purpose]
+- Run a timed single-player roguelike session.
+- Use 30 seconds during prototype testing.
+- Later replace the prototype duration with the target 20-minute run.
+- When the timer expires, show Game Over and kill the player character.
+
+[Runtime State]
+- GameMode owns:
+  - bUsePrototypeRunDuration
+  - PrototypeRunDurationSeconds
+- GameState owns:
+  - RunPhase
+  - RemainingRunTime
+  - RunDurationSeconds
+  - OnRunPhaseChanged delegate
+- Character owns:
+  - bIsDead
+
+[Start Flow]
+Pseudo:
+  GameMode.StartPlay:
+    Call parent StartPlay
+    Get Rogue10mGameState
+    Bind GameState.OnRunPhaseChanged -> GameMode.HandleRunPhaseChanged
+
+    If bUsePrototypeRunDuration is true:
+      GameState.StartRunWithDuration(PrototypeRunDurationSeconds)
+    Else:
+      GameState.StartRun()
+
+[Timer Flow]
+Pseudo:
+  GameState.StartRunWithDuration(Duration):
+    Set RunDurationSeconds = Duration
+    Set RemainingRunTime = Duration
+    Set RunPhase = Running
+    Start timer tick or countdown management
+
+  GameState countdown update:
+    If RunPhase is not Running:
+      Return
+    Decrease RemainingRunTime
+    If RemainingRunTime <= 0:
+      FinishRun(Defeat)
+
+[Defeat Flow]
+Pseudo:
+  GameMode.HandleRunPhaseChanged(NewPhase):
+    If NewPhase == Defeat:
+      HandleRunDefeat()
+
+  GameMode.HandleRunDefeat:
+    PlayerCharacter = GetPlayerCharacter(0) as Rogue10mCharacter
+    If PlayerCharacter is missing:
+      Log warning
+      Return
+    PlayerCharacter.Die()
+
+[Character Death Flow]
+Pseudo:
+  Character.Die:
+    If bIsDead is already true:
+      Return
+
+    Set bIsDead = true
+    Disable player input
+    Close inventory window
+    Close item window
+    Stop movement immediately
+    Disable movement
+    Disable capsule collision
+    Log death
+    Call BP_OnRunDeath for Blueprint animation or visual effects
+
+[HUD Flow]
+Pseudo:
+  HUD.DrawRunResult:
+    If run is still active:
+      Return
+    If RunPhase == Victory:
+      Draw "RUN CLEARED"
+    If RunPhase == Defeat:
+      Draw "GAME OVER"
+      Draw timer-expired death message
+
+[Expansion Notes]
+- Boss kill within 20 minutes should call FinishRun(Victory).
+- Death by enemy damage should reuse Character.Die and then set Defeat.
+- BP_OnRunDeath is the future hook for death animation, camera drop, sound, and fade-out.

@@ -83,6 +83,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Unarmed", meta=(ClampMin="0.01"))
 	float UnarmedAttackInterval = 0.55f;
 
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|State")
+	bool bIsDead = false;
+
 	float LastAttackTime = -1000.0f;
 	
 public:
@@ -128,6 +131,15 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory")
 	virtual void DoToggleItemWindow();
 
+public:
+
+	/** Kills the character and locks player actions for the ended run. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|State")
+	virtual void Die();
+
+	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|State", meta=(DisplayName="On Run Death"))
+	void BP_OnRunDeath();
+
 protected:
 
 	/** Set up input action bindings */
@@ -144,6 +156,10 @@ public:
 
 	/** Returns inventory component **/
 	URogue10mInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
+	/** Returns whether the run failure has killed this character. **/
+	UFUNCTION(BlueprintPure, Category="Rogue10m|State")
+	bool IsDead() const { return bIsDead; }
 
 };
 

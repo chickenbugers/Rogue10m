@@ -3,6 +3,9 @@
 #include "Rogue10mGameMode.h"
 
 #include "GameFramework/HUD.h"
+#include "Kismet/GameplayStatics.h"
+#include "Rogue10m.h"
+#include "Rogue10mCharacter.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mHUD.h"
 #include "UObject/ConstructorHelpers.h"
@@ -31,6 +34,8 @@ void ARogue10mGameMode::StartPlay()
 
 	if (ARogue10mGameState* RogueGameState = GetGameState<ARogue10mGameState>())
 	{
+		RogueGameState->OnRunPhaseChanged.AddDynamic(this, &ARogue10mGameMode::HandleRunPhaseChanged);
+
 		if (bUsePrototypeRunDuration)
 		{
 			RogueGameState->StartRunWithDuration(PrototypeRunDurationSeconds);
@@ -40,4 +45,24 @@ void ARogue10mGameMode::StartPlay()
 			RogueGameState->StartRun();
 		}
 	}
+}
+
+void ARogue10mGameMode::HandleRunPhaseChanged(ERogue10mRunPhase NewPhase)
+{
+	if (NewPhase == ERogue10mRunPhase::Defeat)
+	{
+		HandleRunDefeat();
+	}
+}
+
+void ARogue10mGameMode::HandleRunDefeat()
+{
+	ARogue10mCharacter* RogueCharacter = Cast<ARogue10mCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
+	if (!RogueCharacter)
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("Run ended in defeat, but no Rogue10m character was found to kill."));
+		return;
+	}
+
+	RogueCharacter->Die();
 }

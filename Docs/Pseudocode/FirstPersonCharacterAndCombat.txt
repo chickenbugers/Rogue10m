@@ -1,0 +1,96 @@
+First Person Character And Basic Combat
+======================================
+
+[Purpose]
+- Start the game with an unarmed first-person character.
+- Allow WASD movement, camera look, jump, inventory toggles, and a basic fist attack.
+- Keep weapon type expansion open for sword, staff, and bow actions.
+
+[Runtime State]
+- Character owns:
+  - FirstPersonMesh
+  - FirstPersonCameraComponent
+  - InventoryComponent
+  - EquippedWeaponType
+  - bIsDead
+  - UnarmedDamage
+  - UnarmedRange
+  - UnarmedTraceRadius
+  - UnarmedAttackInterval
+  - LastAttackTime
+
+[Input Flow]
+Pseudo:
+  On SetupPlayerInputComponent:
+    Bind JumpAction started -> DoJumpStart
+    Bind JumpAction completed -> DoJumpEnd
+    Bind MoveAction triggered -> MoveInput
+    Bind LookAction triggered -> LookInput
+    Bind MouseLookAction triggered -> LookInput
+    Bind LeftMouseButton pressed -> DoPrimaryAttack
+    Bind I pressed -> DoToggleInventory
+    Bind B pressed -> DoToggleItemWindow
+
+  MoveInput(Value):
+    MovementVector = Value as Vector2D
+    DoMove(MovementVector.X, MovementVector.Y)
+
+  LookInput(Value):
+    LookVector = Value as Vector2D
+    DoAim(LookVector.X, LookVector.Y)
+
+  DoMove(Right, Forward):
+    If character is dead:
+      Return
+    If controller exists:
+      Add right movement input
+      Add forward movement input
+
+  DoAim(Yaw, Pitch):
+    If character is dead:
+      Return
+    If controller exists:
+      Add yaw input
+      Add pitch input
+
+[Combat Flow]
+Pseudo:
+  DoPrimaryAttack:
+    If character is dead:
+      Return
+    If inventory or item window is visible:
+      Return
+
+    Switch EquippedWeaponType:
+      Unarmed:
+        DoUnarmedAttack
+      Sword:
+        Run sword action later
+      Staff:
+        Run staff action later
+      Bow:
+        Run bow action later
+
+  DoUnarmedAttack:
+    If character is dead:
+      Return
+    If world or camera is missing:
+      Return
+    If current time - LastAttackTime < attack interval:
+      Return
+
+    LastAttackTime = current time
+    TraceStart = camera location
+    TraceEnd = camera forward * unarmed range
+    Sweep sphere from TraceStart to TraceEnd against pawn channel
+
+    If hit actor exists:
+      ApplyDamage(hit actor, UnarmedDamage, controller, self)
+      Log hit
+    Else:
+      Log miss
+
+[Expansion Notes]
+- Weapon-specific actions should branch from DoPrimaryAttack.
+- Weapon proficiency can be awarded after confirmed hit or kill events.
+- Animation montages can be triggered before the trace once animation assets are imported.

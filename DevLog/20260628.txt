@@ -1,0 +1,25 @@
+2026-06-28 Development Log
+==========================
+
+[Equipment Character Preview]
+- Replaced the temporary drawn character silhouette in the equipment window with a runtime character preview path.
+- ARogue10mHUD now creates a SceneCapture2D, render target, and preview skeletal mesh component for the current player character.
+- The preview area no longer draws its own background panel; it only draws the captured character preview over the equipment window.
+- Added left/right mouse drag rotation inside the center character preview area while keeping existing title-bar window dragging behavior.
+
+[Notes]
+- The preview currently mirrors the active character skeletal mesh and materials. Later equipment visuals can be reflected here as equipment meshes/material swaps are added.
+
+[Pseudocode Documentation]
+- Added feature-level pseudocode text files under Docs/Pseudocode.
+- Split implementation notes by major feature:
+  - First-person character input and unarmed combat.
+  - Run timer, Game Over, and character death.
+  - Inventory and item windows.
+  - Equipment character preview.
+  - Start hub and play map structure.
+
+[Notion Summary Candidate]
+- Equipment preview: the equipment window now uses a runtime character preview path based on SceneCapture2D, RenderTarget, and the current character skeletal mesh. The preview can be rotated with left/right mouse drag.
+- Game Over flow: the prototype timer defeat state now calls character death logic, disables player actions, closes inventory UI, and exposes a Blueprint event for later death animation.
+- Documentation: major gameplay systems now have pseudocode text files for implementation planning and future feature handoff.

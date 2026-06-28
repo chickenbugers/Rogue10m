@@ -1,0 +1,108 @@
+Equipment Character Preview
+===========================
+
+[Purpose]
+- Show the current player character in the center of the equipment window.
+- Avoid drawing a separate preview background.
+- Allow the user to drag left or right on the preview area to rotate the character.
+
+[Runtime State]
+- HUD owns:
+  - CharacterPreviewActor
+  - CharacterPreviewMesh
+  - CharacterPreviewCapture
+  - CharacterPreviewRenderTarget
+  - CharacterPreviewPosition
+  - CharacterPreviewSize
+  - CharacterPreviewYaw
+  - LastCharacterPreviewDragX
+- Source character owns:
+  - GetMesh()
+  - GetFirstPersonMesh()
+
+[Preview Creation Flow]
+Pseudo:
+  HUD.DrawCharacterPreview(Character, X, Y, Width, Height):
+    Store preview position and size for mouse hit testing
+    RenderTargetWidth = max(256, Width * 2)
+    RenderTargetHeight = max(384, Height * 2)
+
+    If EnsureCharacterPreview(Character, RenderTargetWidth, RenderTargetHeight) fails:
+      Draw unavailable text
+      Return
+
+    UpdateCharacterPreview(Character)
+    Draw CharacterPreviewRenderTarget at X, Y, Width, Height with translucent blending
+
+  HUD.EnsureCharacterPreview(Character, RenderTargetWidth, RenderTargetHeight):
+    If Character or World is missing:
+      Return false
+
+    If preview actor does not exist:
+      Spawn transient actor
+      Disable collision
+
+    If preview skeletal mesh component does not exist:
+      Create skeletal mesh component
+      Disable collision
+      Disable shadow
+      Register component
+      Set as preview actor root
+
+    If scene capture component does not exist:
+      Create SceneCapture2D component
+      Use perspective projection
+      Use show-only rendering
+      Show only preview mesh
+      Disable capture every frame
+      Register component
+
+    If render target does not exist:
+      Create render target
+      Set clear color alpha to 0
+
+    If render target size changed:
+      Reinitialize render target
+      Assign it to the scene capture
+
+    Return true if preview objects are valid
+
+[Preview Update Flow]
+Pseudo:
+  HUD.UpdateCharacterPreview(Character):
+    SourceMesh = Character.GetMesh()
+    If SourceMesh has no skeletal mesh:
+      SourceMesh = Character.GetFirstPersonMesh()
+    If SourceMesh still has no skeletal mesh:
+      Return
+
+    If preview mesh asset is different from source mesh asset:
+      Set preview skeletal mesh asset from source
+      Set leader pose component from source
+
+    For each material slot:
+      Copy source material to preview mesh
+
+    Move preview actor below the player location so it does not appear in the world view
+    Rotate preview mesh by CharacterPreviewYaw
+    Place capture camera in front of the preview mesh
+    Aim capture camera at the character center
+    Capture scene into render target
+
+[Mouse Rotation Flow]
+Pseudo:
+  HUD.UpdateWindowDrag:
+    If left mouse was just pressed inside character preview area:
+      DraggedWindow = CharacterPreview
+      LastCharacterPreviewDragX = mouse X
+
+    If left mouse is held and DraggedWindow == CharacterPreview:
+      DeltaX = mouse X - LastCharacterPreviewDragX
+      CharacterPreviewYaw += DeltaX * rotation speed
+      CharacterPreviewYaw = CharacterPreviewYaw modulo 360
+      LastCharacterPreviewDragX = mouse X
+
+[Expansion Notes]
+- Equipment visuals should update the source character mesh or a dedicated preview loadout mesh.
+- A dedicated preview scene can replace the hidden-below-world approach if lighting or background control becomes important.
+- Later UI can add reset rotation, zoom, and pose selection.
