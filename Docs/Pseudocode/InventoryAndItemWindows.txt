@@ -1,0 +1,115 @@
+Inventory And Item Windows
+==========================
+
+[Purpose]
+- Provide two separate prototype UI windows:
+  - Equipment window toggled with I
+  - Item window toggled with B
+- Allow each window to move by dragging its title bar.
+- Keep attack input blocked while an inventory window is open.
+
+[Runtime State]
+- HUD owns:
+  - bInventoryVisible
+  - bItemWindowVisible
+  - InventoryWindowPosition
+  - ItemWindowPosition
+  - DraggedWindow
+  - DragOffset
+- Character owns:
+  - InventoryComponent
+- InventoryComponent owns:
+  - LeftEquipmentSlots
+  - RightEquipmentSlots
+  - ItemSlots
+  - Gold
+  - Crystals
+
+[Toggle Flow]
+Pseudo:
+  Character.DoToggleInventory:
+    If character is dead:
+      Return
+    Get PlayerController
+    Get Rogue10mHUD
+    HUD.ToggleInventory()
+
+  HUD.ToggleInventory:
+    SetInventoryVisible(!bInventoryVisible)
+
+  HUD.SetInventoryVisible(NewVisible):
+    bInventoryVisible = NewVisible
+    UpdateInventoryCursor()
+
+  Character.DoToggleItemWindow:
+    If character is dead:
+      Return
+    Get PlayerController
+    Get Rogue10mHUD
+    HUD.ToggleItemWindow()
+
+[Draw Equipment Window]
+Pseudo:
+  HUD.DrawInventory:
+    If bInventoryVisible is false:
+      Return
+    Get owning pawn as Rogue10mCharacter
+    Get InventoryComponent
+    Calculate panel size from current canvas
+    If window position is uninitialized:
+      Center window
+    Clamp window inside screen
+
+    Draw panel background
+    Draw title bar
+    Draw current character preview
+    Draw left equipment slots
+    Draw right equipment slots
+
+[Draw Item Window]
+Pseudo:
+  HUD.DrawItemWindow:
+    If bItemWindowVisible is false:
+      Return
+    Get owning pawn as Rogue10mCharacter
+    Get InventoryComponent
+    Calculate panel size from current canvas
+    If window position is uninitialized:
+      Center window with small offset
+    Clamp window inside screen
+
+    Draw panel background
+    Draw title bar
+    Draw category tabs
+    Draw item grid
+    Draw gold and crystal footer
+
+[Window Drag Flow]
+Pseudo:
+  HUD.UpdateWindowDrag:
+    If no inventory-related window is visible:
+      Clear DraggedWindow
+      Return
+
+    Read mouse position
+    If left mouse was just pressed:
+      If mouse is inside item title bar:
+        DraggedWindow = Items
+        DragOffset = mouse - item window position
+      Else if mouse is inside equipment title bar:
+        DraggedWindow = Equipment
+        DragOffset = mouse - equipment window position
+
+    If left mouse is released:
+      DraggedWindow = None
+      Return
+
+    If DraggedWindow == Items:
+      ItemWindowPosition = Clamp(mouse - DragOffset)
+    If DraggedWindow == Equipment:
+      InventoryWindowPosition = Clamp(mouse - DragOffset)
+
+[Expansion Notes]
+- Replace Canvas drawing with UMG widgets when layout complexity grows.
+- Drag-and-drop item movement should be handled separately from title-bar movement.
+- Equipment slot compatibility should be checked by item type and character requirements.

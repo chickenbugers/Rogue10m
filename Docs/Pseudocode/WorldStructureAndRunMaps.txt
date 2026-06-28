@@ -1,0 +1,73 @@
+World Structure And Run Maps
+============================
+
+[Purpose]
+- Keep the game split into a start hub and a play map.
+- The start hub contains NPCs and preparation systems.
+- The play map contains the timed roguelike run, enemies, boss, loot, and clear/fail logic.
+
+[Start Hub Goals]
+- NPC for item acquisition.
+- NPC for permanent or point-based trait upgrades.
+- NPC or object for difficulty selection.
+- NPC for opening story and tutorial context.
+- Entry point that starts the run and transfers the player to the play map.
+
+[Play Map Goals]
+- Open field sized so basic traversal from one edge to the other takes about five minutes.
+- Run timer starts when the play map run begins.
+- Enemies and loot exist inside the run space.
+- Boss must be defeated before the timer ends.
+- Defeating the boss within time clears the game.
+- Timer expiry or player death fails the game.
+
+[Map Data Flow]
+Pseudo:
+  MapDataLibrary.GetStartHubData:
+    Return:
+      MapId = StartHub
+      Purpose = NPC preparation area
+      Expected NPC roles
+      Run entry point notes
+
+  MapDataLibrary.GetPlayMapData:
+    Return:
+      MapId = PlayMap
+      Purpose = timed roguelike combat field
+      Target traversal time = 5 minutes
+      Boss objective notes
+
+[Run Entry Flow]
+Pseudo:
+  Player interacts with run start object:
+    Read selected difficulty
+    Read equipped items and traits
+    Load play map
+    Spawn player at play start
+    Start run timer
+
+[Run Clear Flow]
+Pseudo:
+  Boss defeated:
+    If run phase is Running:
+      Give boss rewards
+      Save earned points or items
+      GameState.FinishRun(Victory)
+      Show clear UI
+
+[Run Fail Flow]
+Pseudo:
+  Timer expired:
+    GameState.FinishRun(Defeat)
+    GameMode kills player character
+    HUD shows Game Over
+
+  Player health reaches zero:
+    Character.Die()
+    GameState.FinishRun(Defeat)
+    HUD shows Game Over
+
+[Expansion Notes]
+- Real .umap creation should happen in Unreal Editor.
+- C++ should implement systems that operate inside maps, not manually author binary map assets.
+- NPC interaction can start with simple overlap/use prompts, then move to dialogue data assets later.

@@ -1,0 +1,521 @@
+﻿Rogue10m 개발 로그 - 2026-06-23
+
+작성 목적
+- Tistory 업로드용 일일 개발 기록
+- 기능 개발 항목은 추후 Notion에 정리하기 위한 원본 로그
+
+오늘의 요약
+- Unreal Engine 5.7 기반 Rogue10m 프로젝트의 초기 C++ 개발 환경을 정리했다.
+- 20분 제한 시간을 가진 1인칭 싱글 로그라이크라는 프로젝트 방향에 맞춰 기본 런 타이머 구조를 추가했다.
+- GitHub 저장소 연동, 브랜치 전략, 개발 하네스 문서와 스크립트를 준비했다.
+- 앞으로 기능 개발을 설계, 구현, 빌드, 리뷰, 문서화 흐름으로 관리할 수 있도록 기반을 잡았다.
+
+1. 프로젝트 기본 확인
+- 프로젝트 경로: D:\Project\Rogue10m
+- Unreal Engine 버전: UE 5.7
+- 엔진 설치 경로: D:\Program Files\UE_5.7
+- 기본 프로젝트는 First Person 템플릿 기반이며 C++ 사용 가능 상태였다.
+- 기존 Source/Rogue10m 모듈과 FirstPerson, Shooter, Horror 변형 코드가 포함되어 있었다.
+
+2. 20분 런 타이머 기본 구조 추가
+- 신규 C++ GameState 클래스 추가:
+  - Source/Rogue10m/Rogue10mGameState.h
+  - Source/Rogue10m/Rogue10mGameState.cpp
+- 런 상태 enum을 추가했다.
+  - WaitingToStart
+  - Running
+  - Victory
+  - Defeat
+- 기본 런 시간은 1200초, 즉 20분으로 설정했다.
+- 게임 시작 시 타이머가 자동으로 시작되도록 GameMode에 연결했다.
+- 타이머 종료 시 현재는 Defeat 상태로 전환되도록 했다.
+- RunSeed, CurrentFloor, DefeatedEnemyCount 필드를 추가해 이후 로그라이크 진행 시스템의 기반을 마련했다.
+
+Notion 정리 후보: Run Timer System
+- 목적: 20분 제한 시간 기반의 싱글 런 관리
+- 핵심 클래스: ARogue10mGameState
+- 현재 기능:
+  - StartRun()
+  - FinishRun(bool bVictory)
+  - GetRemainingTimeText()
+  - GetRunProgressAlpha()
+- 다음 확장:
+  - 플레이어 사망과 런 실패 연결
+  - 보스 처치 또는 탈출 조건과 Victory 연결
+  - UI 위젯에서 남은 시간 표시
+  - 런 시드 기반 방 생성 또는 보상 생성
+
+3. HUD 연결용 C++ 베이스 추가
+- 신규 HUD 베이스 클래스 추가:
+  - Source/Rogue10m/Rogue10mRunHUD.h
+  - Source/Rogue10m/Rogue10mRunHUD.cpp
+- BlueprintImplementableEvent를 통해 블루프린트 위젯에서 타이머와 런 상태 변경을 표시할 수 있게 했다.
+- PlayerController에 RunHUDClass를 추가하고, 로컬 플레이어에 HUD를 생성하도록 연결했다.
+
+Notion 정리 후보: Run HUD Bridge
+- 목적: C++ 런 상태를 UMG 위젯으로 전달
+- 핵심 클래스:
+  - URogue10mRunHUD
+  - ARogue10mPlayerController
+- 현재 기능:
+  - BP_UpdateRunTimer
+  - BP_OnRunPhaseChanged
+- 다음 확장:
+  - WBP_RunHUD 제작
+  - 남은 시간 텍스트와 진행 바 연결
+  - Victory/Defeat 화면 표시
+
+4. 프로젝트 문서 추가
+- Docs/Rogue10m_PrototypePlan.md를 추가했다.
+- 현재 프로젝트 가정, 블루프린트 연결 방법, 다음 설계 질문을 정리했다.
+- 전투 방향, 런 구조, 성장 방식, 실패 조건, 비주얼 톤은 아직 결정이 필요하다.
+
+5. GitHub 연동 및 브랜치 전략 설정
+- GitHub 저장소:
+  - https://github.com/chickenbugers/Rogue10m.git
+- 기본 브랜치 구조를 게임 개발에 맞게 설계했다.
+  - main: 안정 마일스톤 브랜치
+  - develop: 일상 개발 통합 브랜치
+  - test: 플레이테스트 브랜치
+- 작업 브랜치 규칙을 추가했다.
+  - feature/<name>: 게임 시스템, UI, AI, 전투
+  - content/<name>: 아트, 사운드, 애니메이션, VFX
+  - level/<name>: 맵, 방, 아레나, 조명
+  - balance/<name>: 스탯, 스폰, 아이템 테이블
+  - fix/<name>: 버그 수정
+- Docs/GitBranchStrategy.md에 브랜치 전략을 문서화했다.
+
+6. 하네스 엔지니어링 설정
+- 참고 저장소:
+  - https://github.com/BaeJongHo/Unreal_Harness
+- Claude 전용 설정을 그대로 복사하지 않고 Codex와 Rogue10m 환경에 맞게 이식했다.
+- 현재 작업 브랜치:
+  - feature/harness-engineering
+- 추가한 파일:
+  - AGENTS.md
+  - Docs/HarnessPipeline.md
+  - Docs/UnrealEngineeringRules.md
+  - Feature/README.md
+  - Feature/architect/README.md
+  - Feature/doc/README.md
+  - Scripts/BuildEditor.ps1
+  - Scripts/CheckGeneratedChanges.ps1
+  - Scripts/NewHarnessFeature.ps1
+- 하네스 파이프라인:
+  1. Architect: 설계 문서 작성
+  2. Implementer: 코드와 설정 구현
+  3. Builder: 빌드 검증
+  4. Reviewer: Unreal 특화 리뷰
+  5. Doc Writer: 개발 결과 문서화
+- 기능 개발 산출물 위치:
+  - Feature/architect/
+  - Feature/doc/
+
+Notion 정리 후보: Codex Unreal Harness
+- 목적: 기능 개발을 설계, 구현, 빌드, 리뷰, 문서화 단계로 관리
+- 핵심 파일:
+  - AGENTS.md
+  - Docs/HarnessPipeline.md
+  - Docs/UnrealEngineeringRules.md
+- 도구:
+  - BuildEditor.ps1: UE 에디터 타깃 빌드
+  - CheckGeneratedChanges.ps1: 생성/캐시 파일 커밋 방지 점검
+  - NewHarnessFeature.ps1: 기능별 설계/개발 문서 템플릿 생성
+
+7. 검증 결과
+- Unreal Header Tool 헤더 파싱은 통과했다.
+- 전체 C++ 빌드는 Unreal Editor Live Coding 활성화 때문에 중단되었다.
+  - 해결 방법: 에디터에서 Ctrl+Alt+F11로 Live Coding 컴파일을 하거나, 에디터를 종료한 뒤 BuildEditor.ps1 또는 Build.bat로 빌드한다.
+- 하네스 PowerShell 스크립트 3개는 문법 검사 통과.
+- Scripts/CheckGeneratedChanges.ps1 실행 통과.
+- GitHub 원격 브랜치 생성 및 push 확인.
+
+8. 현재 남은 결정 사항
+- 전투 방향:
+  - 총기 중심
+  - 근접 중심
+  - 마법/스킬 슈터
+  - 혼합형
+- 20분 런 구조:
+  - 단일 아레나 생존형
+  - 방/층 진행형
+  - 목표 달성 후 탈출형
+- 성장 방식:
+  - 런 중 레벨업 선택지
+  - 아이템 드랍
+  - 영구 성장
+  - 전부 포함
+- 실패 조건:
+  - 타이머 종료
+  - 플레이어 사망
+  - 둘 다
+- 비주얼 톤:
+  - SF
+  - 다크 판타지
+  - 현대 호러
+  - 추상 아레나
+
+9. 다음 작업 후보
+- WBP_RunHUD 제작 및 RunHUDClass 연결
+- 20분 타이머를 실제 화면에 표시
+- 플레이어 사망 조건과 Defeat 연결
+- 기본 적 스폰 시스템 설계
+- 첫 번째 전투 방식 결정
+- feature/run-hud 브랜치에서 HUD 기능 개발 시작
+
+오늘의 결론
+- 프로젝트는 이제 단순 First Person 템플릿에서 20분 런 기반 로그라이크 프로토타입으로 출발할 수 있는 최소 C++ 골격을 갖췄다.
+- GitHub 브랜치 전략과 하네스 문서가 준비되어 이후 기능 개발을 체계적으로 기록하고 검증할 수 있다.
+- 다음 단계는 실제 플레이 화면에서 런 타이머를 보이게 만드는 Run HUD 작업이 적합하다.
+
+---
+
+추가 로그 - 이미지 기반 개발 파이프라인 반영
+
+요청 내용
+- 첨부된 개발 파이프라인 이미지를 기반으로 Rogue10m 개발 구조를 잡기로 했다.
+- 이미지의 큰 흐름은 Pre-production, Production, Testing, Distribution, Post-Production 단계로 구성되어 있다.
+- Production 단계에는 In-development Testing이 연결되어 있고, Testing에는 QA Testing, Distribution에는 Final Build, Post-Production에는 DLC와 Patches가 연결되어 있다.
+- 매 작업마다 DevLog 작성 여부를 확인하는 규칙을 하네스 체크리스트에 포함하기로 했다.
+
+반영 내용
+- AGENTS.md에 Required Per-Command Checklist 섹션을 추가했다.
+- 모든 명령 처리 시 변경사항이 있으면 DevLog/YYYYMMDD.txt를 확인하고 이어 쓰도록 규칙화했다.
+- 오늘 날짜 파일이 없으면 생성하고, 있으면 기존 내용 아래에 추가 작성하도록 명시했다.
+- DevLog는 Tistory 업로드에 적합한 형태로 작성하고, 기능 개발 항목은 Notion 정리 후보로 표시하도록 정했다.
+- Docs/HarnessPipeline.md에 게임 개발 파이프라인 단계를 추가했다.
+- 기존 하네스의 Architect, Implementer, Builder, Reviewer, Doc Writer 흐름을 이미지의 개발 단계에 매핑했다.
+
+개발 파이프라인 매핑
+- Pre-production: Architect 단계, 기능 정의와 설계 문서 작성
+- Production: Implementer 단계, 실제 기능 구현
+- Production / In-development Testing: Builder 단계, 개발 중 빌드와 컴파일 검증
+- Testing / QA Testing: Reviewer 단계, 통합 검증과 Unreal 특화 리뷰
+- Distribution / Final Build: 안정 빌드와 릴리즈 후보 준비
+- Post-Production: DLC, Patches, 후속 수정과 콘텐츠 업데이트
+
+Notion 정리 후보: Rogue10m Development Pipeline
+- 목적: 게임 개발 전체 흐름을 프로젝트 하네스에 맞춰 관리
+- 기준 이미지 단계:
+  - Pre-production
+  - Production
+  - Testing
+  - Distribution
+  - Post-Production
+- 프로젝트 문서:
+  - AGENTS.md
+  - Docs/HarnessPipeline.md
+- 핵심 규칙:
+  - 기능 개발은 설계, 구현, 빌드, 리뷰, 문서화 흐름을 따른다.
+  - 모든 변경 작업은 당일 DevLog에 기록한다.
+  - 기능 단위 결과는 Notion 정리 후보로 남긴다.
+
+다음 작업 후보
+- DevLog 규칙을 실제 커밋 전 체크리스트로 계속 사용한다.
+- 기능 개발을 시작할 때 Scripts/NewHarnessFeature.ps1로 설계/개발 문서 템플릿을 만든다.
+- 첫 기능 후보는 Run HUD 표시 기능이 적합하다.
+
+추가 정리
+- Docs/HarnessPipeline.md의 파이프라인 표 헤더를 정리했다.
+- GitHub 반영 전 문서 구조가 깨져 보이지 않도록 확인했다.
+
+추가 로그 - 하네스 파이프라인 규칙 커밋 준비
+
+요청 내용
+- 이미지 기반 개발 파이프라인과 DevLog 필수 확인 규칙 변경사항을 커밋하기로 했다.
+
+커밋 대상
+- AGENTS.md
+- Docs/HarnessPipeline.md
+- DevLog/20260623.txt
+
+메모
+- 이번 커밋은 문서와 개발 로그 규칙 정리이며 C++ 런타임 코드는 변경하지 않는다.
+
+---
+
+추가 로그 - 기본 1인칭 런 플로우 구현
+
+요청 내용
+- 게임은 기본적으로 아무 무기도 들지 않은 캐릭터로 시작한다.
+- 추후 캐릭터 커스터마이징 가능성을 열어둔다.
+- 캐릭터는 검, 지팡이, 활 같은 기본 무기를 획득하고 숙련도나 스킬로 강화한다.
+- 보스를 잡고 아이템을 얻는 게임 구조를 목표로 한다.
+- 1인칭 구조를 유지한다.
+- GameMode 설정을 통해 캐릭터가 스폰되고 WASD로 걸을 수 있어야 한다.
+- 타이머 UI를 표시하고, 테스트를 위해 게임 시작 30초 뒤 종료 UI를 보여준다.
+
+구현 내용
+- ARogue10mGameMode를 직접 기본 GameMode로 사용할 수 있게 abstract를 제거했다.
+- Config/DefaultEngine.ini의 GlobalDefaultGameMode를 /Script/Rogue10m.Rogue10mGameMode로 변경했다.
+- GameMode에서 기존 First Person 캐릭터 BP와 PlayerController BP를 기본 Pawn/Controller로 지정했다.
+- 기존 First Person 템플릿의 Enhanced Input 기반 WASD 이동 구조를 유지했다.
+- ARogue10mGameState에 StartRunWithDuration(float)를 추가해 프로토타입 테스트용 런 시간을 지정할 수 있게 했다.
+- GameMode에 bUsePrototypeRunDuration과 PrototypeRunDurationSeconds를 추가했다.
+- 현재 프로토타입 기본값은 30초로 설정했다.
+- ARogue10mHUD C++ 클래스를 추가했다.
+- HUD에서 남은 시간, 진행 바, 종료 메시지를 Canvas에 직접 그린다.
+- 30초가 지나면 RunPhase가 Defeat로 바뀌고 HUD에 RUN FAILED 메시지가 표시된다.
+
+검증
+- UnrealBuildTool 에디터 타깃 빌드 성공.
+- 실행 명령:
+  - .\Scripts\BuildEditor.ps1 -NoHotReload
+- UHT 처리, 컴파일, 링크 모두 성공했다.
+
+Notion 정리 후보: Prototype Run Flow
+- 목적: 무기 없는 1인칭 캐릭터로 시작해 런 타이머와 종료 UI를 확인하는 첫 플레이 흐름
+- 핵심 클래스:
+  - ARogue10mGameMode
+  - ARogue10mGameState
+  - ARogue10mHUD
+- 현재 동작:
+  - C++ GameMode가 FirstPerson 캐릭터와 컨트롤러를 지정한다.
+  - 기존 템플릿 입력으로 WASD 이동이 가능하다.
+  - 프로토타입 런 시간은 30초다.
+  - HUD에 타이머와 진행 바가 표시된다.
+  - 시간이 끝나면 RUN FAILED UI가 표시된다.
+- 추후 확장:
+  - 프로토타입 30초 설정을 실제 20분 런으로 되돌리기
+  - UMG 기반 정식 HUD 제작
+  - 무기 획득 시스템
+  - 무기 숙련도와 스킬 성장 시스템
+  - 보스 처치와 보상 아이템 루프
+  - 커스터마이징 데이터 구조
+
+결정 필요 사항
+- 첫 무기는 월드에서 줍는 방식인지, 런 시작 전 선택인지, 튜토리얼로 지급할지 결정 필요.
+- 무기 숙련도는 무기 타입별인지, 개별 무기별인지, 캐릭터 전체 성장인지 결정 필요.
+- 20분 타이머 종료 시 실패인지, 보스 출현인지, 탈출/정산 단계인지 결정 필요.
+- 커스터마이징은 외형 전용인지, 스탯에 영향을 주는지 결정 필요.
+- 검, 지팡이, 활의 기본 전투 입력 구조를 공통 액션으로 묶을지 무기별 액션으로 나눌지 결정 필요.
+
+---
+
+추가 로그 - 시작맵/플레이맵 구조와 기본 주먹 공격 반영
+
+요청 내용
+- BP_FirstPersonCharacter의 메시 2개 구조가 의도된 것인지 확인했다.
+- 시작맵은 NPC들이 존재하는 허브로 구성한다.
+- 아이템 NPC, 특성 강화 NPC, 난이도 조절 NPC, 스토리 NPC를 각각 두는 방향으로 정했다.
+- 플레이 맵은 적당한 사이즈의 오픈 월드로 제작한다.
+- 맵 끝까지 약 5분이면 이동 가능한 크기를 목표로 한다.
+- 무기 숙련도는 무기 타입별로 진행한다.
+- 20분 이내에 보스를 잡으면 클리어, 아니면 실패로 진행한다.
+- 커스터마이징은 외형 전용이며 스탯에는 영향이 없다.
+- 검, 지팡이, 활 입력은 무기별 액션으로 진행한다.
+- 캐릭터 기본 상태는 주먹 공격이 가능한 상태로 유지한다.
+
+확인 내용
+- BP_FirstPersonCharacter의 메시 2개는 First Person 템플릿에서 의도된 구조로 판단했다.
+- 하나는 월드/3인칭 표현용 메쉬이고, 하나는 소유자만 보는 1인칭 팔/뷰 메쉬 구조다.
+- 1인칭 게임과 추후 외형 커스터마이징을 고려하면 현재는 유지하는 편이 좋다.
+
+구현 내용
+- ERogue10mWeaponType enum을 추가했다.
+  - Unarmed
+  - Sword
+  - Staff
+  - Bow
+- ARogue10mCharacter의 기본 EquippedWeaponType을 Unarmed로 설정했다.
+- Left Mouse Button 입력으로 DoPrimaryAttack()이 실행되도록 바인딩했다.
+- 무기 미장착 상태에서는 DoUnarmedAttack()이 실행된다.
+- 주먹 공격은 카메라 전방으로 짧은 Sphere Sweep을 수행한다.
+- 명중 시 UGameplayStatics::ApplyDamage로 기본 피해를 적용한다.
+- UnarmedDamage, UnarmedRange, UnarmedTraceRadius, UnarmedAttackInterval을 UPROPERTY로 노출했다.
+- Docs/WorldStructure.md를 추가해 시작맵, 플레이맵, NPC 역할, 5분 이동 목표 크기를 정리했다.
+- Docs/Rogue10m_PrototypePlan.md와 Feature/doc/2026-06-23_prototype-run-flow.md를 최신 설계 결정에 맞게 수정했다.
+
+Notion 정리 후보: World And Combat Starting Rules
+- 시작맵:
+  - Item NPC
+  - Trait NPC
+  - Difficulty NPC
+  - Story NPC
+- 플레이맵:
+  - 오픈 월드 전투 맵
+  - 기본 이동속도 600cm/s 기준 edge-to-edge 약 1.8km 목표
+  - 최종 이동속도 확정 후 실제 크기 조정 필요
+- 클리어/실패:
+  - 20분 이내 보스 처치 시 클리어
+  - 20분 초과 시 실패
+- 전투 시작 상태:
+  - 기본 무기 없음
+  - 주먹 공격 가능
+  - 무기 숙련도는 타입별 진행
+- 커스터마이징:
+  - 외형 전용
+  - 스탯 영향 없음
+
+검증
+- Unreal Header Tool 파싱은 통과했다.
+- 전체 빌드는 Unreal Editor Live Coding 활성화 때문에 중단되었다.
+- 해결하려면 에디터에서 Ctrl+Alt+F11을 누르거나 에디터를 종료한 뒤 다시 빌드해야 한다.
+
+다음 작업 후보
+- Live Coding 비활성화 후 전체 C++ 빌드 재확인
+- 주먹 공격 히트 대상용 테스트 더미 액터 추가
+- 시작맵 NPC 상호작용 베이스 클래스 설계
+- 플레이맵 사이즈 프로토타입 제작
+
+---
+
+추가 로그 - 인벤토리 UI와 간단한 맵 데이터 제작
+
+요청 내용
+- 첨부 이미지와 비슷한 인벤토리 UI를 제작한다.
+- I 키로 인벤토리를 켜고 끌 수 있게 한다.
+- 간단한 맵 데이터도 제작한다.
+
+구현 내용
+- URogue10mInventoryComponent를 추가했다.
+- 인벤토리는 장비창 형태로 시작하며 좌측 장비 슬롯과 우측 장신구/재료 슬롯을 가진다.
+- 현재 슬롯 데이터는 프로토타입용 기본값으로 구성했다.
+  - Head
+  - Chest
+  - Legs
+  - Hands
+  - Weapon/Fists
+  - Charm
+  - Ring
+  - Relic
+  - Potion
+  - Core
+- ARogue10mCharacter에 InventoryComponent를 추가했다.
+- I 키를 누르면 ARogue10mHUD의 인벤토리 표시 상태를 토글한다.
+- ARogue10mHUD에 Canvas 기반 인벤토리 패널을 추가했다.
+- UI 구조는 첨부 이미지처럼 좌측 슬롯, 중앙 캐릭터 프리뷰, 우측 슬롯으로 구성했다.
+- 잠금 슬롯은 LOCK으로 표시하고 장착 슬롯은 EQUIP으로 표시한다.
+- URogue10mMapDataLibrary를 추가했다.
+- 프로토타입 맵 데이터로 Start Map과 Play Map을 정의했다.
+- Start Map에는 Item NPC, Trait NPC, Difficulty NPC, Story NPC의 위치와 역할 데이터를 추가했다.
+- Play Map은 5분 이동 목표를 기준으로 1800m x 1800m 목표 크기를 가진다.
+
+Notion 정리 후보: Prototype Inventory And Map Data
+- 인벤토리 목적:
+  - 장비/장신구/재료 슬롯을 가진 첫 장비창 UI 제작
+  - 추후 UMG와 아이콘 에셋으로 교체 가능하게 C++ 데이터 구조 분리
+- 입력:
+  - I 키로 열기/닫기
+- 핵심 클래스:
+  - URogue10mInventoryComponent
+  - ARogue10mHUD
+  - ARogue10mCharacter
+- 맵 데이터 목적:
+  - 시작맵 NPC 역할과 플레이맵 목표 크기 데이터를 코드에서 참조 가능하게 정리
+- 핵심 클래스:
+  - URogue10mMapDataLibrary
+  - FRogue10mMapDefinition
+  - FRogue10mNpcMapEntry
+
+검증
+- UHT 파싱은 통과했다.
+- 전체 C++ 빌드는 Unreal Editor Live Coding 활성화 때문에 중단되었다.
+- HUD에서 사용한 GetOwningPawn, DrawLine, GetHUD 템플릿 API는 UE 5.7 엔진 헤더에서 존재를 확인했다.
+
+다음 작업 후보
+- Live Coding 비활성화 후 전체 컴파일 재확인
+- 인벤토리를 UMG 기반 WBP_Inventory로 이전
+- 실제 아이콘 텍스처와 슬롯 프레임 에셋 연결
+- NPC 상호작용 베이스 클래스 제작
+- 맵 데이터를 DataAsset으로 이전
+
+---
+
+추가 로그 - 별도 아이템 창과 드래그 이동 기능 추가
+
+요청 내용
+- 장비창과 별도로 아이템 창을 추가한다.
+- 첨부 이미지처럼 그리드 기반 소지품 UI를 만든다.
+- 장비창과 아이템 창은 따로따로 켜고 끌 수 있어야 한다.
+- 드래그를 이용해 창 위치를 변경할 수 있어야 한다.
+
+구현 내용
+- 기존 I 키 장비창은 유지했다.
+- 새 아이템 창은 B 키로 토글되도록 추가했다.
+- 장비창과 아이템 창은 서로 독립적으로 열고 닫을 수 있다.
+- 두 창 모두 상단 타이틀 바를 마우스로 드래그해 위치를 변경할 수 있다.
+- ARogue10mHUD에 드래그 상태를 추가했다.
+  - Equipment window drag
+  - Item window drag
+- UI 창이 열려 있을 때 좌클릭 주먹 공격이 나가지 않도록 처리했다.
+- URogue10mInventoryComponent에 FRogue10mItemStack을 추가했다.
+- 아이템 카테고리를 추가했다.
+  - Equipment
+  - Consumable
+  - Material
+  - Currency
+  - Quest
+- 프로토타입 아이템 그리드 데이터를 추가했다.
+- 아이템 창에는 탭 영역, 아이템 그리드, 수량 표시, 잠금 표시, 골드/크리스탈 재화 표시를 그린다.
+
+Notion 정리 후보: Separate Equipment And Item Windows
+- 장비창:
+  - I 키 토글
+  - 캐릭터 프리뷰 중심
+  - 좌우 장비 슬롯 구조
+- 아이템 창:
+  - B 키 토글
+  - 그리드 기반 소지품 구조
+  - 수량/잠금/재화 표시
+- 공통 기능:
+  - 각각 독립적으로 열고 닫기 가능
+  - 타이틀 바 드래그로 위치 변경 가능
+  - UI가 열려 있을 때 공격 입력 방지
+- 핵심 클래스:
+  - ARogue10mHUD
+  - ARogue10mCharacter
+  - URogue10mInventoryComponent
+  - FRogue10mItemStack
+
+검증
+- UHT 파싱은 통과했다.
+- 전체 C++ 빌드는 Unreal Editor Live Coding 활성화 때문에 중단되었다.
+- 드래그 처리에 사용한 WasInputKeyJustPressed, IsInputKeyDown API는 UE 5.7 PlayerController 헤더에서 확인했다.
+
+다음 작업 후보
+- Live Coding 비활성화 후 전체 컴파일 재확인
+- 아이템 창을 UMG 기반 WBP_ItemWindow로 이전
+- 실제 아이콘 텍스처와 아이템 데이터 에셋 연결
+- 장비창과 아이템 창의 겹침/포커스 순서 처리
+
+---
+
+추가 로그 - 프로토타입 런/전투/맵/인벤토리 작업 커밋
+
+요청 내용
+- 지금까지 진행한 작업을 GitHub에 커밋한다.
+- 커밋 전 진행 사항을 DevLog에 남긴다.
+
+이번 커밋에 포함할 주요 작업
+- C++ GameMode를 기본 GameMode로 설정하고 FirstPerson 캐릭터/컨트롤러를 기본 스폰 대상으로 연결했다.
+- 30초 프로토타입 런 타이머와 종료 HUD를 추가했다.
+- C++ HUD에 타이머, 진행 바, RUN FAILED 표시를 추가했다.
+- 캐릭터 기본 상태를 Unarmed로 두고 좌클릭 주먹 공격을 추가했다.
+- 시작맵/플레이맵 구조 문서를 추가했다.
+- Start Map NPC 역할과 Play Map 목표 크기 데이터를 C++ 라이브러리로 추가했다.
+- 장비창 UI를 추가하고 I 키로 토글되게 했다.
+- 아이템/소지품 창 UI를 추가하고 B 키로 토글되게 했다.
+- 장비창과 아이템 창은 독립적으로 열고 닫을 수 있으며, 타이틀 바 드래그로 위치 이동이 가능하다.
+- UI 창이 열려 있을 때 공격 입력이 나가지 않도록 처리했다.
+
+검증 상태
+- Harness path check는 통과했다.
+- Unreal Header Tool 파싱은 통과했다.
+- 전체 C++ 빌드는 Unreal Editor Live Coding 활성화 때문에 중단되었다.
+- 에디터에서 Ctrl+Alt+F11을 누르거나 에디터 종료 후 다시 빌드해야 전체 컴파일 확인이 가능하다.
+
+Notion 정리 후보: First Playable Prototype UI And Run Loop
+- 범위:
+  - 1인칭 기본 스폰
+  - 30초 테스트 런 종료 UI
+  - 주먹 기본 공격
+  - 시작맵/플레이맵 데이터
+  - 장비창
+  - 아이템 창
+  - 드래그 가능한 프로토타입 UI
+- 다음 단계:
+  - Live Coding 비활성화 후 전체 빌드
+  - Canvas UI를 UMG 위젯으로 이전
+  - NPC 상호작용 베이스 클래스 설계
+  - 실제 맵 에셋과 테스트 더미 제작

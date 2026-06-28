@@ -5,10 +5,16 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/DamageEvents.h"
 #include "EnhancedInputComponent.h"
-#include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/DamageType.h"
+#include "InputActionValue.h"
+#include "InputCoreTypes.h"
+#include "Kismet/GameplayStatics.h"
 #include "Rogue10m.h"
+#include "Rogue10mHUD.h"
+#include "Rogue10mInventoryComponent.h"
 
 ARogue10mCharacter::ARogue10mCharacter()
 {
@@ -17,6 +23,7 @@ ARogue10mCharacter::ARogue10mCharacter()
 	
 	// Create the first person mesh that will be viewed only by this character's owner
 	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person Mesh"));
+	InventoryComponent = CreateDefaultSubobject<URogue10mInventoryComponent>(TEXT("Inventory Component"));
 
 	FirstPersonMesh->SetupAttachment(GetMesh());
 	FirstPersonMesh->SetOnlyOwnerSee(true);
@@ -64,6 +71,10 @@ void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	{
 		UE_LOG(LogRogue10m, Error, TEXT("'%s' Failed to find an Enhanced Input Component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
+
+	PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ARogue10mCharacter::DoPrimaryAttack);
+	PlayerInputComponent->BindKey(EKeys::I, IE_Pressed, this, &ARogue10mCharacter::DoToggleInventory);
+	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ARogue10mCharacter::DoToggleItemWindow);
 }
 
 
@@ -89,7 +100,7 @@ void ARogue10mCharacter::LookInput(const FInputActionValue& Value)
 
 void ARogue10mCharacter::DoAim(float Yaw, float Pitch)
 {
-	if (GetController())
+	if (!bIsDead && GetController())
 	{
 		// pass the rotation inputs
 		AddControllerYawInput(Yaw);
@@ -99,7 +110,7 @@ void ARogue10mCharacter::DoAim(float Yaw, float Pitch)
 
 void ARogue10mCharacter::DoMove(float Right, float Forward)
 {
-	if (GetController())
+	if (!bIsDead && GetController())
 	{
 		// pass the move inputs
 		AddMovementInput(GetActorRightVector(), Right);
@@ -109,12 +120,160 @@ void ARogue10mCharacter::DoMove(float Right, float Forward)
 
 void ARogue10mCharacter::DoJumpStart()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	// pass Jump to the character
 	Jump();
 }
 
 void ARogue10mCharacter::DoJumpEnd()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	// pass StopJumping to the character
 	StopJumping();
+}
+
+void ARogue10mCharacter::DoPrimaryAttack()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (const ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>(); RogueHUD && RogueHUD->IsAnyInventoryWindowVisible())
+		{
+			return;
+		}
+	}
+
+	switch (EquippedWeaponType)
+	{
+	case ERogue10mWeaponType::Unarmed:
+		DoUnarmedAttack();
+		break;
+	default:
+		UE_LOG(LogRogue10m, Verbose, TEXT("Weapon attack is not implemented yet."));
+		break;
+	}
+}
+
+void ARogue10mCharacter::DoToggleItemWindow()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+	{
+		RogueHUD->ToggleItemWindow();
+	}
+}
+
+void ARogue10mCharacter::DoUnarmedAttack()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World || !FirstPersonCameraComponent)
+	{
+		return;
+	}
+
+	const float CurrentTime = World->GetTimeSeconds();
+	if (CurrentTime - LastAttackTime < UnarmedAttackInterval)
+	{
+		return;
+	}
+
+	LastAttackTime = CurrentTime;
+
+	const FVector TraceStart = FirstPersonCameraComponent->GetComponentLocation();
+	const FVector TraceEnd = TraceStart + FirstPersonCameraComponent->GetForwardVector() * UnarmedRange;
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(UnarmedAttack), false, this);
+	FHitResult HitResult;
+	const bool bHit = World->SweepSingleByChannel(
+		HitResult,
+		TraceStart,
+		TraceEnd,
+		FQuat::Identity,
+		ECC_Pawn,
+		FCollisionShape::MakeSphere(UnarmedTraceRadius),
+		QueryParams);
+
+	if (bHit && HitResult.GetActor())
+	{
+		UGameplayStatics::ApplyDamage(HitResult.GetActor(), UnarmedDamage, GetController(), this, UDamageType::StaticClass());
+		UE_LOG(LogRogue10m, Log, TEXT("Unarmed attack hit %s."), *GetNameSafe(HitResult.GetActor()));
+	}
+	else
+	{
+		UE_LOG(LogRogue10m, Verbose, TEXT("Unarmed attack missed."));
+	}
+}
+
+void ARogue10mCharacter::DoToggleInventory()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+	{
+		RogueHUD->ToggleInventory();
+	}
+}
+
+void ARogue10mCharacter::Die()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		DisableInput(PlayerController);
+
+		if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+		{
+			RogueHUD->SetInventoryVisible(false);
+			RogueHUD->SetItemWindowVisible(false);
+		}
+	}
+
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	UE_LOG(LogRogue10m, Log, TEXT("%s died after the run timer expired."), *GetNameSafe(this));
+	BP_OnRunDeath();
 }
