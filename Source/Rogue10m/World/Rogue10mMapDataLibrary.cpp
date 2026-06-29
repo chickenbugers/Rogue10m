@@ -19,19 +19,23 @@ TArray<FRogue10mMapDefinition> URogue10mMapDataLibrary::GetPrototypeMapDefinitio
 {
 	FRogue10mMapDefinition StartMap;
 	StartMap.Id = FName(TEXT("StartHub"));
-	StartMap.DisplayName = FText::FromString(TEXT("Start Map"));
+	StartMap.DisplayName = FText::FromString(TEXT("시작맵"));
+	StartMap.LevelName = FName(TEXT("StartHub"));
+	StartMap.LevelAssetPath = FSoftObjectPath(TEXT("/Game/Rogue10m/Maps/StartHub.StartHub"));
 	StartMap.Role = ERogue10mMapRole::StartHub;
 	StartMap.TargetWorldSizeMeters = FVector2D(120.0f, 120.0f);
 	StartMap.Npcs = {
-		Rogue10mMapData::MakeNpc(TEXT("ItemNpc"), TEXT("Item Keeper"), TEXT("Items and starting equipment."), FVector(300.0f, -200.0f, 0.0f)),
-		Rogue10mMapData::MakeNpc(TEXT("TraitNpc"), TEXT("Trait Mentor"), TEXT("Spend earned points on simple trait upgrades."), FVector(300.0f, 200.0f, 0.0f)),
-		Rogue10mMapData::MakeNpc(TEXT("DifficultyNpc"), TEXT("Trial Guide"), TEXT("Adjust run difficulty before entering the play map."), FVector(-300.0f, -200.0f, 0.0f)),
-		Rogue10mMapData::MakeNpc(TEXT("StoryNpc"), TEXT("Storyteller"), TEXT("Introduce the opening story and run premise."), FVector(-300.0f, 200.0f, 0.0f))
+		Rogue10mMapData::MakeNpc(TEXT("ItemNpc"), TEXT("아이템 관리 NPC"), TEXT("시작 장비와 아이템을 제공한다."), FVector(300.0f, -200.0f, 0.0f)),
+		Rogue10mMapData::MakeNpc(TEXT("TraitNpc"), TEXT("특성 강화 NPC"), TEXT("획득 포인트로 간단한 특성을 강화한다."), FVector(300.0f, 200.0f, 0.0f)),
+		Rogue10mMapData::MakeNpc(TEXT("DifficultyNpc"), TEXT("난이도 조절 NPC"), TEXT("플레이맵 진입 전 난이도를 조절한다."), FVector(-300.0f, -200.0f, 0.0f)),
+		Rogue10mMapData::MakeNpc(TEXT("StoryNpc"), TEXT("스토리 안내 NPC"), TEXT("시작 스토리와 런 목표를 설명한다."), FVector(-300.0f, 200.0f, 0.0f))
 	};
 
 	FRogue10mMapDefinition PlayMap;
 	PlayMap.Id = FName(TEXT("OpenRunMap"));
-	PlayMap.DisplayName = FText::FromString(TEXT("Play Map"));
+	PlayMap.DisplayName = FText::FromString(TEXT("플레이맵"));
+	PlayMap.LevelName = FName(TEXT("OpenRunMap"));
+	PlayMap.LevelAssetPath = FSoftObjectPath(TEXT("/Game/Rogue10m/Maps/OpenRunMap.OpenRunMap"));
 	PlayMap.Role = ERogue10mMapRole::CombatRun;
 	PlayMap.TargetWorldSizeMeters = FVector2D(1800.0f, 1800.0f);
 

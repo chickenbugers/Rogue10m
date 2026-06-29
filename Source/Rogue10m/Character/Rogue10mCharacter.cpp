@@ -102,6 +102,13 @@ float ARogue10mCharacter::TakeDamage(float DamageAmount, const FDamageEvent& Dam
 	const float NewHealth = VitalsComponent->GetHealth().Current - DamageAmount;
 	VitalsComponent->SetHealth(NewHealth);
 	UE_LOG(LogRogue10m, Log, TEXT("%s took %.1f damage. HP %.1f / %.1f"), *GetNameSafe(this), DamageAmount, VitalsComponent->GetHealth().Current, VitalsComponent->GetHealth().Max);
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+		{
+			RogueHUD->NotifyPlayerDamaged(DamageAmount);
+		}
+	}
 
 	if (VitalsComponent->GetHealth().Current <= 0.0f)
 	{
@@ -251,7 +258,7 @@ void ARogue10mCharacter::DoUnarmedAttack()
 	const float CurrentTime = World->GetTimeSeconds();
 	if (CurrentTime - LastAttackTime < UnarmedAttackInterval)
 	{
-		AddCombatScreenLog(TEXT("Attack input accepted, but unarmed trace is on cooldown."), FLinearColor(1.0f, 0.65f, 0.35f, 1.0f));
+		AddCombatScreenLog(TEXT("공격 입력 확인: 기본 공격 재사용 대기 중입니다."), FLinearColor(1.0f, 0.65f, 0.35f, 1.0f));
 		return;
 	}
 
@@ -275,12 +282,12 @@ void ARogue10mCharacter::DoUnarmedAttack()
 	{
 		UGameplayStatics::ApplyDamage(HitResult.GetActor(), UnarmedDamage, GetController(), this, UDamageType::StaticClass());
 		UE_LOG(LogRogue10m, Log, TEXT("Unarmed attack hit %s."), *GetNameSafe(HitResult.GetActor()));
-		AddCombatScreenLog(FString::Printf(TEXT("Unarmed trace hit: %s"), *GetNameSafe(HitResult.GetActor())), FLinearColor(0.35f, 1.0f, 0.62f, 1.0f));
+		AddCombatScreenLog(FString::Printf(TEXT("기본 공격 명중: %s / 피해 %.0f"), *GetNameSafe(HitResult.GetActor()), UnarmedDamage), FLinearColor(0.35f, 1.0f, 0.62f, 1.0f));
 	}
 	else
 	{
 		UE_LOG(LogRogue10m, Verbose, TEXT("Unarmed attack missed."));
-		AddCombatScreenLog(TEXT("Unarmed trace missed."), FLinearColor(0.85f, 0.86f, 0.9f, 1.0f));
+		AddCombatScreenLog(TEXT("기본 공격 빗나감"), FLinearColor(0.85f, 0.86f, 0.9f, 1.0f));
 	}
 }
 
@@ -443,8 +450,8 @@ void ARogue10mCharacter::BeginCombatAttack(bool bPrimaryAttack)
 	float& PressedTime = bPrimaryAttack ? LeftAttackPressedTime : RightAttackPressedTime;
 	PressedTime = World->GetTimeSeconds();
 
-	const FString ButtonText = bPrimaryAttack ? TEXT("Left Click") : TEXT("Right Click");
-	AddCombatScreenLog(FString::Printf(TEXT("%s pressed - charging check started"), *ButtonText), FLinearColor(0.72f, 0.84f, 1.0f, 1.0f));
+	const FString ButtonText = bPrimaryAttack ? TEXT("좌클릭") : TEXT("우클릭");
+	AddCombatScreenLog(FString::Printf(TEXT("%s 입력: 차징 확인 시작"), *ButtonText), FLinearColor(0.72f, 0.84f, 1.0f, 1.0f));
 }
 
 void ARogue10mCharacter::EndCombatAttack(bool bPrimaryAttack)
@@ -490,7 +497,7 @@ void ARogue10mCharacter::ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedA
 		DoUnarmedAttack();
 		break;
 	default:
-		AddCombatScreenLog(TEXT("Weapon-specific attack is not implemented yet."), FLinearColor(0.9f, 0.9f, 0.65f, 1.0f));
+		AddCombatScreenLog(TEXT("무기별 공격은 아직 구현되지 않았습니다."), FLinearColor(0.9f, 0.9f, 0.65f, 1.0f));
 		break;
 	}
 }
@@ -508,11 +515,12 @@ void ARogue10mCharacter::AddCombatScreenLog(const FString& Message, const FLinea
 
 FString ARogue10mCharacter::GetCombatActionText(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
 {
-	const FString ButtonText = bPrimaryAttack ? TEXT("Left Click") : TEXT("Right Click");
-	const FString AttackText = bPrimaryAttack ? TEXT("Basic Attack") : TEXT("Special Attack");
-	const FString JumpPrefix = bJumpAttack ? TEXT("Jump ") : TEXT("");
-	const FString ChargePrefix = bChargedAttack ? TEXT("Charged ") : TEXT("");
-	return FString::Printf(TEXT("%s%s%s triggered by %s"), *JumpPrefix, *ChargePrefix, *AttackText, *ButtonText);
+	const FString ButtonText = bPrimaryAttack ? TEXT("좌클릭") : TEXT("우클릭");
+	const FString AttackText = bPrimaryAttack ? TEXT("기본 공격") : TEXT("특수 공격");
+	const FString JumpPrefix = bJumpAttack ? TEXT("점프 ") : TEXT("");
+	const FString ChargePrefix = bChargedAttack ? TEXT("차징 ") : TEXT("");
+	const float DamagePreview = EquippedWeaponType == ERogue10mWeaponType::Unarmed ? UnarmedDamage : 0.0f;
+	return FString::Printf(TEXT("%s%s%s 실행: %s / 예상 피해 %.0f"), *JumpPrefix, *ChargePrefix, *AttackText, *ButtonText, DamagePreview);
 }
 
 bool ARogue10mCharacter::ActivateQuickSlot(int32 SlotNumber)

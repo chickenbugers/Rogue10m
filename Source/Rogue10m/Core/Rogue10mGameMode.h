@@ -26,6 +26,9 @@ public:
 protected:
 	virtual void StartPlay() override;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Run")
+	bool bStartRunOnStartPlay = false;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Prototype")
 	bool bUsePrototypeRunDuration = false;
 
@@ -36,6 +39,8 @@ private:
 	UFUNCTION()
 	void HandleRunPhaseChanged(ERogue10mRunPhase NewPhase);
 
+	bool ShouldStartRunFromTravelOptions() const;
+	void StartConfiguredRun(ARogue10mGameState& RogueGameState) const;
 	void HandleRunDefeat();
 };
 

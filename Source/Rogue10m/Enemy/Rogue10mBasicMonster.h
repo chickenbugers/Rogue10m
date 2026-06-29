@@ -36,7 +36,7 @@ protected:
 	TObjectPtr<URogue10mVitalsComponent> VitalsComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster")
-	FText MonsterDisplayName = FText::FromString(TEXT("Basic Monster"));
+	FText MonsterDisplayName = FText::FromString(TEXT("기본 몬스터"));
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Movement", meta=(ClampMin="0.0"))
 	float DetectionRange = 1800.0f;
