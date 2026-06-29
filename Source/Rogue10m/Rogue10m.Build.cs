@@ -28,6 +28,7 @@ public class Rogue10m : ModuleRules
 			"Rogue10m/Core",
 			"Rogue10m/Character",
 			"Rogue10m/Components",
+			"Rogue10m/Data",
 			"Rogue10m/Enemy",
 			"Rogue10m/UI",
 			"Rogue10m/World",

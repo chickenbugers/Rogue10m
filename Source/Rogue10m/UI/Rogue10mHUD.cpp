@@ -191,7 +191,7 @@ void ARogue10mHUD::AddFloatingDamageNumber(AActor* TargetActor, float DamageAmou
 void ARogue10mHUD::DrawRunTimer()
 {
 	const ARogue10mGameState* RogueGameState = GetWorld() ? GetWorld()->GetGameState<ARogue10mGameState>() : nullptr;
-	if (!Canvas || !RogueGameState)
+	if (!Canvas || !RogueGameState || !RogueGameState->IsRunActive())
 	{
 		return;
 	}

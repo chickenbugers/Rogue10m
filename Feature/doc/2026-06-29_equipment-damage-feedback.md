@@ -25,3 +25,11 @@
 - 다음 맵 GameMode는 해당 옵션을 읽고 20분 런 타이머를 시작한다.
 - 다음 맵 데이터는 `Source/Rogue10m/World/Rogue10mMapDataLibrary.cpp`에 추가한다.
 - 실제 맵 에셋은 `Content/Rogue10m/Maps/OpenRunMap.umap` 위치에 생성하는 것을 권장한다.
+
+## 추가 구현: 공격 스킬 Data Asset
+
+- `URogue10mAttackSkillData`를 추가해 공격 데미지, 공격 범위, 판정 반지름, 차징 시간, 공격 Montage, 이펙트, 디버그 색상을 Data Asset에서 관리할 수 있게 했다.
+- `BP_FirstPersonCharacter`에서 좌클릭, 우클릭, 점프 좌클릭, 점프 우클릭, 차징 좌클릭, 차징 우클릭 Data Asset을 각각 지정할 수 있다.
+- 해당 입력에 Data Asset이 없으면 공격은 잠긴 것으로 처리되고 전투 로그에 안내된다.
+- 공격 실행 시 디버그 선, 공격 판정 구체, 명중 구체가 월드에 표시되어 공격 범위를 눈으로 확인할 수 있다.
+- 런이 시작되기 전에는 타이머 UI가 보이지 않도록 HUD 표시 조건을 조정했다.
