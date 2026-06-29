@@ -28,7 +28,7 @@ URogue10mInventoryComponent::URogue10mInventoryComponent()
 		MakeWeaponItem(ERogue10mWeaponType::DualBlades, TEXT("쌍검"), TEXT("연속 공격과 빠른 타격에 어울리는 쌍검입니다."), FLinearColor(0.62f, 0.8f, 1.0f, 1.0f)),
 		MakeWeaponItem(ERogue10mWeaponType::Bow, TEXT("활"), TEXT("거리 유지와 차징 사격을 위한 원거리 무기입니다."), FLinearColor(0.32f, 0.76f, 0.42f, 1.0f)),
 		MakeWeaponItem(ERogue10mWeaponType::Staff, TEXT("지팡이"), TEXT("마법 계열 액션을 연결하기 위한 촉매 무기입니다."), FLinearColor(0.58f, 0.42f, 1.0f, 1.0f)),
-		MakeWeaponItem(ERogue10mWeaponType::Knuckle, TEXT("너클"), TEXT("주먹 공격을 강화하는 근접 전투 장비입니다."), FLinearColor(0.95f, 0.46f, 0.24f, 1.0f)),
+		MakeWeaponItem(ERogue10mWeaponType::Knuckle, TEXT("권"), TEXT("주먹 공격을 강화하는 근접 전투 장비입니다."), FLinearColor(0.95f, 0.46f, 0.24f, 1.0f)),
 		MakeWeaponItem(ERogue10mWeaponType::Dagger, TEXT("보조 단검"), TEXT("보조무기 슬롯에 장착하는 짧은 단검입니다."), FLinearColor(0.68f, 0.82f, 1.0f, 1.0f), ERogue10mInventorySlotType::SecondaryWeapon),
 		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Head, TEXT("수련용 머리장식"), TEXT("초기 테스트용 머리 장비입니다."), 1, FLinearColor(0.16f, 0.8f, 0.95f, 1.0f)),
 		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Armor, TEXT("수련용 갑옷"), TEXT("기본 방어구 슬롯 동작을 확인하기 위한 갑옷입니다."), 1, FLinearColor(0.16f, 0.8f, 0.95f, 1.0f)),
@@ -213,6 +213,41 @@ bool URogue10mInventoryComponent::TryUnequipItemFromSlot(ERogue10mInventorySlotT
 	return true;
 }
 
+bool URogue10mInventoryComponent::TryUnequipItemFromSlotToItemSlot(ERogue10mInventorySlotType TargetSlotType, int32 TargetItemSlotIndex)
+{
+	FRogue10mInventorySlot* EquipmentSlot = FindEquipmentSlot(TargetSlotType);
+	if (!EquipmentSlot || EquipmentSlot->bLocked || !EquipmentSlot->bHasEquippedItem || !EquipmentSlot->EquippedItem.bOccupied)
+	{
+		return false;
+	}
+
+	if (!ItemSlots.IsValidIndex(TargetItemSlotIndex))
+	{
+		TargetItemSlotIndex = FindFirstEmptyItemSlot();
+	}
+
+	if (!ItemSlots.IsValidIndex(TargetItemSlotIndex) || ItemSlots[TargetItemSlotIndex].bLocked || ItemSlots[TargetItemSlotIndex].bOccupied)
+	{
+		return false;
+	}
+
+	ItemSlots[TargetItemSlotIndex] = EquipmentSlot->EquippedItem;
+	EquipmentSlot->EquippedItem = MakeEmptyItem();
+	EquipmentSlot->bHasEquippedItem = false;
+	EquipmentSlot->bEquipped = false;
+	ResetEquipmentSlotDisplay(*EquipmentSlot, TargetSlotType);
+
+	if (TargetSlotType == ERogue10mInventorySlotType::MainWeapon)
+	{
+		if (ARogue10mCharacter* OwningCharacter = Cast<ARogue10mCharacter>(GetOwner()))
+		{
+			OwningCharacter->SetEquippedWeaponType(ERogue10mWeaponType::Unarmed);
+		}
+	}
+
+	return true;
+}
+
 bool URogue10mInventoryComponent::TryMoveItemSlot(int32 SourceItemSlotIndex, int32 TargetItemSlotIndex)
 {
 	// 비어 있지 않은 잠금 해제 아이템만 이동하며, 대상이 차 있으면 서로 교체합니다.
@@ -273,4 +308,41 @@ int32 URogue10mInventoryComponent::FindFirstEmptyItemSlot() const
 	}
 
 	return INDEX_NONE;
+}
+
+void URogue10mInventoryComponent::ResetEquipmentSlotDisplay(FRogue10mInventorySlot& EquipmentSlot, ERogue10mInventorySlotType TargetSlotType)
+{
+	if (TargetSlotType == ERogue10mInventorySlotType::MainWeapon)
+	{
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("주무기"));
+		EquipmentSlot.SlotColor = FLinearColor(0.86f, 0.64f, 0.30f, 1.0f);
+		EquipmentSlot.bEquipped = true;
+		return;
+	}
+
+	switch (TargetSlotType)
+	{
+	case ERogue10mInventorySlotType::SecondaryWeapon:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("보조무기"));
+		break;
+	case ERogue10mInventorySlotType::Head:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("머리"));
+		break;
+	case ERogue10mInventorySlotType::Armor:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("갑옷"));
+		break;
+	case ERogue10mInventorySlotType::Shoes:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("신발"));
+		break;
+	case ERogue10mInventorySlotType::Ring:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("반지"));
+		break;
+	case ERogue10mInventorySlotType::Earring:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("귀걸이"));
+		break;
+	default:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("빈 슬롯"));
+		break;
+	}
+	EquipmentSlot.SlotColor = FLinearColor(0.28f, 0.28f, 0.3f, 1.0f);
 }

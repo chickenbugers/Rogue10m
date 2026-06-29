@@ -140,6 +140,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
 	bool TryUnequipItemFromSlot(ERogue10mInventorySlotType TargetSlotType);
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
+	bool TryUnequipItemFromSlotToItemSlot(ERogue10mInventorySlotType TargetSlotType, int32 TargetItemSlotIndex);
+
 	// 아이템 창 내부에서 드래그 앤 드랍으로 아이템 위치를 이동하거나 교체합니다.
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
 	bool TryMoveItemSlot(int32 SourceItemSlotIndex, int32 TargetItemSlotIndex);
@@ -181,4 +184,5 @@ private:
 	// 좌/우 장비 슬롯 배열에서 목표 슬롯 타입을 찾습니다.
 	FRogue10mInventorySlot* FindEquipmentSlot(ERogue10mInventorySlotType SlotType);
 	int32 FindFirstEmptyItemSlot() const;
+	void ResetEquipmentSlotDisplay(FRogue10mInventorySlot& EquipmentSlot, ERogue10mInventorySlotType TargetSlotType);
 };

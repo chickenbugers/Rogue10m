@@ -17,7 +17,7 @@
 - `Content/Rogue10m/Characters/Monsters/Common/Blueprints`
   - 기본 몬스터 Blueprint
   - 몬스터용 Animation Blueprint
-- `Content/Rogue10m/Data/Animations`
+- `Content/DataAsset/Animations`
   - 무기 타입별 애니메이션 설정 Data Asset
   - 몬스터 타입별 애니메이션 설정 Data Asset
 
@@ -38,7 +38,7 @@
 - `DualBlades`: 쌍검 기본/특수/점프/차징 공격
 - `Bow`: 활 기본 사격, 차징 사격, 점프 사격
 - `Staff`: 지팡이 기본 시전, 특수 시전, 차징 시전
-- `Knuckle`: 너클 기본/특수/점프/차징 공격
+- `Knuckle`: 권 기본/특수/점프/차징 공격
 
 ## 플레이어 Blueprint 연결 위치
 

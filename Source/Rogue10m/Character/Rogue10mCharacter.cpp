@@ -15,8 +15,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "Rogue10m.h"
 #include "Rogue10mAttackSkillData.h"
+#include "Rogue10mCombatComponent.h"
 #include "Rogue10mHUD.h"
 #include "Rogue10mInventoryComponent.h"
+#include "Rogue10mPlayerState.h"
 #include "Rogue10mVitalsComponent.h"
 
 ARogue10mCharacter::ARogue10mCharacter()
@@ -28,6 +30,7 @@ ARogue10mCharacter::ARogue10mCharacter()
 	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person Mesh"));
 	InventoryComponent = CreateDefaultSubobject<URogue10mInventoryComponent>(TEXT("Inventory Component"));
 	VitalsComponent = CreateDefaultSubobject<URogue10mVitalsComponent>(TEXT("Vitals Component"));
+	CombatComponent = CreateDefaultSubobject<URogue10mCombatComponent>(TEXT("Combat Component"));
 
 	FirstPersonMesh->SetupAttachment(GetMesh());
 	FirstPersonMesh->SetOnlyOwnerSee(true);
@@ -97,7 +100,7 @@ void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 float ARogue10mCharacter::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	const float AppliedDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	if (bIsDead || !VitalsComponent || DamageAmount <= 0.0f)
+	if (IsDead() || !VitalsComponent || DamageAmount <= 0.0f)
 	{
 		return AppliedDamage;
 	}
@@ -144,7 +147,7 @@ void ARogue10mCharacter::LookInput(const FInputActionValue& Value)
 
 void ARogue10mCharacter::DoAim(float Yaw, float Pitch)
 {
-	if (bIsDead || IsInventoryWindowBlockingMovement() || !GetController())
+	if (IsDead() || IsInventoryWindowBlockingMovement() || !GetController())
 	{
 		return;
 	}
@@ -172,7 +175,7 @@ void ARogue10mCharacter::DoMove(float Right, float Forward)
 		return;
 	}
 
-	if (!bIsDead && GetController())
+	if (!IsDead() && GetController())
 	{
 		// pass the move inputs
 		AddMovementInput(GetActorRightVector(), Right);
@@ -182,7 +185,7 @@ void ARogue10mCharacter::DoMove(float Right, float Forward)
 
 void ARogue10mCharacter::DoJumpStart()
 {
-	if (bIsDead || IsInventoryWindowBlockingMovement())
+	if (IsDead() || IsInventoryWindowBlockingMovement())
 	{
 		return;
 	}
@@ -193,7 +196,7 @@ void ARogue10mCharacter::DoJumpStart()
 
 void ARogue10mCharacter::DoJumpEnd()
 {
-	if (bIsDead || IsInventoryWindowBlockingMovement())
+	if (IsDead() || IsInventoryWindowBlockingMovement())
 	{
 		return;
 	}
@@ -224,7 +227,7 @@ void ARogue10mCharacter::DoSpecialAttackReleased()
 
 void ARogue10mCharacter::DoToggleItemWindow()
 {
-	if (bIsDead)
+	if (IsDead())
 	{
 		return;
 	}
@@ -247,7 +250,7 @@ void ARogue10mCharacter::DoToggleItemWindow()
 
 void ARogue10mCharacter::DoUnarmedAttack()
 {
-	if (bIsDead)
+	if (IsDead())
 	{
 		return;
 	}
@@ -296,7 +299,7 @@ void ARogue10mCharacter::DoUnarmedAttack()
 
 void ARogue10mCharacter::DoToggleInventory()
 {
-	if (bIsDead)
+	if (IsDead())
 	{
 		return;
 	}
@@ -319,7 +322,7 @@ void ARogue10mCharacter::DoToggleInventory()
 
 void ARogue10mCharacter::DoToggleSkillTree()
 {
-	if (bIsDead)
+	if (IsDead())
 	{
 		return;
 	}
@@ -342,7 +345,7 @@ void ARogue10mCharacter::DoToggleSkillTree()
 
 void ARogue10mCharacter::DoToggleSettings()
 {
-	if (bIsDead)
+	if (IsDead())
 	{
 		return;
 	}
@@ -408,12 +411,15 @@ void ARogue10mCharacter::DoQuickSlot5()
 
 void ARogue10mCharacter::Die()
 {
-	if (bIsDead)
+	if (IsDead())
 	{
 		return;
 	}
 
-	bIsDead = true;
+	if (ARogue10mPlayerState* RoguePlayerState = GetPlayerState<ARogue10mPlayerState>())
+	{
+		RoguePlayerState->SetCharacterDead(true);
+	}
 
 	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
@@ -439,8 +445,50 @@ void ARogue10mCharacter::Die()
 void ARogue10mCharacter::SetEquippedWeaponType(ERogue10mWeaponType NewWeaponType)
 {
 	// 무기 아이템 장착 성공 시 인벤토리 컴포넌트가 호출하는 갱신 지점입니다.
-	EquippedWeaponType = NewWeaponType;
-	UE_LOG(LogRogue10m, Log, TEXT("%s equipped weapon type %d."), *GetNameSafe(this), static_cast<int32>(EquippedWeaponType));
+	if (ARogue10mPlayerState* RoguePlayerState = GetPlayerState<ARogue10mPlayerState>())
+	{
+		RoguePlayerState->SetEquippedWeaponType(NewWeaponType);
+	}
+	UE_LOG(LogRogue10m, Log, TEXT("%s equipped weapon type %d."), *GetNameSafe(this), static_cast<int32>(NewWeaponType));
+}
+
+bool ARogue10mCharacter::IsDead() const
+{
+	const ARogue10mPlayerState* RoguePlayerState = GetPlayerState<ARogue10mPlayerState>();
+	return RoguePlayerState && RoguePlayerState->IsCharacterDead();
+}
+
+FText ARogue10mCharacter::GetCharacterDisplayName() const
+{
+	const ARogue10mPlayerState* RoguePlayerState = GetPlayerState<ARogue10mPlayerState>();
+	return RoguePlayerState ? RoguePlayerState->GetCharacterDisplayName() : FText::FromString(TEXT("Rogue"));
+}
+
+FText ARogue10mCharacter::GetCharacterJobName() const
+{
+	const ARogue10mPlayerState* RoguePlayerState = GetPlayerState<ARogue10mPlayerState>();
+	return RoguePlayerState ? RoguePlayerState->GetCharacterJobName() : FText::FromString(TEXT("Unassigned"));
+}
+
+ERogue10mWeaponType ARogue10mCharacter::GetEquippedWeaponType() const
+{
+	const ARogue10mPlayerState* RoguePlayerState = GetPlayerState<ARogue10mPlayerState>();
+	return RoguePlayerState ? RoguePlayerState->GetEquippedWeaponType() : ERogue10mWeaponType::Unarmed;
+}
+
+const URogue10mAttackSkillData* ARogue10mCharacter::GetDisplayedAttackSkillForHUD() const
+{
+	return CombatComponent ? CombatComponent->GetDisplayedAttackSkill() : nullptr;
+}
+
+float ARogue10mCharacter::GetAttackCooldownRemaining() const
+{
+	return CombatComponent ? CombatComponent->GetAttackCooldownRemaining() : 0.0f;
+}
+
+float ARogue10mCharacter::GetAttackCooldownDuration() const
+{
+	return CombatComponent ? CombatComponent->GetAttackCooldownDuration() : 0.0f;
 }
 
 bool ARogue10mCharacter::IsInventoryWindowBlockingMovement() const
@@ -452,7 +500,7 @@ bool ARogue10mCharacter::IsInventoryWindowBlockingMovement() const
 
 bool ARogue10mCharacter::CanUseCombatInput() const
 {
-	return !bIsDead && !IsInventoryWindowBlockingMovement();
+	return !IsDead() && !IsInventoryWindowBlockingMovement();
 }
 
 void ARogue10mCharacter::BeginCombatAttack(bool bPrimaryAttack)
@@ -468,8 +516,10 @@ void ARogue10mCharacter::BeginCombatAttack(bool bPrimaryAttack)
 		return;
 	}
 
-	float& PressedTime = bPrimaryAttack ? LeftAttackPressedTime : RightAttackPressedTime;
-	PressedTime = World->GetTimeSeconds();
+	if (CombatComponent)
+	{
+		CombatComponent->RecordAttackPressed(bPrimaryAttack, World->GetTimeSeconds());
+	}
 
 	const FString ButtonText = bPrimaryAttack ? TEXT("좌클릭") : TEXT("우클릭");
 	AddCombatScreenLog(FString::Printf(TEXT("%s 입력: 차징 확인 시작"), *ButtonText), FLinearColor(0.72f, 0.84f, 1.0f, 1.0f));
@@ -488,14 +538,12 @@ void ARogue10mCharacter::EndCombatAttack(bool bPrimaryAttack)
 		return;
 	}
 
-	float& PressedTime = bPrimaryAttack ? LeftAttackPressedTime : RightAttackPressedTime;
-	if (PressedTime < 0.0f)
+	const float HeldTime = CombatComponent ? CombatComponent->ConsumeAttackHeldTime(bPrimaryAttack, World->GetTimeSeconds()) : -1.0f;
+	if (HeldTime < 0.0f)
 	{
 		return;
 	}
 
-	const float HeldTime = World->GetTimeSeconds() - PressedTime;
-	PressedTime = -1.0f;
 	const bool bJumpAttack = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
 	const URogue10mAttackSkillData* ChargedSkill = ResolveChargedAttackSkill(bPrimaryAttack, bJumpAttack);
 	const float RequiredChargeSeconds = ChargedSkill ? ChargedSkill->ChargeSeconds : ChargeAttackThreshold;
@@ -505,44 +553,61 @@ void ARogue10mCharacter::EndCombatAttack(bool bPrimaryAttack)
 void ARogue10mCharacter::ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedAttack)
 {
 	const bool bJumpAttack = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
-	const URogue10mAttackSkillData* SkillData = ResolveAttackSkill(bPrimaryAttack, bChargedAttack, bJumpAttack);
+	const URogue10mAttackSkillData* ComboSkillData = !bChargedAttack ? ResolveComboAttackSkill(bPrimaryAttack, bJumpAttack) : nullptr;
+	const URogue10mAttackSkillData* SkillData = ComboSkillData ? ComboSkillData : ResolveAttackSkill(bPrimaryAttack, bChargedAttack, bJumpAttack);
 	if (!SkillData)
 	{
 		AddCombatScreenLog(FString::Printf(TEXT("%s 공격 잠김: 스킬 Data Asset이 지정되지 않았습니다."), *GetAttackInputText(bPrimaryAttack, bJumpAttack)), FLinearColor(1.0f, 0.35f, 0.25f, 1.0f));
 		return;
 	}
 
-	const FString ActionText = GetCombatActionText(bPrimaryAttack, bChargedAttack, bJumpAttack);
+	if (!IsAttackSkillUnlockedBySkillTree(*SkillData))
+	{
+		AddCombatScreenLog(FString::Printf(TEXT("%s 사용 불가: 스킬트리에서 아직 해금되지 않았습니다."), *SkillData->SkillName.ToString()), FLinearColor(1.0f, 0.42f, 0.24f, 1.0f));
+		ResetComboWindow();
+		return;
+	}
+
+	const FString ActionText = ComboSkillData
+		? FString::Printf(TEXT("콤보 공격 실행: %s / 피해 %.0f"), *SkillData->SkillName.ToString(), SkillData->Damage)
+		: GetCombatActionText(bPrimaryAttack, bChargedAttack, bJumpAttack);
 	const FLinearColor LogColor = bPrimaryAttack
 		? FLinearColor(1.0f, 0.72f, 0.42f, 1.0f)
 		: FLinearColor(0.62f, 0.82f, 1.0f, 1.0f);
 
 	AddCombatScreenLog(ActionText, LogColor);
 	UE_LOG(LogRogue10m, Log, TEXT("%s"), *ActionText);
-	ExecuteAttackSkill(*SkillData);
+	ExecuteAttackSkill(*SkillData, ComboSkillData != nullptr);
 }
 
-void ARogue10mCharacter::ExecuteAttackSkill(const URogue10mAttackSkillData& SkillData)
+bool ARogue10mCharacter::ExecuteAttackSkill(const URogue10mAttackSkillData& SkillData, bool bIgnoreCooldown)
 {
-	if (bIsDead || !FirstPersonCameraComponent)
+	if (IsDead() || !FirstPersonCameraComponent)
 	{
-		return;
+		return false;
 	}
 
 	UWorld* World = GetWorld();
 	if (!World)
 	{
-		return;
+		return false;
 	}
 
 	const float CurrentTime = World->GetTimeSeconds();
-	if (CurrentTime - LastAttackTime < SkillData.AttackCooldown)
+	if (!bIgnoreCooldown && CombatComponent && CombatComponent->IsAttackOnCooldown(CurrentTime))
 	{
-		AddCombatScreenLog(FString::Printf(TEXT("%s 재사용 대기 중입니다."), *SkillData.SkillName.ToString()), FLinearColor(1.0f, 0.65f, 0.35f, 1.0f));
-		return;
+		AddCombatScreenLog(FString::Printf(TEXT("%s 재사용 대기 중입니다. 남은 시간 %.1f초"), *SkillData.SkillName.ToString(), CombatComponent->GetAttackCooldownRemaining()), FLinearColor(1.0f, 0.65f, 0.35f, 1.0f));
+		return false;
 	}
 
+	if (!CanPayAttackResourceCosts(SkillData))
+	{
+		return false;
+	}
+
+	ConsumeAttackResourceCosts(SkillData);
 	LastAttackTime = CurrentTime;
+	StartSharedAttackCooldown(SkillData, bIgnoreCooldown);
 
 	if (SkillData.AttackMontage)
 	{
@@ -584,6 +649,9 @@ void ARogue10mCharacter::ExecuteAttackSkill(const URogue10mAttackSkillData& Skil
 	{
 		AddCombatScreenLog(FString::Printf(TEXT("%s 빗나감"), *SkillData.SkillName.ToString()), FLinearColor(0.85f, 0.86f, 0.9f, 1.0f));
 	}
+
+	OpenComboWindow(SkillData);
+	return true;
 }
 
 void ARogue10mCharacter::DrawAttackDebug(const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius, const FLinearColor& DebugColor, bool bHit, const FHitResult& HitResult) const
@@ -610,27 +678,147 @@ void ARogue10mCharacter::DrawAttackDebug(const FVector& TraceStart, const FVecto
 
 const URogue10mAttackSkillData* ARogue10mCharacter::ResolveAttackSkill(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
 {
-	if (bChargedAttack)
-	{
-		return ResolveChargedAttackSkill(bPrimaryAttack, bJumpAttack);
-	}
-
-	if (bJumpAttack)
-	{
-		return bPrimaryAttack ? JumpPrimaryAttackSkill : JumpSpecialAttackSkill;
-	}
-
-	return bPrimaryAttack ? PrimaryAttackSkill : SpecialAttackSkill;
+	return CombatComponent ? CombatComponent->ResolveAttackSkill(bPrimaryAttack, bChargedAttack, bJumpAttack) : nullptr;
 }
 
 const URogue10mAttackSkillData* ARogue10mCharacter::ResolveChargedAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const
 {
-	if (bJumpAttack)
+	return CombatComponent ? CombatComponent->ResolveChargedAttackSkill(bPrimaryAttack, bJumpAttack) : nullptr;
+}
+
+const URogue10mAttackSkillData* ARogue10mCharacter::ResolveComboAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const
+{
+	return CombatComponent ? CombatComponent->ResolveComboAttackSkill(bPrimaryAttack, bJumpAttack) : nullptr;
+}
+
+bool ARogue10mCharacter::IsAttackSkillUnlockedBySkillTree(const URogue10mAttackSkillData& SkillData) const
+{
+	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
-		return nullptr;
+		if (const ARogue10mHUD* RogueHUD = Cast<ARogue10mHUD>(PlayerController->GetHUD()))
+		{
+			return RogueHUD->IsAttackSkillUnlockedForUse(&SkillData);
+		}
 	}
 
-	return bPrimaryAttack ? ChargedPrimaryAttackSkill : ChargedSpecialAttackSkill;
+	return true;
+}
+
+ERogue10mAttackInputSlot ARogue10mCharacter::GetAttackInputSlot(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
+{
+	return CombatComponent ? CombatComponent->GetAttackInputSlot(bPrimaryAttack, bChargedAttack, bJumpAttack) : ERogue10mAttackInputSlot::Primary;
+}
+
+bool ARogue10mCharacter::CanPayAttackResourceCosts(const URogue10mAttackSkillData& SkillData) const
+{
+	if (!VitalsComponent)
+	{
+		return true;
+	}
+
+	for (const FRogue10mAttackResourceCost& ResourceCost : SkillData.ResourceCosts)
+	{
+		if (ResourceCost.Cost <= 0.0f)
+		{
+			continue;
+		}
+
+		switch (ResourceCost.ResourceType)
+		{
+		case ERogue10mAttackResourceType::Health:
+			if (VitalsComponent->GetHealth().Current <= ResourceCost.Cost)
+			{
+				AddCombatScreenLog(FString::Printf(TEXT("%s 사용 불가: 체력이 부족합니다."), *SkillData.SkillName.ToString()), FLinearColor(1.0f, 0.35f, 0.25f, 1.0f));
+				return false;
+			}
+			break;
+		case ERogue10mAttackResourceType::Stamina:
+			if (VitalsComponent->GetStamina().Current < ResourceCost.Cost)
+			{
+				AddCombatScreenLog(FString::Printf(TEXT("%s 사용 불가: 스테미나가 부족합니다."), *SkillData.SkillName.ToString()), FLinearColor(1.0f, 0.72f, 0.25f, 1.0f));
+				return false;
+			}
+			break;
+		case ERogue10mAttackResourceType::Mana:
+			if (VitalsComponent->GetMana().Current < ResourceCost.Cost)
+			{
+				AddCombatScreenLog(FString::Printf(TEXT("%s 사용 불가: 마나가 부족합니다."), *SkillData.SkillName.ToString()), FLinearColor(0.45f, 0.68f, 1.0f, 1.0f));
+				return false;
+			}
+			break;
+		case ERogue10mAttackResourceType::Energy:
+			AddCombatScreenLog(TEXT("기력 자원은 아직 캐릭터 데이터에 연결되지 않았습니다."), FLinearColor(0.85f, 0.72f, 1.0f, 1.0f));
+			return false;
+		default:
+			break;
+		}
+	}
+
+	return true;
+}
+
+void ARogue10mCharacter::ConsumeAttackResourceCosts(const URogue10mAttackSkillData& SkillData)
+{
+	if (!VitalsComponent)
+	{
+		return;
+	}
+
+	for (const FRogue10mAttackResourceCost& ResourceCost : SkillData.ResourceCosts)
+	{
+		if (ResourceCost.Cost <= 0.0f)
+		{
+			continue;
+		}
+
+		switch (ResourceCost.ResourceType)
+		{
+		case ERogue10mAttackResourceType::Health:
+			VitalsComponent->SetHealth(VitalsComponent->GetHealth().Current - ResourceCost.Cost);
+			break;
+		case ERogue10mAttackResourceType::Stamina:
+			VitalsComponent->SetStamina(VitalsComponent->GetStamina().Current - ResourceCost.Cost);
+			break;
+		case ERogue10mAttackResourceType::Mana:
+			VitalsComponent->SetMana(VitalsComponent->GetMana().Current - ResourceCost.Cost);
+			break;
+		case ERogue10mAttackResourceType::Energy:
+		default:
+			break;
+		}
+	}
+}
+
+void ARogue10mCharacter::StartSharedAttackCooldown(const URogue10mAttackSkillData& SkillData, bool bComboAttack)
+{
+	if (CombatComponent)
+	{
+		CombatComponent->StartSharedAttackCooldown(SkillData, bComboAttack);
+	}
+}
+
+void ARogue10mCharacter::OpenComboWindow(const URogue10mAttackSkillData& SkillData)
+{
+	if (!CombatComponent)
+	{
+		return;
+	}
+
+	CombatComponent->OpenComboWindow(SkillData);
+	if (CombatComponent->IsComboEnabled() && SkillData.bEnableCombo && SkillData.NextComboSkill)
+	{
+		AddCombatScreenLog(
+			FString::Printf(TEXT("콤보 대기: %.2f초 ~ %.2f초 사이 추가 입력 가능"), FMath::Max(0.0f, SkillData.ComboWindowOpenSeconds), FMath::Max(SkillData.ComboWindowOpenSeconds, SkillData.ComboWindowCloseSeconds)),
+			FLinearColor(0.72f, 0.88f, 1.0f, 1.0f));
+	}
+}
+
+void ARogue10mCharacter::ResetComboWindow()
+{
+	if (CombatComponent)
+	{
+		CombatComponent->ResetComboWindow();
+	}
 }
 
 void ARogue10mCharacter::AddCombatScreenLog(const FString& Message, const FLinearColor& Color) const
@@ -667,7 +855,7 @@ FString ARogue10mCharacter::GetAttackInputText(bool bPrimaryAttack, bool bJumpAt
 bool ARogue10mCharacter::ActivateQuickSlot(int32 SlotNumber)
 {
 	// 사망 상태나 UI 조작 중에는 전투용 퀵 슬롯 입력을 무시합니다.
-	if (bIsDead || IsInventoryWindowBlockingMovement())
+	if (IsDead() || IsInventoryWindowBlockingMovement())
 	{
 		return false;
 	}

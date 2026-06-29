@@ -28,6 +28,6 @@ enum class ERogue10mWeaponType : uint8
 	// 마법/기력 계열 스킬을 연결할 지팡이입니다.
 	Staff,
 
-	// 주먹 기반 전투를 강화하는 너클입니다.
+	// 주먹 기반 전투를 강화하는 권 계열입니다.
 	Knuckle
 };

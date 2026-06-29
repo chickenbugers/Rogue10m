@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Rogue10mAttackSkillData.h"
 #include "Rogue10mWeaponTypes.h"
 #include "Rogue10mCharacter.generated.h"
 
@@ -12,8 +13,8 @@ class UInputComponent;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
+class URogue10mCombatComponent;
 class URogue10mInventoryComponent;
-class URogue10mAttackSkillData;
 class URogue10mVitalsComponent;
 struct FInputActionValue;
 
@@ -43,6 +44,9 @@ class ARogue10mCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<URogue10mVitalsComponent> VitalsComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<URogue10mCombatComponent> CombatComponent;
+
 protected:
 
 	/** Jump Input Action */
@@ -60,16 +64,6 @@ protected:
 	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	class UInputAction* MouseLookAction;
-
-	/** 현재 장착 무기 타입입니다. 캐릭터는 아무 무기도 없는 주먹 상태로 시작합니다. */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|Combat")
-	ERogue10mWeaponType EquippedWeaponType = ERogue10mWeaponType::Unarmed;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character")
-	FText CharacterDisplayName = FText::FromString(TEXT("Rogue"));
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character")
-	FText CharacterJobName = FText::FromString(TEXT("Unassigned"));
 
 	/** Damage applied by the default unarmed attack. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Unarmed", meta=(ClampMin="0.0"))
@@ -91,33 +85,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat", meta=(ClampMin="0.05"))
 	float ChargeAttackThreshold = 0.65f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
-	TObjectPtr<URogue10mAttackSkillData> PrimaryAttackSkill;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
-	TObjectPtr<URogue10mAttackSkillData> SpecialAttackSkill;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
-	TObjectPtr<URogue10mAttackSkillData> JumpPrimaryAttackSkill;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
-	TObjectPtr<URogue10mAttackSkillData> JumpSpecialAttackSkill;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
-	TObjectPtr<URogue10mAttackSkillData> ChargedPrimaryAttackSkill;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
-	TObjectPtr<URogue10mAttackSkillData> ChargedSpecialAttackSkill;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Debug")
 	bool bDrawAttackDebug = true;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|State")
-	bool bIsDead = false;
-
 	float LastAttackTime = -1000.0f;
-	float LeftAttackPressedTime = -1.0f;
-	float RightAttackPressedTime = -1.0f;
 	
 public:
 	ARogue10mCharacter();
@@ -231,22 +202,28 @@ public:
 	/** Returns vitals component **/
 	URogue10mVitalsComponent* GetVitalsComponent() const { return VitalsComponent; }
 
+	URogue10mCombatComponent* GetCombatComponent() const { return CombatComponent; }
+
 	/** Returns whether the run failure has killed this character. **/
 	UFUNCTION(BlueprintPure, Category="Rogue10m|State")
-	bool IsDead() const { return bIsDead; }
+	bool IsDead() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Character")
-	FText GetCharacterDisplayName() const { return CharacterDisplayName; }
+	FText GetCharacterDisplayName() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Character")
-	FText GetCharacterJobName() const { return CharacterJobName; }
+	FText GetCharacterJobName() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Combat")
-	ERogue10mWeaponType GetEquippedWeaponType() const { return EquippedWeaponType; }
+	ERogue10mWeaponType GetEquippedWeaponType() const;
 
 	/** 장비 아이템 장착 결과를 캐릭터의 현재 무기 타입에 반영합니다. */
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
 	void SetEquippedWeaponType(ERogue10mWeaponType NewWeaponType);
+
+	const URogue10mAttackSkillData* GetDisplayedAttackSkillForHUD() const;
+	float GetAttackCooldownRemaining() const;
+	float GetAttackCooldownDuration() const;
 
 private:
 	// 인벤토리/아이템 창이 열려 있어 캐릭터 이동을 막아야 하는지 확인합니다.
@@ -256,10 +233,18 @@ private:
 	void BeginCombatAttack(bool bPrimaryAttack);
 	void EndCombatAttack(bool bPrimaryAttack);
 	void ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedAttack);
-	void ExecuteAttackSkill(const URogue10mAttackSkillData& SkillData);
+	bool ExecuteAttackSkill(const URogue10mAttackSkillData& SkillData, bool bIgnoreCooldown = false);
 	void DrawAttackDebug(const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius, const FLinearColor& DebugColor, bool bHit, const FHitResult& HitResult) const;
 	const URogue10mAttackSkillData* ResolveAttackSkill(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
 	const URogue10mAttackSkillData* ResolveChargedAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const;
+	const URogue10mAttackSkillData* ResolveComboAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const;
+	bool IsAttackSkillUnlockedBySkillTree(const URogue10mAttackSkillData& SkillData) const;
+	ERogue10mAttackInputSlot GetAttackInputSlot(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
+	bool CanPayAttackResourceCosts(const URogue10mAttackSkillData& SkillData) const;
+	void ConsumeAttackResourceCosts(const URogue10mAttackSkillData& SkillData);
+	void StartSharedAttackCooldown(const URogue10mAttackSkillData& SkillData, bool bComboAttack);
+	void OpenComboWindow(const URogue10mAttackSkillData& SkillData);
+	void ResetComboWindow();
 	void AddCombatScreenLog(const FString& Message, const FLinearColor& Color = FLinearColor::White) const;
 	FString GetCombatActionText(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
 	FString GetAttackInputText(bool bPrimaryAttack, bool bJumpAttack) const;

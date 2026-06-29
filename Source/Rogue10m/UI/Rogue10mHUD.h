@@ -7,6 +7,8 @@
 #include "Rogue10mInventoryComponent.h"
 #include "Rogue10mHUD.generated.h"
 
+class URogue10mAttackSkillData;
+
 enum class ERogue10mDraggedWindow : uint8
 {
 	None,
@@ -29,6 +31,13 @@ enum class ERogue10mSettingsSlider : uint8
 	MasterVolume,
 	LookSensitivityX,
 	LookSensitivityY
+};
+
+enum class ERogue10mDraggedItemSource : uint8
+{
+	None,
+	ItemSlot,
+	EquipmentSlot
 };
 
 class AActor;
@@ -152,6 +161,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Skill Tree")
 	bool IsSkillTreeVisible() const { return bSkillTreeVisible; }
 
+	// 공격 실행 전 스킬트리 해금 여부를 확인합니다.
+	bool IsAttackSkillUnlockedForUse(const URogue10mAttackSkillData* SkillData) const;
+
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Settings")
 	bool IsSettingsVisible() const { return bSettingsVisible; }
 
@@ -240,6 +252,7 @@ private:
 	void DrawFloatingDamageNumbers();
 	void DrawPlayerDamageFeedback();
 	void DrawPanelShortcutHints();
+	void DrawAttackCooldownSlot();
 	// 화면 6시 방향에 1~5번 퀵 슬롯 묶음을 그립니다.
 	void DrawQuickSlots();
 
@@ -258,6 +271,7 @@ private:
 	void DrawSettingsFpsButton(int32 FpsValue, const FVector2D& Position, const FVector2D& Size);
 	void DrawInventorySlots(const TArray<struct FRogue10mInventorySlot>& Slots, float X, float Y, float SlotSize, float Gap, bool bRightSide);
 	void DrawItemGrid(class URogue10mInventoryComponent* InventoryComponent, float X, float Y, float SlotSize, float Gap, float MaxWidth, float MaxHeight);
+	void DrawEquipmentCharacterStats(const ARogue10mCharacter* RogueCharacter, float X, float Y, float Width, float Height);
 	void DrawHoveredItemTooltip();
 	void DrawDraggedItem();
 	void DrawCharacterPreview(const ARogue10mCharacter* RogueCharacter, float X, float Y, float Width, float Height);
@@ -271,10 +285,16 @@ private:
 	// 캐릭터 정보 패널과 아이템 툴팁에서 표시할 무기 타입 문자열을 반환합니다.
 	FString GetWeaponTypeText(ERogue10mWeaponType WeaponType) const;
 	FLinearColor GetWeaponTypeColor(ERogue10mWeaponType WeaponType) const;
+	bool IsWeaponSkillTreeUnlocked(ERogue10mWeaponType WeaponType) const;
+	int32 GetWeaponProficiencyLevel(ERogue10mWeaponType WeaponType) const;
+	bool IsKnuckleSkillUnlocked(int32 SkillIndex) const;
+	bool CanUnlockKnuckleSkill(int32 SkillIndex) const;
+	void UnlockKnuckleSkillForTest(int32 SkillIndex);
 	const FRogue10mEquipmentSlotHitArea* FindEquipmentSlotHitArea(const FVector2D& MousePosition) const;
 	const FRogue10mItemSlotHitArea* FindItemSlotHitArea(const FVector2D& MousePosition) const;
 	const FRogue10mSkillWeaponHitArea* FindSkillWeaponHitArea(const FVector2D& MousePosition) const;
 	bool IsItemCompatibleWithSlot(const FRogue10mItemStack& Item, ERogue10mInventorySlotType SlotType) const;
+	void ClearDraggedItem();
 	bool IsPointInRect(const FVector2D& Point, const FVector2D& RectPosition, const FVector2D& RectSize) const;
 	FVector2D ClampWindowPosition(const FVector2D& Position, const FVector2D& Size) const;
 	void UpdateSettingsInteraction();
@@ -302,9 +322,11 @@ private:
 	FVector2D HoveredItemMousePosition = FVector2D::ZeroVector;
 	int32 HoveredItemSlotIndex = INDEX_NONE;
 	bool bIsDraggingItem = false;
+	ERogue10mDraggedItemSource DraggedItemSource = ERogue10mDraggedItemSource::None;
 	FRogue10mItemStack DraggedItem;
 	FVector2D DraggedItemMousePosition = FVector2D::ZeroVector;
 	int32 DraggedItemSlotIndex = INDEX_NONE;
+	ERogue10mInventorySlotType DraggedEquipmentSlotType = ERogue10mInventorySlotType::Material;
 	TArray<FRogue10mEquipmentSlotHitArea> EquipmentSlotHitAreas;
 	TArray<FRogue10mItemSlotHitArea> ItemSlotHitAreas;
 	TArray<FRogue10mQuickSlotView> QuickSlots;
@@ -312,7 +334,12 @@ private:
 	TArray<FRogue10mCombatLogEntry> CombatLogEntries;
 	TArray<FRogue10mFloatingDamageEntry> FloatingDamageEntries;
 	ERogue10mSkillTreeView SkillTreeView = ERogue10mSkillTreeView::WeaponSelect;
-	ERogue10mWeaponType SelectedSkillTreeWeapon = ERogue10mWeaponType::Unarmed;
+	ERogue10mWeaponType SelectedSkillTreeWeapon = ERogue10mWeaponType::Knuckle;
+	bool bKnuckleCombo2Unlocked = false;
+	bool bKnuckleCombo3Unlocked = false;
+	bool bKnuckleFinisherUnlocked = false;
+	bool bKnuckleAirComboUnlocked = false;
+	bool bKnuckleAirFinisherUnlocked = false;
 	float MasterVolume = 1.0f;
 	float LookSensitivityX = 1.0f;
 	float LookSensitivityY = 1.0f;

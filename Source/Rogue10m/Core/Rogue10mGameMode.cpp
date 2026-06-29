@@ -9,12 +9,14 @@
 #include "Rogue10mCharacter.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mHUD.h"
+#include "Rogue10mPlayerState.h"
 #include "UObject/ConstructorHelpers.h"
 
 ARogue10mGameMode::ARogue10mGameMode()
 {
 	GameStateClass = ARogue10mGameState::StaticClass();
 	HUDClass = ARogue10mHUD::StaticClass();
+	PlayerStateClass = ARogue10mPlayerState::StaticClass();
 
 	static ConstructorHelpers::FClassFinder<APawn> FirstPersonCharacterClass(TEXT("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"));
 	if (FirstPersonCharacterClass.Succeeded())

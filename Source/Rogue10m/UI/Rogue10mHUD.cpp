@@ -7,11 +7,13 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Canvas.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
 #include "Rogue10mBasicMonster.h"
+#include "Rogue10mAttackSkillData.h"
 #include "Rogue10mCharacter.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mInventoryComponent.h"
@@ -49,6 +51,7 @@ void ARogue10mHUD::DrawHUD()
 	DrawLookedAtMonsterInfo();
 	DrawCombatLog();
 	DrawFloatingDamageNumbers();
+	DrawAttackCooldownSlot();
 	DrawQuickSlots();
 	DrawPanelShortcutHints();
 	DrawRunResult();
@@ -540,6 +543,64 @@ float ARogue10mHUD::GetQuickSlotCooldownRemaining(const FRogue10mQuickSlotView& 
 	return World ? FMath::Max(0.0f, QuickSlot.CooldownEndTime - World->GetTimeSeconds()) : 0.0f;
 }
 
+void ARogue10mHUD::DrawAttackCooldownSlot()
+{
+	if (!Canvas)
+	{
+		return;
+	}
+
+	const APlayerController* PlayerController = GetOwningPlayerController();
+	const ARogue10mCharacter* RogueCharacter = PlayerController ? Cast<ARogue10mCharacter>(PlayerController->GetPawn()) : nullptr;
+	if (!RogueCharacter)
+	{
+		return;
+	}
+
+	const URogue10mAttackSkillData* DisplaySkill = RogueCharacter->GetDisplayedAttackSkillForHUD();
+	if (!DisplaySkill)
+	{
+		return;
+	}
+
+	const float SlotSize = FMath::Clamp(Canvas->SizeY * 0.072f, 54.0f, 68.0f);
+	const float PanelWidth = SlotSize + 176.0f;
+	const float PanelHeight = SlotSize + 18.0f;
+	const float PanelX = Canvas->SizeX * 0.5f - PanelWidth * 0.5f;
+	const float PanelY = Canvas->SizeY - SlotSize - 104.0f;
+	const FVector2D IconPosition(PanelX + 9.0f, PanelY + 9.0f);
+	const float CooldownRemaining = RogueCharacter->GetAttackCooldownRemaining();
+	const float CooldownDuration = RogueCharacter->GetAttackCooldownDuration();
+	const bool bOnCooldown = CooldownRemaining > 0.0f && CooldownDuration > 0.0f;
+
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.44f), PanelX, PanelY, PanelWidth, PanelHeight);
+	DrawRect(FLinearColor(0.34f, 0.38f, 0.45f, 0.88f), IconPosition.X - 2.0f, IconPosition.Y - 2.0f, SlotSize + 4.0f, SlotSize + 4.0f);
+	DrawRect(FLinearColor(0.025f, 0.03f, 0.04f, 0.96f), IconPosition.X, IconPosition.Y, SlotSize, SlotSize);
+
+	if (DisplaySkill->SkillIcon)
+	{
+		DrawTexture(DisplaySkill->SkillIcon, IconPosition.X + 5.0f, IconPosition.Y + 5.0f, SlotSize - 10.0f, SlotSize - 10.0f, 0.0f, 0.0f, 1.0f, 1.0f, DisplaySkill->IconTint, BLEND_Translucent);
+	}
+	else
+	{
+		DrawRect(DisplaySkill->IconTint, IconPosition.X + 6.0f, IconPosition.Y + 6.0f, SlotSize - 12.0f, SlotSize - 12.0f);
+		DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.16f), IconPosition.X + 6.0f, IconPosition.Y + 6.0f, SlotSize - 12.0f, 4.0f);
+		DrawText(DisplaySkill->IconLabel.ToString(), InventoryTextColor, IconPosition.X + SlotSize * 0.5f - 9.0f, IconPosition.Y + SlotSize * 0.5f - 9.0f, nullptr, 0.78f, false);
+	}
+
+	if (bOnCooldown)
+	{
+		const float CooldownAlpha = FMath::Clamp(CooldownRemaining / CooldownDuration, 0.0f, 1.0f);
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.64f), IconPosition.X, IconPosition.Y, SlotSize, SlotSize * CooldownAlpha);
+		DrawText(FString::Printf(TEXT("%.1f"), CooldownRemaining), FLinearColor(1.0f, 0.92f, 0.58f, 1.0f), IconPosition.X + SlotSize * 0.5f - 13.0f, IconPosition.Y + SlotSize * 0.5f + 8.0f, nullptr, 0.72f, false);
+	}
+
+	const float TextX = IconPosition.X + SlotSize + 12.0f;
+	DrawText(TEXT("공격"), FLinearColor(0.68f, 0.76f, 0.86f, 1.0f), TextX, PanelY + 13.0f, nullptr, 0.58f, false);
+	DrawText(DisplaySkill->SkillName.ToString(), InventoryTextColor, TextX, PanelY + 31.0f, nullptr, 0.72f, false);
+	DrawText(bOnCooldown ? TEXT("쿨타임") : TEXT("사용 가능"), bOnCooldown ? FLinearColor(1.0f, 0.76f, 0.36f, 1.0f) : FLinearColor(0.58f, 1.0f, 0.66f, 1.0f), TextX, PanelY + 53.0f, nullptr, 0.58f, false);
+}
+
 void ARogue10mHUD::DrawCharacterInfo()
 {
 	if (!Canvas)
@@ -657,6 +718,7 @@ void ARogue10mHUD::DrawInventory()
 	DrawText(TEXT("I : 닫기  |  제목줄 드래그"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 250.0f, PanelY + 26.0f, nullptr, 0.85f, false);
 
 	DrawCharacterPreview(RogueCharacter, PanelX + PanelWidth * 0.27f, PanelY + 62.0f, PanelWidth * 0.46f, PanelHeight - 78.0f);
+	DrawEquipmentCharacterStats(RogueCharacter, PanelX + PanelWidth * 0.30f, PanelY + PanelHeight - 118.0f, PanelWidth * 0.40f, 92.0f);
 	DrawInventorySlots(InventoryComponent->GetLeftEquipmentSlots(), PanelX + 34.0f, PanelY + 74.0f, SlotSize, SlotGap, false);
 	DrawInventorySlots(InventoryComponent->GetRightEquipmentSlots(), PanelX + PanelWidth - SlotSize - 34.0f, PanelY + 74.0f, SlotSize, SlotGap, true);
 }
@@ -746,12 +808,12 @@ void ARogue10mHUD::DrawSkillTreeWeaponSelect(float PanelX, float PanelY, float P
 {
 	const TArray<ERogue10mWeaponType> WeaponTypes =
 	{
+		ERogue10mWeaponType::Knuckle,
 		ERogue10mWeaponType::Dagger,
 		ERogue10mWeaponType::GreatSword,
 		ERogue10mWeaponType::DualBlades,
 		ERogue10mWeaponType::Bow,
-		ERogue10mWeaponType::Staff,
-		ERogue10mWeaponType::Knuckle
+		ERogue10mWeaponType::Staff
 	};
 
 	FVector2D MousePosition = FVector2D::ZeroVector;
@@ -784,16 +846,24 @@ void ARogue10mHUD::DrawSkillTreeWeaponSelect(float PanelX, float PanelY, float P
 		const FVector2D CardPosition(StartX + Column * (CardWidth + Gap), StartY + Row * (CardHeight + Gap));
 		const FVector2D CardSize(CardWidth, CardHeight);
 		const ERogue10mWeaponType WeaponType = WeaponTypes[Index];
+		const bool bUnlocked = IsWeaponSkillTreeUnlocked(WeaponType);
+		const int32 ProficiencyLevel = GetWeaponProficiencyLevel(WeaponType);
 		const bool bHovered = bHasMousePosition && IsPointInRect(MousePosition, CardPosition, CardSize);
 
 		SkillWeaponHitAreas.Add({ WeaponType, CardPosition, CardSize });
 
-		DrawRect(bHovered ? FLinearColor(0.95f, 0.82f, 0.35f, 0.9f) : FLinearColor(0.34f, 0.38f, 0.45f, 0.9f), CardPosition.X - 2.0f, CardPosition.Y - 2.0f, CardSize.X + 4.0f, CardSize.Y + 4.0f);
+		DrawRect(bHovered && bUnlocked ? FLinearColor(0.95f, 0.82f, 0.35f, 0.9f) : FLinearColor(0.34f, 0.38f, 0.45f, 0.9f), CardPosition.X - 2.0f, CardPosition.Y - 2.0f, CardSize.X + 4.0f, CardSize.Y + 4.0f);
 		DrawRect(FLinearColor(0.025f, 0.03f, 0.04f, 0.96f), CardPosition.X, CardPosition.Y, CardSize.X, CardSize.Y);
-		DrawRect(GetWeaponTypeColor(WeaponType), CardPosition.X + 12.0f, CardPosition.Y + 12.0f, CardSize.X - 24.0f, CardSize.Y - 46.0f);
+		DrawRect(bUnlocked ? GetWeaponTypeColor(WeaponType) : FLinearColor(0.16f, 0.17f, 0.19f, 1.0f), CardPosition.X + 12.0f, CardPosition.Y + 12.0f, CardSize.X - 24.0f, CardSize.Y - 46.0f);
 		DrawText(GetWeaponTypeText(WeaponType), InventoryTextColor, CardPosition.X + 14.0f, CardPosition.Y + CardSize.Y - 28.0f, nullptr, 0.9f, false);
+		DrawText(FString::Printf(TEXT("숙련도 %d / 10"), ProficiencyLevel), bUnlocked ? FLinearColor(0.72f, 1.0f, 0.78f, 1.0f) : FLinearColor(0.6f, 0.64f, 0.7f, 1.0f), CardPosition.X + 14.0f, CardPosition.Y + CardSize.Y - 50.0f, nullptr, 0.7f, false);
+		if (!bUnlocked)
+		{
+			DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.58f), CardPosition.X, CardPosition.Y, CardSize.X, CardSize.Y);
+			DrawText(TEXT("잠김"), FLinearColor(0.9f, 0.9f, 0.9f, 1.0f), CardPosition.X + CardSize.X * 0.5f - 18.0f, CardPosition.Y + CardSize.Y * 0.5f - 8.0f, nullptr, 0.9f, false);
+		}
 
-		if (bHovered && bLeftClickPressed)
+		if (bHovered && bUnlocked && bLeftClickPressed)
 		{
 			SelectedSkillTreeWeapon = WeaponType;
 			SkillTreeView = ERogue10mSkillTreeView::WeaponDetail;
@@ -828,23 +898,110 @@ void ARogue10mHUD::DrawSkillTreeWeaponDetail(float PanelX, float PanelY, float P
 	}
 
 	const FString WeaponName = GetWeaponTypeText(SelectedSkillTreeWeapon);
-	DrawText(FString::Printf(TEXT("%s Skill Tree"), *WeaponName), InventoryTextColor, PanelX + 130.0f, PanelY + 80.0f, nullptr, 1.15f, false);
+	const bool bTreeUnlocked = IsWeaponSkillTreeUnlocked(SelectedSkillTreeWeapon);
+	const int32 ProficiencyLevel = GetWeaponProficiencyLevel(SelectedSkillTreeWeapon);
+	DrawText(FString::Printf(TEXT("%s 숙련도 %d / 10"), *WeaponName, ProficiencyLevel), InventoryTextColor, PanelX + 130.0f, PanelY + 80.0f, nullptr, 1.15f, false);
 
-	const float CenterX = PanelX + PanelWidth * 0.5f;
-	const float StartY = PanelY + 150.0f;
-	const FLinearColor WeaponColor = GetWeaponTypeColor(SelectedSkillTreeWeapon);
-
-	// 무기별 상세 설계가 달라질 예정이므로 현재는 공통 노드 자리만 표시합니다.
-	for (int32 Index = 0; Index < 6; ++Index)
+	if (!bTreeUnlocked)
 	{
-		const float NodeX = CenterX + ((Index % 2 == 0) ? -90.0f : 90.0f);
-		const float NodeY = StartY + (Index / 2) * 82.0f;
-		DrawRect(FLinearColor(0.34f, 0.38f, 0.45f, 0.92f), NodeX - 38.0f, NodeY - 22.0f, 76.0f, 44.0f);
-		DrawRect(WeaponColor, NodeX - 32.0f, NodeY - 16.0f, 64.0f, 32.0f);
-		DrawText(FString::Printf(TEXT("Skill %d"), Index + 1), InventoryTextColor, NodeX - 26.0f, NodeY - 7.0f, nullptr, 0.65f, false);
+		DrawText(TEXT("해당 무기의 숙련도가 아직 열리지 않았습니다."), FLinearColor(0.68f, 0.74f, 0.82f, 1.0f), PanelX + 28.0f, PanelY + 142.0f, nullptr, 0.9f, false);
+		DrawText(TEXT("무기를 얻거나 스킬서/NPC를 통해 스킬을 습득하면 접근할 수 있습니다."), FLinearColor(0.68f, 0.74f, 0.82f, 1.0f), PanelX + 28.0f, PanelY + 174.0f, nullptr, 0.8f, false);
+		return;
 	}
 
-	DrawText(TEXT("Prototype layout. Each weapon can receive a custom tree later."), FLinearColor(0.68f, 0.74f, 0.82f, 1.0f), PanelX + 28.0f, PanelY + PanelHeight - 44.0f, nullptr, 0.78f, false);
+	if (SelectedSkillTreeWeapon != ERogue10mWeaponType::Knuckle)
+	{
+		DrawText(TEXT("현재 프로토타입에서는 권 스킬트리만 열려 있습니다."), FLinearColor(0.68f, 0.74f, 0.82f, 1.0f), PanelX + 28.0f, PanelY + 142.0f, nullptr, 0.9f, false);
+		return;
+	}
+
+	struct FKnuckleSkillView
+	{
+		int32 SkillIndex;
+		int32 Row;
+		int32 Column;
+		const TCHAR* SkillName;
+		const TCHAR* AssetName;
+		const TCHAR* IconText;
+		FLinearColor IconColor;
+	};
+
+	const FKnuckleSkillView SkillViews[] =
+	{
+		{ 0, 0, 0, TEXT("기본 권격"), TEXT("Primary"), TEXT("좌"), FLinearColor(1.0f, 0.58f, 0.24f, 1.0f) },
+		{ 2, 0, 1, TEXT("연속 권격 2"), TEXT("Combo2"), TEXT("연"), FLinearColor(1.0f, 0.68f, 0.28f, 1.0f) },
+		{ 3, 0, 2, TEXT("연속 권격 3"), TEXT("Combo3"), TEXT("3"), FLinearColor(1.0f, 0.42f, 0.24f, 1.0f) },
+		{ 4, 0, 3, TEXT("권 마무리"), TEXT("추가 예정"), TEXT("끝"), FLinearColor(0.95f, 0.3f, 0.24f, 1.0f) },
+		{ 1, 1, 0, TEXT("도약 권격"), TEXT("JumpPrimary"), TEXT("도"), FLinearColor(1.0f, 0.82f, 0.34f, 1.0f) },
+		{ 5, 1, 1, TEXT("공중 연계"), TEXT("추가 예정"), TEXT("공"), FLinearColor(0.62f, 0.82f, 1.0f, 1.0f) },
+		{ 6, 1, 2, TEXT("낙하 권격"), TEXT("추가 예정"), TEXT("낙"), FLinearColor(0.48f, 0.64f, 1.0f, 1.0f) }
+	};
+
+	const TCHAR* RowCommands[] = { TEXT("좌"), TEXT("점프 좌") };
+	const float CommandX = PanelX + 48.0f;
+	const float NodeStartX = PanelX + PanelWidth * 0.2f;
+	const float StartY = PanelY + 150.0f;
+	const float RowGap = 116.0f;
+	const float NodeGap = 18.0f;
+	const FVector2D CommandBoxSize(86.0f, 64.0f);
+	const FVector2D NodeSize(122.0f, 64.0f);
+	const FLinearColor WeaponColor = GetWeaponTypeColor(SelectedSkillTreeWeapon);
+
+	DrawText(TEXT("커맨드"), FLinearColor(0.72f, 0.78f, 0.88f, 1.0f), CommandX, StartY - 32.0f, nullptr, 0.8f, false);
+	DrawText(TEXT("스킬 오브젝트"), FLinearColor(0.72f, 0.78f, 0.88f, 1.0f), NodeStartX, StartY - 32.0f, nullptr, 0.8f, false);
+
+	for (int32 Row = 0; Row < UE_ARRAY_COUNT(RowCommands); ++Row)
+	{
+		const FVector2D CommandPosition(CommandX, StartY + Row * RowGap);
+		DrawRect(FLinearColor(0.42f, 0.46f, 0.52f, 1.0f), CommandPosition.X - 2.0f, CommandPosition.Y - 2.0f, CommandBoxSize.X + 4.0f, CommandBoxSize.Y + 4.0f);
+		DrawRect(FLinearColor(0.03f, 0.035f, 0.045f, 0.98f), CommandPosition.X, CommandPosition.Y, CommandBoxSize.X, CommandBoxSize.Y);
+		DrawText(RowCommands[Row], InventoryTextColor, CommandPosition.X + 18.0f, CommandPosition.Y + 20.0f, nullptr, 1.0f, false);
+
+		const FVector2D FirstNodePosition(NodeStartX, CommandPosition.Y);
+		DrawRect(FLinearColor(0.42f, 0.46f, 0.52f, 0.9f), CommandPosition.X + CommandBoxSize.X + 10.0f, CommandPosition.Y + CommandBoxSize.Y * 0.5f - 2.0f, FirstNodePosition.X - (CommandPosition.X + CommandBoxSize.X + 10.0f), 4.0f);
+	}
+
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(SkillViews); ++Index)
+	{
+		const FKnuckleSkillView& SkillView = SkillViews[Index];
+		const FVector2D NodePosition(NodeStartX + SkillView.Column * (NodeSize.X + NodeGap), StartY + SkillView.Row * RowGap);
+		const bool bUnlocked = IsKnuckleSkillUnlocked(SkillView.SkillIndex);
+		const bool bCanUnlock = CanUnlockKnuckleSkill(SkillView.SkillIndex);
+		const bool bHovered = bHasMousePosition && IsPointInRect(MousePosition, NodePosition, NodeSize);
+		const FLinearColor NodeBorder = bUnlocked ? WeaponColor : (bCanUnlock ? FLinearColor(0.95f, 0.82f, 0.35f, 1.0f) : FLinearColor(0.24f, 0.26f, 0.3f, 1.0f));
+		const FLinearColor NodeFill = bUnlocked ? FLinearColor(0.16f, 0.22f, 0.18f, 0.96f) : (bCanUnlock ? FLinearColor(0.18f, 0.16f, 0.08f, 0.96f) : FLinearColor(0.055f, 0.06f, 0.07f, 0.96f));
+
+		if (SkillView.Column > 0)
+		{
+			DrawRect(FLinearColor(0.42f, 0.46f, 0.52f, 0.9f), NodePosition.X - NodeGap, NodePosition.Y + NodeSize.Y * 0.5f - 2.0f, NodeGap, 4.0f);
+		}
+
+		DrawRect(NodeBorder, NodePosition.X - 2.0f, NodePosition.Y - 2.0f, NodeSize.X + 4.0f, NodeSize.Y + 4.0f);
+		DrawRect(NodeFill, NodePosition.X, NodePosition.Y, NodeSize.X, NodeSize.Y);
+		if (bHovered && bCanUnlock)
+		{
+			DrawRect(FLinearColor(1.0f, 0.92f, 0.45f, 0.18f), NodePosition.X, NodePosition.Y, NodeSize.X, NodeSize.Y);
+		}
+
+		const FVector2D IconPosition(NodePosition.X + 8.0f, NodePosition.Y + 10.0f);
+		const FVector2D IconSize(34.0f, 34.0f);
+		const FLinearColor IconFrameColor = bUnlocked ? SkillView.IconColor : FLinearColor(0.28f, 0.3f, 0.34f, 1.0f);
+		const FLinearColor IconFillColor = bUnlocked ? FLinearColor(SkillView.IconColor.R * 0.18f, SkillView.IconColor.G * 0.18f, SkillView.IconColor.B * 0.18f, 0.98f) : FLinearColor(0.08f, 0.085f, 0.095f, 0.98f);
+		DrawRect(IconFrameColor, IconPosition.X - 1.0f, IconPosition.Y - 1.0f, IconSize.X + 2.0f, IconSize.Y + 2.0f);
+		DrawRect(IconFillColor, IconPosition.X, IconPosition.Y, IconSize.X, IconSize.Y);
+		DrawText(SkillView.IconText, bUnlocked ? InventoryTextColor : FLinearColor(0.62f, 0.66f, 0.72f, 1.0f), IconPosition.X + 8.0f, IconPosition.Y + 9.0f, nullptr, 0.68f, false);
+
+		DrawText(SkillView.SkillName, bUnlocked ? InventoryTextColor : FLinearColor(0.62f, 0.66f, 0.72f, 1.0f), NodePosition.X + 48.0f, NodePosition.Y + 8.0f, nullptr, 0.62f, false);
+		DrawText(SkillView.AssetName, FLinearColor(0.56f, 0.64f, 0.74f, 1.0f), NodePosition.X + 48.0f, NodePosition.Y + 27.0f, nullptr, 0.42f, false);
+		DrawText(bUnlocked ? TEXT("습득됨") : (bCanUnlock ? TEXT("해금") : TEXT("잠김")), bUnlocked ? FLinearColor(0.56f, 1.0f, 0.62f, 1.0f) : (bCanUnlock ? FLinearColor(1.0f, 0.86f, 0.35f, 1.0f) : FLinearColor(0.7f, 0.72f, 0.76f, 1.0f)), NodePosition.X + 48.0f, NodePosition.Y + 45.0f, nullptr, 0.52f, false);
+
+		if (bHovered && bLeftClickPressed && bCanUnlock)
+		{
+			UnlockKnuckleSkillForTest(SkillView.SkillIndex);
+		}
+	}
+
+	DrawText(TEXT("습득되지 않은 노드는 실제 공격에서도 사용 불가능합니다. 테스트용으로 연결된 앞 노드를 해금하면 다음 노드를 클릭할 수 있습니다."), FLinearColor(0.68f, 0.74f, 0.82f, 1.0f), PanelX + 28.0f, PanelY + PanelHeight - 44.0f, nullptr, 0.72f, false);
 }
 
 void ARogue10mHUD::DrawSettingsPanel()
@@ -930,6 +1087,8 @@ void ARogue10mHUD::DrawInventorySlots(const TArray<FRogue10mInventorySlot>& Slot
 	URogue10mInventoryComponent* InventoryComponent = RogueCharacter ? RogueCharacter->GetInventoryComponent() : nullptr;
 	FVector2D MousePosition = FVector2D::ZeroVector;
 	bool bHasMousePosition = false;
+	bool bLeftClickPressed = false;
+	bool bLeftClickReleased = false;
 	bool bRightClickPressed = false;
 	if (const APlayerController* OwningPlayerController = GetOwningPlayerController())
 	{
@@ -937,7 +1096,14 @@ void ARogue10mHUD::DrawInventorySlots(const TArray<FRogue10mInventorySlot>& Slot
 		float MouseY = 0.0f;
 		bHasMousePosition = OwningPlayerController->GetMousePosition(MouseX, MouseY);
 		MousePosition = FVector2D(MouseX, MouseY);
+		bLeftClickPressed = OwningPlayerController->WasInputKeyJustPressed(EKeys::LeftMouseButton);
+		bLeftClickReleased = OwningPlayerController->WasInputKeyJustReleased(EKeys::LeftMouseButton);
 		bRightClickPressed = OwningPlayerController->WasInputKeyJustPressed(EKeys::RightMouseButton);
+	}
+
+	if (bLeftClickReleased && bIsDraggingItem && DraggedItemSource == ERogue10mDraggedItemSource::EquipmentSlot && !bItemWindowVisible)
+	{
+		ClearDraggedItem();
 	}
 
 	const float PulseAlpha = GetWorld() ? (0.35f + 0.35f * FMath::Abs(FMath::Sin(GetWorld()->GetTimeSeconds() * 7.5f))) : 0.45f;
@@ -947,7 +1113,7 @@ void ARogue10mHUD::DrawInventorySlots(const TArray<FRogue10mInventorySlot>& Slot
 		const FRogue10mInventorySlot& Slot = Slots[Index];
 		const float SlotY = Y + Index * (SlotSize + Gap);
 		EquipmentSlotHitAreas.Add({ Slot.SlotType, FVector2D(X, SlotY), FVector2D(SlotSize, SlotSize), Slot.bLocked });
-		const bool bDragCompatible = bIsDraggingItem && IsItemCompatibleWithSlot(DraggedItem, Slot.SlotType) && !Slot.bLocked;
+		const bool bDragCompatible = bIsDraggingItem && DraggedItemSource == ERogue10mDraggedItemSource::ItemSlot && IsItemCompatibleWithSlot(DraggedItem, Slot.SlotType) && !Slot.bLocked;
 		const bool bHovered = bHasMousePosition && IsPointInRect(MousePosition, FVector2D(X, SlotY), FVector2D(SlotSize, SlotSize));
 
 		DrawRect(Slot.SlotColor, X - 3.0f, SlotY - 3.0f, SlotSize + 6.0f, SlotSize + 6.0f);
@@ -961,6 +1127,17 @@ void ARogue10mHUD::DrawInventorySlots(const TArray<FRogue10mInventorySlot>& Slot
 		if (bHovered && bRightClickPressed && InventoryComponent && Slot.bHasEquippedItem)
 		{
 			InventoryComponent->TryUnequipItemFromSlot(Slot.SlotType);
+		}
+
+		if (bHovered && bLeftClickPressed && Slot.bHasEquippedItem && Slot.EquippedItem.bOccupied && !Slot.EquippedItem.bLocked)
+		{
+			bIsDraggingItem = true;
+			DraggedItemSource = ERogue10mDraggedItemSource::EquipmentSlot;
+			DraggedItem = Slot.EquippedItem;
+			DraggedItemSlotIndex = INDEX_NONE;
+			DraggedEquipmentSlotType = Slot.SlotType;
+			DraggedItemMousePosition = MousePosition;
+			bHasHoveredItem = false;
 		}
 
 		const FString SlotName = Slot.DisplayName.ToString();
@@ -1019,12 +1196,34 @@ void ARogue10mHUD::DrawItemGrid(URogue10mInventoryComponent* InventoryComponent,
 		DraggedItemMousePosition = MousePosition;
 		if (bLeftClickReleased)
 		{
-			if (const FRogue10mEquipmentSlotHitArea* DropTarget = FindEquipmentSlotHitArea(MousePosition))
+			if (DraggedItemSource == ERogue10mDraggedItemSource::ItemSlot)
 			{
-				InventoryComponent->TryEquipItemToSlot(DraggedItemSlotIndex, DropTarget->SlotType);
+				if (const FRogue10mEquipmentSlotHitArea* DropTarget = FindEquipmentSlotHitArea(MousePosition))
+				{
+					InventoryComponent->TryEquipItemToSlot(DraggedItemSlotIndex, DropTarget->SlotType);
+				}
+				else
+				{
+					const float LocalX = MousePosition.X - X;
+					const float LocalY = MousePosition.Y - Y;
+					const int32 TargetColumn = FMath::FloorToInt(LocalX / (SlotSize + Gap));
+					const int32 TargetRow = FMath::FloorToInt(LocalY / (SlotSize + Gap));
+					const float TargetSlotX = X + TargetColumn * (SlotSize + Gap);
+					const float TargetSlotY = Y + TargetRow * (SlotSize + Gap);
+					if (TargetColumn >= 0
+						&& TargetColumn < SafeColumns
+						&& TargetRow >= 0
+						&& TargetRow < SafeRows
+						&& IsPointInRect(MousePosition, FVector2D(TargetSlotX, TargetSlotY), FVector2D(SlotSize, SlotSize)))
+					{
+						const int32 TargetItemSlotIndex = TargetRow * SafeColumns + TargetColumn;
+						InventoryComponent->TryMoveItemSlot(DraggedItemSlotIndex, TargetItemSlotIndex);
+					}
+				}
 			}
-			else
+			else if (DraggedItemSource == ERogue10mDraggedItemSource::EquipmentSlot)
 			{
+				int32 TargetItemSlotIndex = INDEX_NONE;
 				const float LocalX = MousePosition.X - X;
 				const float LocalY = MousePosition.Y - Y;
 				const int32 TargetColumn = FMath::FloorToInt(LocalX / (SlotSize + Gap));
@@ -1037,19 +1236,17 @@ void ARogue10mHUD::DrawItemGrid(URogue10mInventoryComponent* InventoryComponent,
 					&& TargetRow < SafeRows
 					&& IsPointInRect(MousePosition, FVector2D(TargetSlotX, TargetSlotY), FVector2D(SlotSize, SlotSize)))
 				{
-					const int32 TargetItemSlotIndex = TargetRow * SafeColumns + TargetColumn;
-					InventoryComponent->TryMoveItemSlot(DraggedItemSlotIndex, TargetItemSlotIndex);
+					TargetItemSlotIndex = TargetRow * SafeColumns + TargetColumn;
 				}
+				InventoryComponent->TryUnequipItemFromSlotToItemSlot(DraggedEquipmentSlotType, TargetItemSlotIndex);
 			}
 
-			bIsDraggingItem = false;
-			DraggedItemSlotIndex = INDEX_NONE;
+			ClearDraggedItem();
 		}
 	}
 	else if (!bLeftClickHeld)
 	{
-		bIsDraggingItem = false;
-		DraggedItemSlotIndex = INDEX_NONE;
+		ClearDraggedItem();
 	}
 
 	for (int32 Index = 0; Index < VisibleItemCount; ++Index)
@@ -1101,8 +1298,10 @@ void ARogue10mHUD::DrawItemGrid(URogue10mInventoryComponent* InventoryComponent,
 			if (bLeftClickPressed && !Item.bLocked)
 			{
 				bIsDraggingItem = true;
+				DraggedItemSource = ERogue10mDraggedItemSource::ItemSlot;
 				DraggedItem = Item;
 				DraggedItemSlotIndex = Index;
+				DraggedEquipmentSlotType = ERogue10mInventorySlotType::Material;
 				DraggedItemMousePosition = MousePosition;
 				bHasHoveredItem = false;
 			}
@@ -1177,6 +1376,38 @@ void ARogue10mHUD::DrawHoveredItemTooltip()
 	DrawText(ActionText, ActionColor, TextX, TextY, nullptr, 0.82f, false);
 }
 
+void ARogue10mHUD::DrawEquipmentCharacterStats(const ARogue10mCharacter* RogueCharacter, float X, float Y, float Width, float Height)
+{
+	const URogue10mVitalsComponent* VitalsComponent = RogueCharacter ? RogueCharacter->GetVitalsComponent() : nullptr;
+	if (!Canvas || !RogueCharacter || !VitalsComponent)
+	{
+		return;
+	}
+
+	DrawRect(FLinearColor(0.015f, 0.018f, 0.022f, 0.78f), X, Y, Width, Height);
+	DrawRect(FLinearColor(0.18f, 0.24f, 0.32f, 0.92f), X, Y, Width, 3.0f);
+
+	const float TextX = X + 12.0f;
+	float TextY = Y + 12.0f;
+	const float TextScale = 0.66f;
+	DrawText(TEXT("현재 캐릭터 스탯"), InventoryTextColor, TextX, TextY, nullptr, 0.74f, false);
+
+	TextY += 20.0f;
+	DrawText(FString::Printf(TEXT("체력 %.0f / %.0f"), VitalsComponent->GetHealth().Current, VitalsComponent->GetHealth().Max), FLinearColor(1.0f, 0.72f, 0.72f, 1.0f), TextX, TextY, nullptr, TextScale, false);
+	DrawText(FString::Printf(TEXT("스테미나 %.0f / %.0f"), VitalsComponent->GetStamina().Current, VitalsComponent->GetStamina().Max), FLinearColor(0.7f, 1.0f, 0.72f, 1.0f), X + Width * 0.5f, TextY, nullptr, TextScale, false);
+
+	TextY += 18.0f;
+	if (VitalsComponent->ShouldShowMana())
+	{
+		DrawText(FString::Printf(TEXT("마나 %.0f / %.0f"), VitalsComponent->GetMana().Current, VitalsComponent->GetMana().Max), FLinearColor(0.68f, 0.8f, 1.0f, 1.0f), TextX, TextY, nullptr, TextScale, false);
+	}
+	else
+	{
+		DrawText(TEXT("마나 비활성"), FLinearColor(0.58f, 0.64f, 0.72f, 1.0f), TextX, TextY, nullptr, TextScale, false);
+	}
+	DrawText(FString::Printf(TEXT("무기 %s"), *GetWeaponTypeText(RogueCharacter->GetEquippedWeaponType())), FLinearColor(0.9f, 0.76f, 0.48f, 1.0f), X + Width * 0.5f, TextY, nullptr, TextScale, false);
+}
+
 void ARogue10mHUD::DrawDraggedItem()
 {
 	if (!Canvas || !bIsDraggingItem || !DraggedItem.bOccupied)
@@ -1188,9 +1419,10 @@ void ARogue10mHUD::DrawDraggedItem()
 	const FVector2D DrawPosition = DraggedItemMousePosition - FVector2D(DragSlotSize * 0.5f, DragSlotSize * 0.5f);
 	const FRogue10mEquipmentSlotHitArea* DropTarget = FindEquipmentSlotHitArea(DraggedItemMousePosition);
 	const FRogue10mItemSlotHitArea* ItemDropTarget = FindItemSlotHitArea(DraggedItemMousePosition);
-	const bool bCanEquipDrop = DropTarget && !DropTarget->bLocked && IsItemCompatibleWithSlot(DraggedItem, DropTarget->SlotType);
-	const bool bCanMoveDrop = ItemDropTarget && !ItemDropTarget->bLocked && ItemDropTarget->SlotIndex != DraggedItemSlotIndex;
-	const bool bCanDrop = bCanEquipDrop || bCanMoveDrop;
+	const bool bCanEquipDrop = DraggedItemSource == ERogue10mDraggedItemSource::ItemSlot && DropTarget && !DropTarget->bLocked && IsItemCompatibleWithSlot(DraggedItem, DropTarget->SlotType);
+	const bool bCanMoveDrop = DraggedItemSource == ERogue10mDraggedItemSource::ItemSlot && ItemDropTarget && !ItemDropTarget->bLocked && ItemDropTarget->SlotIndex != DraggedItemSlotIndex;
+	const bool bCanUnequipDrop = DraggedItemSource == ERogue10mDraggedItemSource::EquipmentSlot && ItemDropTarget && !ItemDropTarget->bLocked;
+	const bool bCanDrop = bCanEquipDrop || bCanMoveDrop || bCanUnequipDrop;
 	const FLinearColor BorderColor = bCanDrop ? FLinearColor(0.2f, 1.0f, 0.55f, 0.95f) : FLinearColor(1.0f, 0.35f, 0.25f, 0.85f);
 
 	DrawRect(BorderColor, DrawPosition.X - 3.0f, DrawPosition.Y - 3.0f, DragSlotSize + 6.0f, DragSlotSize + 6.0f);
@@ -1198,7 +1430,7 @@ void ARogue10mHUD::DrawDraggedItem()
 	DrawRect(DraggedItem.ItemColor, DrawPosition.X + 6.0f, DrawPosition.Y + 6.0f, DragSlotSize - 12.0f, DragSlotSize - 12.0f);
 	DrawText(DraggedItem.DisplayName.ToString(), InventoryTextColor, DrawPosition.X + 7.0f, DrawPosition.Y + 11.0f, nullptr, 0.58f, false);
 
-	const FString DropText = bCanEquipDrop ? TEXT("놓기: 장착") : (bCanMoveDrop ? TEXT("놓기: 이동") : TEXT("슬롯에 놓기"));
+	const FString DropText = bCanEquipDrop ? TEXT("놓기: 장착") : (bCanUnequipDrop ? TEXT("놓기: 해제") : (bCanMoveDrop ? TEXT("놓기: 이동") : TEXT("슬롯에 놓기")));
 	DrawText(DropText, BorderColor, DrawPosition.X + DragSlotSize + 10.0f, DrawPosition.Y + 18.0f, nullptr, 0.8f, false);
 }
 
@@ -1514,7 +1746,7 @@ FString ARogue10mHUD::GetWeaponTypeText(ERogue10mWeaponType WeaponType) const
 	case ERogue10mWeaponType::Staff:
 		return TEXT("지팡이");
 	case ERogue10mWeaponType::Knuckle:
-		return TEXT("너클");
+		return TEXT("권");
 	default:
 		return TEXT("알 수 없음");
 	}
@@ -1538,6 +1770,146 @@ FLinearColor ARogue10mHUD::GetWeaponTypeColor(ERogue10mWeaponType WeaponType) co
 		return FLinearColor(0.95f, 0.46f, 0.24f, 1.0f);
 	default:
 		return FLinearColor(0.55f, 0.58f, 0.64f, 1.0f);
+	}
+}
+
+bool ARogue10mHUD::IsWeaponSkillTreeUnlocked(ERogue10mWeaponType WeaponType) const
+{
+	return WeaponType == ERogue10mWeaponType::Knuckle;
+}
+
+int32 ARogue10mHUD::GetWeaponProficiencyLevel(ERogue10mWeaponType WeaponType) const
+{
+	return IsWeaponSkillTreeUnlocked(WeaponType) ? 1 : 0;
+}
+
+bool ARogue10mHUD::IsAttackSkillUnlockedForUse(const URogue10mAttackSkillData* SkillData) const
+{
+	if (!SkillData)
+	{
+		return false;
+	}
+
+	const FName SkillAssetName = SkillData->GetFName();
+	if (SkillAssetName == FName(TEXT("DA_Attack_Unarmed_Primary")))
+	{
+		return IsKnuckleSkillUnlocked(0);
+	}
+
+	if (SkillAssetName == FName(TEXT("DA_Attack_Unarmed_JumpPrimary")))
+	{
+		return IsKnuckleSkillUnlocked(1);
+	}
+
+	if (SkillAssetName == FName(TEXT("DA_Attack_Unarmed_Primary_Combo2")))
+	{
+		return IsKnuckleSkillUnlocked(2);
+	}
+
+	if (SkillAssetName == FName(TEXT("DA_Attack_Unarmed_Primary_Combo3")))
+	{
+		return IsKnuckleSkillUnlocked(3);
+	}
+
+	return false;
+}
+
+bool ARogue10mHUD::IsKnuckleSkillUnlocked(int32 SkillIndex) const
+{
+	if (SkillIndex == 0 || SkillIndex == 1)
+	{
+		return true;
+	}
+
+	if (SkillIndex == 2)
+	{
+		return bKnuckleCombo2Unlocked;
+	}
+
+	if (SkillIndex == 3)
+	{
+		return bKnuckleCombo3Unlocked;
+	}
+
+	if (SkillIndex == 4)
+	{
+		return bKnuckleFinisherUnlocked;
+	}
+
+	if (SkillIndex == 5)
+	{
+		return bKnuckleAirComboUnlocked;
+	}
+
+	if (SkillIndex == 6)
+	{
+		return bKnuckleAirFinisherUnlocked;
+	}
+
+	return false;
+}
+
+bool ARogue10mHUD::CanUnlockKnuckleSkill(int32 SkillIndex) const
+{
+	if (IsKnuckleSkillUnlocked(SkillIndex))
+	{
+		return false;
+	}
+
+	if (SkillIndex == 2)
+	{
+		return IsKnuckleSkillUnlocked(0) && IsKnuckleSkillUnlocked(1);
+	}
+
+	if (SkillIndex == 3)
+	{
+		return IsKnuckleSkillUnlocked(2);
+	}
+
+	if (SkillIndex == 4)
+	{
+		return IsKnuckleSkillUnlocked(3);
+	}
+
+	if (SkillIndex == 5)
+	{
+		return IsKnuckleSkillUnlocked(1);
+	}
+
+	if (SkillIndex == 6)
+	{
+		return IsKnuckleSkillUnlocked(5);
+	}
+
+	return false;
+}
+
+void ARogue10mHUD::UnlockKnuckleSkillForTest(int32 SkillIndex)
+{
+	if (!CanUnlockKnuckleSkill(SkillIndex))
+	{
+		return;
+	}
+
+	if (SkillIndex == 2)
+	{
+		bKnuckleCombo2Unlocked = true;
+	}
+	else if (SkillIndex == 3)
+	{
+		bKnuckleCombo3Unlocked = true;
+	}
+	else if (SkillIndex == 4)
+	{
+		bKnuckleFinisherUnlocked = true;
+	}
+	else if (SkillIndex == 5)
+	{
+		bKnuckleAirComboUnlocked = true;
+	}
+	else if (SkillIndex == 6)
+	{
+		bKnuckleAirFinisherUnlocked = true;
 	}
 }
 
@@ -1586,6 +1958,16 @@ bool ARogue10mHUD::IsItemCompatibleWithSlot(const FRogue10mItemStack& Item, ERog
 		&& !Item.bLocked
 		&& Item.Category == ERogue10mItemCategory::Equipment
 		&& Item.EquipSlotType == SlotType;
+}
+
+void ARogue10mHUD::ClearDraggedItem()
+{
+	bIsDraggingItem = false;
+	DraggedItemSource = ERogue10mDraggedItemSource::None;
+	DraggedItem = FRogue10mItemStack();
+	DraggedItemMousePosition = FVector2D::ZeroVector;
+	DraggedItemSlotIndex = INDEX_NONE;
+	DraggedEquipmentSlotType = ERogue10mInventorySlotType::Material;
 }
 
 bool ARogue10mHUD::IsPointInRect(const FVector2D& Point, const FVector2D& RectPosition, const FVector2D& RectSize) const

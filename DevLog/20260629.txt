@@ -96,3 +96,173 @@
 - 목적: 개발 중 공격/피격 디버그 로그를 화면에서 빠르게 숨기거나 다시 표시한다.
 - 조작: `L` 키로 전투 로그 표시를 토글한다.
 - 확장: `ARogue10mHUD`의 `SetAllCombatDebugVisible`, `SetCombatLogVisible`, `SetFloatingDamageNumbersVisible`, `SetPlayerDamageFeedbackVisible`을 설정 패널이나 디버그 메뉴에 연결할 수 있다.
+
+## 추가 작업: Data Asset 기준 경로 정리
+
+- 프로젝트에서 제작한 Data Asset 확인 기준 경로를 `Content/DataAsset`으로 정리했다.
+- 공격 스킬 Data Asset은 필요에 따라 `Content/DataAsset/AttackSkill` 하위 폴더로 분류할 수 있도록 문서화했다.
+- 애니메이션 설정용 Data Asset 권장 위치도 `Content/DataAsset/Animations`로 맞췄다.
+- 현재 확인된 샘플 에셋은 `Content/DataAsset/DA_Attack_Unarmed_Primary.uasset`이다.
+
+## Notion 정리 후보: Data Asset 경로
+
+- 모든 Data Asset의 기본 확인 위치는 `Content/DataAsset`으로 통일한다.
+- 공격 스킬, 애니메이션, 아이템, 몬스터 데이터는 필요하면 하위 폴더로 분류한다.
+- 코드에서는 Data Asset 클래스를 제공하고, 실제 값과 에셋 연결은 Unreal Editor에서 생성한 Data Asset에 입력한다.
+
+## 추가 작업: 기본 주먹 공격 Data Asset 생성
+
+- 기존 `DA_Attack_Unarmed_Primary`를 기준으로 기본 주먹 공격 Data Asset 세트를 생성했다.
+- 생성 위치는 `Content/DataAsset`이다.
+- 생성/갱신 자동화 스크립트를 `Scripts/Editor/CreateDefaultUnarmedAttackDataAssets.py`에 추가했다.
+- 생성된 에셋은 특수 공격, 점프 좌클릭, 점프 우클릭, 차징 좌클릭, 차징 우클릭 입력에 대응한다.
+- Unreal Editor Python Commandlet으로 생성 후 재실행 검증을 완료했다.
+
+## Notion 정리 후보: 기본 주먹 공격 Data Asset
+
+- 주먹 공격은 입력별 Data Asset으로 분리한다.
+- `DA_Attack_Unarmed_Primary`를 기준 데이터로 삼고, 나머지 입력별 에셋은 데미지/쿨타임/차징 시간/디버그 색상만 다르게 설정한다.
+- 추후 `BP_FirstPersonCharacter`의 공격 Data Asset 슬롯에 각 에셋을 연결하면 공격 잠금 상태를 해제할 수 있다.
+
+## 추가 작업: 공격 콤보 준비
+
+- `URogue10mAttackSkillData`에 콤보 설정 값을 추가했다.
+- 콤보 설정 값은 `Enable Combo`, `Combo Window Open Seconds`, `Combo Window Close Seconds`, `Combo Input Slot`, `Next Combo Skill`이다.
+- 캐릭터 공격 실행 후 Data Asset에 다음 콤보 스킬이 있으면 지정된 시간 창 안에서 추가 입력을 받아 다음 공격을 실행하도록 준비했다.
+- 콤보 공격은 이전 공격의 전역 쿨타임에 막히지 않도록 처리했다.
+- 기본 주먹 좌클릭 콤보용 `DA_Attack_Unarmed_Primary_Combo2`, `DA_Attack_Unarmed_Primary_Combo3` Data Asset을 생성했다.
+- `DA_Attack_Unarmed_Primary -> DA_Attack_Unarmed_Primary_Combo2 -> DA_Attack_Unarmed_Primary_Combo3` 순서로 3타 콤보를 연결했다.
+- `Scripts/Editor/CreateDefaultUnarmedAttackDataAssets.py`를 갱신해 기본 주먹 공격 Data Asset과 콤보 체인을 반복 생성/갱신할 수 있게 했다.
+- 에디터 타겟 빌드와 Unreal Editor Python Commandlet 실행을 완료했다.
+
+## Notion 정리 후보: 공격 콤보
+
+- 콤보는 코드에 고정하지 않고 공격 Data Asset의 `Next Combo Skill` 연결로 구성한다.
+- 각 공격은 콤보 입력 가능 시작/종료 시간을 가진다.
+- 기본 주먹 좌클릭은 1타, 2타, 3타 체인으로 준비되어 있다.
+- 향후 애니메이션 Montage Notify를 붙이면 실제 타격 시점과 콤보 입력 창을 애니메이션 기준으로 정밀하게 맞출 수 있다.
+
+## 추가 작업: 기본 공격 Data Asset 캐릭터 연결
+
+- `BP_FirstPersonCharacter`의 공격 Data Asset 슬롯에 기본 주먹 공격 Data Asset을 연결했다.
+- 좌클릭 기본 공격은 `DA_Attack_Unarmed_Primary`를 연결했다.
+- 좌클릭 콤보 2타는 `DA_Attack_Unarmed_Primary` 내부의 `Next Combo Skill`로 `DA_Attack_Unarmed_Primary_Combo2`에 연결된다.
+- 우클릭 기본 공격은 `DA_Attack_Unarmed_Special`을 연결했다.
+- 점프 공격은 `DA_Attack_Unarmed_JumpPrimary`, `DA_Attack_Unarmed_JumpSpecial`을 연결했다.
+- 차징 공격은 `DA_Attack_Unarmed_ChargedPrimary`, `DA_Attack_Unarmed_ChargedSpecial`을 연결했다.
+- 반복 연결용 스크립트를 `Scripts/Editor/AssignDefaultAttackSkillDataAssets.py`에 추가했다.
+- Unreal Editor Python Commandlet으로 `BP_FirstPersonCharacter` 저장을 완료했다.
+
+## Notion 정리 후보: 기본 공격 Data Asset 연결
+
+- 기본 공격 Data Asset은 `BP_FirstPersonCharacter`의 `Rogue10m|Combat|Skill Data` 슬롯에서 시작된다.
+- 콤보 2타 이후는 캐릭터 슬롯이 아니라 Data Asset 내부의 `Next Combo Skill` 연결로 이어진다.
+- 기본 주먹 공격 연결은 자동화 스크립트로 재적용할 수 있다.
+
+## 추가 작업: 장비 드래그 해제와 공격 자원 비용
+
+- 장비창에서 장착된 아이템을 좌클릭 드래그로 잡을 수 있도록 HUD 드래그 상태를 확장했다.
+- 장비 슬롯에서 잡은 아이템을 아이템 창 슬롯 위에 드롭하면 해당 장비가 해제되어 아이템 창으로 이동하도록 처리했다.
+- 기존 우클릭 장비 해제 기능은 유지했다.
+- 장비창 하단에 현재 캐릭터 스탯 패널을 추가했다.
+- 장비창 스탯 패널에는 체력, 스테미나, 마나 활성 상태, 현재 무기 타입을 표시한다.
+- 공격 Data Asset에 `Resource Costs` 배열을 추가했다.
+- 공격 자원 타입 enum은 `Health`, `Stamina`, `Mana`, `Energy`를 지원하도록 준비했다.
+- 신규 공격 Data Asset은 기본적으로 체력과 스테미나 비용 항목을 가진다.
+- 공격 실행 전 자원 비용을 확인하고, 체력/스테미나/마나 비용이 부족하면 공격을 실행하지 않도록 준비했다.
+- 기력은 향후 전용 컴포넌트가 생기면 연결할 예약 값으로 두었다.
+
+## Notion 정리 후보: 장비 해제와 공격 자원
+
+- 장비 해제는 우클릭과 드래그 앤 드롭 두 가지 흐름을 지원한다.
+- 장비창은 캐릭터 외형 미리보기와 함께 현재 핵심 스탯을 보여준다.
+- 공격 비용은 Data Asset의 enum 기반 배열로 관리한다.
+- 기본 자원은 체력/스테미나이며, 마나/기력은 확장 자원으로 대응한다.
+
+## 추가 작업: 기본 공격 잠금과 권 스킬트리 프로토타입
+
+- 기본 캐릭터가 즉시 사용할 수 있는 공격을 일반 좌클릭과 점프 좌클릭으로 제한했다.
+- `BP_FirstPersonCharacter`에는 `DA_Attack_Unarmed_Primary`, `DA_Attack_Unarmed_JumpPrimary`만 기본 공격 Data Asset으로 연결했다.
+- 우클릭, 점프 우클릭, 차징 좌클릭, 차징 우클릭 슬롯은 비워 두어 Data Asset이 없으면 입력이 잠기는 흐름을 확인할 수 있게 했다.
+- 스킬트리의 `Knuckle` 표시명을 `권`으로 변경했다.
+- 무기 선택 화면에서 권을 가장 앞에 배치하고, 단검/대검/쌍검/활/지팡이는 잠김 상태로 표시했다.
+- 권 숙련도는 기본 1, 다른 무기 숙련도는 0으로 표시한다.
+- 권 스킬트리 내부에는 커맨드 왼쪽, 스킬 오브젝트 오른쪽 구조로 기본 권격, 도약 권격, 연속 권격 2, 연속 권격 3을 배치했다.
+- 기본 제공 스킬인 기본 권격과 도약 권격은 습득됨 상태로 두었다.
+- 연속 권격 2와 연속 권격 3은 테스트를 위해 앞 스킬이 해금되면 클릭으로 다음 스킬을 해금할 수 있도록 준비했다.
+- 아이템/문서 표기에서도 너클 명칭을 권 기준으로 맞췄다.
+
+## Notion 정리 후보: 권 스킬트리 해금 규칙
+
+- 무기 숙련도는 0부터 10까지 관리한다.
+- 스킬트리가 해금되는 순간 해당 무기의 숙련도는 1이 된다.
+- 현재 기본 무기 숙련도는 권 1이며, 나머지 무기는 0으로 잠긴다.
+- 무기를 획득하거나 기본 스킬서 또는 NPC에게 스킬을 배우면 해당 무기 스킬트리에 접근할 수 있게 확장한다.
+- 권 스킬트리는 기본 좌클릭과 점프 좌클릭을 시작점으로 두고, 이후 콤보 스킬은 앞 스킬 습득 여부를 조건으로 해금한다.
+
+## 추가 작업: 권 스킬트리 라인형 구성과 실제 사용 잠금
+
+- 권 스킬트리를 커맨드 박스와 오른쪽 스킬 노드가 이어지는 라인형 구조로 재구성했다.
+- 좌클릭 라인은 `기본 권격 -> 연속 권격 2 -> 연속 권격 3 -> 권 마무리` 흐름으로 배치했다.
+- 점프 좌클릭 라인은 `도약 권격 -> 공중 연계 -> 낙하 권격` 흐름으로 배치했다.
+- 기본 제공 스킬인 기본 권격과 도약 권격은 처음부터 습득됨 상태로 유지했다.
+- 나머지 노드는 앞 노드가 해금되기 전까지 클릭할 수 없고, 테스트를 위해 앞 노드가 열리면 다음 노드를 클릭해 해금할 수 있게 했다.
+- 공격 실행 시 HUD의 스킬트리 해금 상태를 확인하도록 연결했다.
+- 스킬트리에서 잠긴 공격은 Data Asset이 캐릭터 슬롯이나 콤보 체인에 연결되어 있어도 실제 실행되지 않고 잠김 로그를 표시한다.
+
+## Notion 정리 후보: 스킬트리 기반 공격 사용 제한
+
+- 스킬 Data Asset 연결 여부와 스킬 습득 여부는 분리한다.
+- Data Asset은 공격의 수치와 판정을 제공하고, 스킬트리는 해당 공격을 사용할 수 있는지 결정한다.
+- 기본 권 스킬은 좌클릭과 점프 좌클릭만 습득 상태다.
+- 콤보 공격은 Data Asset의 `Next Combo Skill`로 연결되어 있어도 스킬트리에서 해금되기 전까지 실행되지 않는다.
+
+## 추가 작업: 공격 정보 아이콘 추가
+
+- `URogue10mAttackSkillData`에 공격 아이콘용 `Skill Icon` 필드를 추가했다.
+- 실제 텍스처가 없을 때 사용할 `Icon Label`, `Icon Tint` 값을 추가했다.
+- 권 스킬트리 노드에 고정 크기 공격 아이콘 영역을 추가했다.
+- 기본 권격, 연속 권격, 도약 권격 등 각 노드가 짧은 임시 아이콘 라벨과 색상으로 구분되도록 구성했다.
+- `Scripts/Editor/CreateDefaultUnarmedAttackDataAssets.py`를 갱신해 기본 주먹 공격 Data Asset에 아이콘 라벨과 색상을 자동 입력하도록 했다.
+- Unreal Editor Python Commandlet으로 기존 `Content/DataAsset` 공격 Data Asset들을 갱신했다.
+
+## Notion 정리 후보: 공격 아이콘 데이터
+
+- 공격 아이콘은 공격 Data Asset의 시각 정보로 관리한다.
+- `Skill Icon`에는 최종 텍스처를 지정하고, 텍스처가 없으면 `Icon Label`과 `Icon Tint`로 임시 표시한다.
+- 스킬트리, 퀵 슬롯, 공격 정보 툴팁은 나중에 동일한 아이콘 데이터를 공유할 수 있다.
+
+## 추가 작업: 6시 방향 공격 쿨타임 UI
+
+- 화면 6시 방향 퀵 슬롯 위에 현재 공격 정보와 쿨타임을 보여주는 UI를 추가했다.
+- 공격 UI는 현재 표시할 공격 Data Asset의 아이콘, 이름, 사용 가능 상태, 남은 쿨타임을 표시한다.
+- 실제 아이콘 텍스처가 없는 경우 `Icon Label`과 `Icon Tint` 기반의 임시 아이콘을 보여준다.
+- 콤보 입력 가능 시간이 열리면 공격 UI의 아이콘과 이름이 바로 다음 콤보 스킬로 변경되도록 했다.
+- 콤보 스킬은 개별 쿨타임을 따로 쓰지 않고 콤보 루트 스킬의 쿨타임을 공유하도록 캐릭터 쿨타임 상태를 분리했다.
+- 입력 제한과 HUD 표시는 같은 공유 쿨타임 종료 시간을 기준으로 동작한다.
+
+## Notion 정리 후보: 콤보 공유 쿨타임
+
+- 일반 공격이 실행되면 해당 공격이 콤보 루트 스킬이 된다.
+- 콤보 2타, 3타는 루트 스킬의 쿨타임 정보를 공유한다.
+- HUD는 콤보 대기 중일 때 다음 콤보 스킬을 보여주지만, 쿨타임 값은 공유 쿨타임을 따른다.
+- 이후 무기별 콤보가 늘어나도 쿨타임 표시는 루트 스킬 중심으로 관리할 수 있다.
+
+## 추가 작업: 캐릭터 데이터 기능별 분산
+
+- `ARogue10mPlayerState`를 추가해 캐릭터 표시 이름, 직업 이름, 현재 장착 무기 타입, 사망 상태를 관리하도록 분리했다.
+- `ARogue10mGameMode`에서 `PlayerStateClass`를 `ARogue10mPlayerState`로 지정했다.
+- `URogue10mCombatComponent`를 추가해 공격 Data Asset, 차징 입력 시간, 콤보 상태, 공유 공격 쿨타임, HUD 표시 공격 스킬을 관리하도록 분리했다.
+- `ARogue10mCharacter`는 기존 외부 호출이 깨지지 않도록 PlayerState와 CombatComponent를 조회하는 래퍼 함수를 유지했다.
+- 캐릭터는 입력, 이동, 카메라 기준 공격 트레이스, 데미지 적용, HUD 연결에 집중하도록 역할을 줄였다.
+- 기본 좌클릭과 점프 좌클릭 공격 Data Asset은 CombatComponent 기본값으로 연결되도록 준비했다.
+- 데이터 소유 구조를 `Docs/CharacterDataOwnership.md`에 정리했다.
+- 빌드는 Codex 사용량 제한으로 실행하지 못했고, 정적 파일 점검과 `git diff --check`만 수행했다.
+
+## Notion 정리 후보: 캐릭터 데이터 소유 구조
+
+- PlayerState는 플레이어 지속 상태를 관리한다.
+- CombatComponent는 공격 입력 상태와 공격 Data Asset, 콤보, 쿨타임을 관리한다.
+- VitalsComponent는 체력, 마나, 스테미나를 관리한다.
+- InventoryComponent는 아이템과 장비 슬롯을 관리한다.
+- Character는 입력과 월드 상호작용의 연결 지점으로 유지한다.
