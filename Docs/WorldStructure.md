@@ -82,3 +82,19 @@ This should be tuned after the final player movement speed is decided.
 - Whether the play map starts at center, edge, or a safe spawn camp.
 - Exact player walk/sprint speed.
 - Boss spawn location and encounter boundary.
+
+## 포탈 및 플레이맵 이동 규칙
+
+- 시작맵에서는 20분 런 타이머를 자동으로 시작하지 않는다.
+- 시작맵에 `ARogue10mRunPortal` 또는 그 Blueprint 자식을 배치한다.
+- 포탈의 `Target Level Name`은 기본적으로 `OpenRunMap`을 사용한다.
+- 포탈의 `Start Run Timer On Travel`을 켜면 다음 맵 이동 옵션에 `StartRun=1`이 붙는다.
+- 다음 맵의 GameMode는 `StartRun=1` 옵션을 확인한 뒤 20분 런 타이머를 시작한다.
+
+## 다음 맵 데이터 추가 위치
+
+- 실제 플레이맵 에셋 권장 위치: `Content/Rogue10m/Maps/OpenRunMap.umap`
+- 시작맵 에셋 권장 위치: `Content/Rogue10m/Maps/StartHub.umap`
+- 맵 메타데이터 추가 위치: `Source/Rogue10m/World/Rogue10mMapDataLibrary.cpp`
+- 포탈 C++ 클래스 위치: `Source/Rogue10m/World/Rogue10mRunPortal.*`
+- 에디터에서 새 플레이맵을 만들면 `Rogue10mMapDataLibrary.cpp`의 `LevelName`, `LevelAssetPath`, `TargetWorldSizeMeters` 값을 함께 갱신한다.

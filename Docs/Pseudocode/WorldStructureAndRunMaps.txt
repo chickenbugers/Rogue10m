@@ -71,3 +71,25 @@ Pseudo:
 - Real .umap creation should happen in Unreal Editor.
 - C++ should implement systems that operate inside maps, not manually author binary map assets.
 - NPC interaction can start with simple overlap/use prompts, then move to dialogue data assets later.
+
+[Portal Run Entry Flow]
+Pseudo:
+  Start map:
+    Place ARogue10mRunPortal or a Blueprint child.
+    Set TargetLevelName = OpenRunMap.
+    Keep bStartRunTimerOnTravel = true.
+
+  Player overlaps portal:
+    Portal calls OpenLevel(TargetLevelName, StartRun=1).
+
+  Play map GameMode.StartPlay:
+    If travel option StartRun exists:
+      GameState.StartRun()
+      Timer starts from 20 minutes.
+    Else:
+      Keep GameState in WaitingToStart.
+
+[Map Asset Data Location]
+- Real map asset: Content/Rogue10m/Maps/OpenRunMap.umap
+- C++ prototype metadata: Source/Rogue10m/World/Rogue10mMapDataLibrary.cpp
+- Portal actor source: Source/Rogue10m/World/Rogue10mRunPortal.*

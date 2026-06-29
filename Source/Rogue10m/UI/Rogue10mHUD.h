@@ -92,6 +92,14 @@ struct FRogue10mCombatLogEntry
 	FLinearColor Color = FLinearColor::White;
 };
 
+struct FRogue10mFloatingDamageEntry
+{
+	TWeakObjectPtr<AActor> TargetActor;
+	float DamageAmount = 0.0f;
+	float StartTime = 0.0f;
+	float ExpireTime = 0.0f;
+};
+
 /**
  * Minimal C++ HUD for prototype run state.
  */
@@ -160,6 +168,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
 	void AddCombatLogMessage(const FString& Message, const FLinearColor& Color = FLinearColor::White, float Duration = 2.0f);
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
+	void NotifyPlayerDamaged(float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
+	void AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount);
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD")
 	FLinearColor TimerColor = FLinearColor::White;
@@ -190,6 +204,8 @@ private:
 	void DrawCharacterInfo();
 	void DrawLookedAtMonsterInfo();
 	void DrawCombatLog();
+	void DrawFloatingDamageNumbers();
+	void DrawPlayerDamageFeedback();
 	void DrawPanelShortcutHints();
 	// 화면 6시 방향에 1~5번 퀵 슬롯 묶음을 그립니다.
 	void DrawQuickSlots();
@@ -261,12 +277,15 @@ private:
 	TArray<FRogue10mQuickSlotView> QuickSlots;
 	TArray<FRogue10mSkillWeaponHitArea> SkillWeaponHitAreas;
 	TArray<FRogue10mCombatLogEntry> CombatLogEntries;
+	TArray<FRogue10mFloatingDamageEntry> FloatingDamageEntries;
 	ERogue10mSkillTreeView SkillTreeView = ERogue10mSkillTreeView::WeaponSelect;
 	ERogue10mWeaponType SelectedSkillTreeWeapon = ERogue10mWeaponType::Unarmed;
 	float MasterVolume = 1.0f;
 	float LookSensitivityX = 1.0f;
 	float LookSensitivityY = 1.0f;
 	int32 CurrentFpsLimit = 120;
+	float PlayerDamageFeedbackEndTime = 0.0f;
+	float PlayerDamageFeedbackStrength = 0.0f;
 
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> CharacterPreviewActor;

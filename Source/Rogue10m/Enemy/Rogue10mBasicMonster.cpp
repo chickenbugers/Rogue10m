@@ -6,9 +6,11 @@
 #include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/DamageType.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Rogue10m.h"
 #include "Rogue10mCharacter.h"
+#include "Rogue10mHUD.h"
 #include "Rogue10mVitalsComponent.h"
 
 ARogue10mBasicMonster::ARogue10mBasicMonster()
@@ -72,6 +74,15 @@ float ARogue10mBasicMonster::TakeDamage(float DamageAmount, const FDamageEvent& 
 	const float NewHealth = VitalsComponent->GetHealth().Current - DamageAmount;
 	VitalsComponent->SetHealth(NewHealth);
 	UE_LOG(LogRogue10m, Log, TEXT("%s took %.1f damage. HP %.1f / %.1f"), *GetNameSafe(this), DamageAmount, VitalsComponent->GetHealth().Current, VitalsComponent->GetHealth().Max);
+	APlayerController* PlayerController = EventInstigator ? Cast<APlayerController>(EventInstigator) : UGameplayStatics::GetPlayerController(this, 0);
+	if (PlayerController)
+	{
+		if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+		{
+			RogueHUD->AddFloatingDamageNumber(this, DamageAmount);
+			RogueHUD->AddCombatLogMessage(FString::Printf(TEXT("몬스터에게 피해 %.0f"), DamageAmount), FLinearColor(1.0f, 0.72f, 0.22f, 1.0f), 1.4f);
+		}
+	}
 
 	if (VitalsComponent->GetHealth().Current <= 0.0f)
 	{
@@ -116,6 +127,13 @@ void ARogue10mBasicMonster::TryAttackTarget(float DistanceToTarget)
 	LastAttackTime = CurrentTime;
 	UGameplayStatics::ApplyDamage(Target, AttackDamage, GetController(), this, UDamageType::StaticClass());
 	UE_LOG(LogRogue10m, Log, TEXT("%s attacked %s for %.1f damage."), *GetNameSafe(this), *GetNameSafe(Target), AttackDamage);
+	if (APlayerController* PlayerController = Cast<APlayerController>(Target->GetController()))
+	{
+		if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+		{
+			RogueHUD->AddCombatLogMessage(FString::Printf(TEXT("몬스터 공격: 플레이어 피해 %.0f"), AttackDamage), FLinearColor(1.0f, 0.42f, 0.36f, 1.0f), 1.4f);
+		}
+	}
 }
 
 void ARogue10mBasicMonster::Die()

@@ -43,6 +43,12 @@ struct FRogue10mMapDefinition
 	FText DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Map")
+	FName LevelName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Map")
+	FSoftObjectPath LevelAssetPath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Map")
 	ERogue10mMapRole Role = ERogue10mMapRole::StartHub;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Map")

@@ -1,0 +1,57 @@
+# 2026-06-29 Rogue10m 개발 로그
+
+## 작업 브랜치
+
+- `feature/equipment-damage-feedback`
+
+## 작업 요약
+
+- 장비창 슬롯 구성을 현재 기획 기준에 맞춰 재정리했다.
+- 장비창 왼쪽에는 `주무기`, `머리`, `갑옷`, `신발`을 배치했다.
+- 장비창 오른쪽에는 `보조무기`, `반지`, `귀걸이`를 배치했다.
+- 샘플 아이템과 장비 설명을 한국어로 변경했다.
+- 아이템 툴팁이 `아이템명`과 `아이템 세부 설명`을 분리해서 보여주도록 정리했다.
+- 기본 공격 로그에 공격 종류와 예상 피해량이 표시되도록 했다.
+- 기본 맨손 공격이 몬스터에게 명중하면 실제 피해량이 전투 로그에 표시되도록 했다.
+- 몬스터가 피해를 받으면 몬스터 위치 위에 떠오르는 피해 숫자가 표시되도록 했다.
+- 플레이어가 피해를 받으면 짧은 붉은 화면 피드백이 표시되도록 했다.
+- 주요 전투 디버그 문구와 장비/아이템 UI 문구를 한국어로 변경했다.
+- 향후 개발 규칙으로 `PlayerState`, 기능별 `Component`, `Data Asset` 우선 사용 방향을 문서화했다.
+
+## Notion 정리 후보
+
+- 장비 슬롯 구조: 왼쪽 `주무기/머리/갑옷/신발`, 오른쪽 `보조무기/반지/귀걸이`.
+- 아이템 설명 구조: `아이템명`, `아이템 세부 설명`을 툴팁에서 명확히 분리.
+- 전투 피드백: 플레이어 피격 시 화면 피드백, 몬스터 피격 시 피해 숫자 표시.
+- 구조 방향: 장기 상태는 `PlayerState`, 기능 비대화 시 `ActorComponent`, 확장 데이터는 `Data Asset`으로 분리.
+
+## 추가 정리: 애니메이션 및 설정 위치
+
+- 캐릭터 공격 애니메이션과 몬스터 애니메이션 추가 위치를 `Docs/AnimationIntegrationGuide.md`에 정리했다.
+- 플레이어 애니메이션은 `Content/Rogue10m/Characters/Player/Animations`와 `BP_FirstPersonCharacter`의 Animation Blueprint 연결을 기준으로 정리했다.
+- 몬스터 애니메이션은 `Content/Rogue10m/Characters/Monsters/Common/Animations`와 몬스터 Blueprint/Animation Blueprint 연결을 기준으로 정리했다.
+- 공격 판정은 장기적으로 Animation Montage Notify에서 호출하는 구조를 권장했다.
+- 무기별/몬스터별 애니메이션 설정은 향후 Data Asset으로 분리하는 방향을 명시했다.
+
+## Notion 정리 후보: 애니메이션
+
+- 플레이어 공격 애니메이션은 무기 타입과 공격 타입별 Montage로 관리한다.
+- 몬스터는 Idle, Move, Attack, Hit, Death 애니메이션을 최소 구성으로 둔다.
+- 실제 피해 적용 타이밍은 Animation Notify로 옮기는 것이 좋다.
+- 애니메이션 설정 데이터는 `WeaponAnimationData`, `MonsterAnimationData` 계열 Data Asset으로 분리한다.
+
+## 추가 작업: 플레이맵 포탈과 20분 타이머 시작 조건
+
+- 시작맵에서는 20분 런 타이머가 자동으로 시작되지 않도록 GameMode 시작 흐름을 변경했다.
+- `StartRun=1` 트래블 옵션이 있을 때만 GameMode가 런 타이머를 시작하도록 정리했다.
+- 시작맵에 배치할 수 있는 `ARogue10mRunPortal` C++ 액터를 추가했다.
+- 포탈은 플레이어가 충돌 영역에 들어오면 지정된 다음 맵을 열고, `StartRun=1` 옵션으로 20분 타이머 시작을 요청한다.
+- 다음 맵 데이터 위치를 `Source/Rogue10m/World/Rogue10mMapDataLibrary.cpp`에 명시하고, 실제 맵 에셋 권장 위치를 `Content/Rogue10m/Maps/OpenRunMap.umap`으로 정리했다.
+- `Docs/WorldStructure.md`와 `Docs/Pseudocode/WorldStructureAndRunMaps.txt`에 포탈 배치와 맵 데이터 추가 위치를 기록했다.
+
+## Notion 정리 후보: 포탈/맵 이동
+
+- 시작맵 타이머는 대기 상태로 유지한다.
+- 포탈 진입 시 `OpenRunMap`으로 이동하면서 `StartRun=1` 옵션을 전달한다.
+- 플레이맵 GameMode는 `StartRun=1` 옵션을 확인한 뒤 20분 런 타이머를 시작한다.
+- 실제 플레이맵 에셋은 `Content/Rogue10m/Maps/OpenRunMap.umap`에 생성하고, C++ 메타데이터는 `Rogue10mMapDataLibrary.cpp`에 추가한다.

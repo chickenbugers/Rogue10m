@@ -24,11 +24,11 @@ ARogue10mHUD::ARogue10mHUD()
 	// 임시 퀵 슬롯 데이터입니다. 실제 스킬/아이템 시스템이 생기면 데이터 기반으로 교체합니다.
 	QuickSlots =
 	{
-		{ 1, FText::FromString(TEXT("Fist")), FLinearColor(0.9f, 0.36f, 0.22f, 1.0f), 1.8f, 0.0f },
-		{ 2, FText::FromString(TEXT("Step")), FLinearColor(0.28f, 0.65f, 1.0f, 1.0f), 4.0f, 0.0f },
-		{ 3, FText::FromString(TEXT("Guard")), FLinearColor(0.32f, 0.86f, 0.46f, 1.0f), 3.0f, 0.0f },
-		{ 4, FText::FromString(TEXT("Skill")), FLinearColor(0.74f, 0.48f, 1.0f, 1.0f), 6.0f, 0.0f },
-		{ 5, FText::FromString(TEXT("Item")), FLinearColor(0.95f, 0.75f, 0.26f, 1.0f), 8.0f, 0.0f }
+		{ 1, FText::FromString(TEXT("주먹")), FLinearColor(0.9f, 0.36f, 0.22f, 1.0f), 1.8f, 0.0f },
+		{ 2, FText::FromString(TEXT("회피")), FLinearColor(0.28f, 0.65f, 1.0f, 1.0f), 4.0f, 0.0f },
+		{ 3, FText::FromString(TEXT("방어")), FLinearColor(0.32f, 0.86f, 0.46f, 1.0f), 3.0f, 0.0f },
+		{ 4, FText::FromString(TEXT("스킬")), FLinearColor(0.74f, 0.48f, 1.0f, 1.0f), 6.0f, 0.0f },
+		{ 5, FText::FromString(TEXT("아이템")), FLinearColor(0.95f, 0.75f, 0.26f, 1.0f), 8.0f, 0.0f }
 	};
 }
 
@@ -48,6 +48,7 @@ void ARogue10mHUD::DrawHUD()
 	DrawCharacterInfo();
 	DrawLookedAtMonsterInfo();
 	DrawCombatLog();
+	DrawFloatingDamageNumbers();
 	DrawQuickSlots();
 	DrawPanelShortcutHints();
 	DrawRunResult();
@@ -55,6 +56,7 @@ void ARogue10mHUD::DrawHUD()
 	DrawItemWindow();
 	DrawSkillTree();
 	DrawSettingsPanel();
+	DrawPlayerDamageFeedback();
 	DrawHoveredItemTooltip();
 	DrawDraggedItem();
 }
@@ -158,6 +160,34 @@ void ARogue10mHUD::AddCombatLogMessage(const FString& Message, const FLinearColo
 	}
 }
 
+void ARogue10mHUD::NotifyPlayerDamaged(float DamageAmount)
+{
+	if (!GetWorld() || DamageAmount <= 0.0f)
+	{
+		return;
+	}
+
+	PlayerDamageFeedbackEndTime = GetWorld()->GetTimeSeconds() + 0.35f;
+	PlayerDamageFeedbackStrength = FMath::Clamp(DamageAmount / 25.0f, 0.25f, 1.0f);
+	AddCombatLogMessage(FString::Printf(TEXT("플레이어 피격: 피해 %.0f"), DamageAmount), FLinearColor(1.0f, 0.42f, 0.36f, 1.0f), 1.6f);
+}
+
+void ARogue10mHUD::AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount)
+{
+	if (!GetWorld() || !TargetActor || DamageAmount <= 0.0f)
+	{
+		return;
+	}
+
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	FRogue10mFloatingDamageEntry Entry;
+	Entry.TargetActor = TargetActor;
+	Entry.DamageAmount = DamageAmount;
+	Entry.StartTime = CurrentTime;
+	Entry.ExpireTime = CurrentTime + 0.85f;
+	FloatingDamageEntries.Add(Entry);
+}
+
 void ARogue10mHUD::DrawRunTimer()
 {
 	const ARogue10mGameState* RogueGameState = GetWorld() ? GetWorld()->GetGameState<ARogue10mGameState>() : nullptr;
@@ -166,7 +196,7 @@ void ARogue10mHUD::DrawRunTimer()
 		return;
 	}
 
-	const FString TimerText = FString::Printf(TEXT("Run Timer  %s"), *RogueGameState->GetRemainingTimeText().ToString());
+	const FString TimerText = FString::Printf(TEXT("남은 시간  %s"), *RogueGameState->GetRemainingTimeText().ToString());
 	DrawText(TimerText, TimerColor, 32.0f, 32.0f, nullptr, TimerScale, false);
 
 	const float ProgressWidth = 360.0f;
@@ -193,11 +223,11 @@ void ARogue10mHUD::DrawRunResult()
 	switch (RogueGameState->GetRunPhase())
 	{
 	case ERogue10mRunPhase::Victory:
-		ResultText = TEXT("RUN CLEARED");
+		ResultText = TEXT("클리어");
 		ResultColor = FLinearColor(0.2f, 1.0f, 0.35f, 1.0f);
 		break;
 	case ERogue10mRunPhase::Defeat:
-		ResultText = TEXT("GAME OVER");
+		ResultText = TEXT("게임 오버");
 		ResultColor = WarningColor;
 		break;
 	default:
@@ -209,7 +239,7 @@ void ARogue10mHUD::DrawRunResult()
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.65f), CenterX - 48.0f, CenterY - 28.0f, 396.0f, 116.0f);
 	DrawText(ResultText, ResultColor, CenterX, CenterY, nullptr, ResultScale, false);
-	DrawText(TEXT("The character died when the run timer expired."), TimerColor, CenterX - 20.0f, CenterY + 52.0f, nullptr, 1.1f, false);
+	DrawText(TEXT("제한 시간이 끝나 캐릭터가 사망했습니다."), TimerColor, CenterX - 20.0f, CenterY + 52.0f, nullptr, 1.1f, false);
 }
 
 void ARogue10mHUD::DrawVitals()
@@ -286,6 +316,70 @@ void ARogue10mHUD::DrawCombatLog()
 	}
 }
 
+void ARogue10mHUD::DrawFloatingDamageNumbers()
+{
+	if (!Canvas || !GetWorld())
+	{
+		return;
+	}
+
+	APlayerController* OwningPlayerController = GetOwningPlayerController();
+	if (!OwningPlayerController)
+	{
+		return;
+	}
+
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	for (int32 Index = FloatingDamageEntries.Num() - 1; Index >= 0; --Index)
+	{
+		FRogue10mFloatingDamageEntry& Entry = FloatingDamageEntries[Index];
+		AActor* TargetActor = Entry.TargetActor.Get();
+		if (!TargetActor || Entry.ExpireTime <= CurrentTime)
+		{
+			FloatingDamageEntries.RemoveAt(Index);
+			continue;
+		}
+
+		const float LifeAlpha = FMath::Clamp((CurrentTime - Entry.StartTime) / FMath::Max(0.01f, Entry.ExpireTime - Entry.StartTime), 0.0f, 1.0f);
+		const FVector WorldLocation = TargetActor->GetActorLocation() + FVector(0.0f, 0.0f, 120.0f + LifeAlpha * 45.0f);
+		FVector2D ScreenPosition;
+		if (!OwningPlayerController->ProjectWorldLocationToScreen(WorldLocation, ScreenPosition))
+		{
+			continue;
+		}
+
+		const float FadeAlpha = 1.0f - LifeAlpha;
+		const FString DamageText = FString::Printf(TEXT("-%.0f"), Entry.DamageAmount);
+		const FLinearColor ShadowColor(0.0f, 0.0f, 0.0f, 0.65f * FadeAlpha);
+		const FLinearColor DamageColor(1.0f, 0.72f, 0.22f, FadeAlpha);
+		DrawText(DamageText, ShadowColor, ScreenPosition.X + 2.0f, ScreenPosition.Y + 2.0f, nullptr, 1.2f, false);
+		DrawText(DamageText, DamageColor, ScreenPosition.X, ScreenPosition.Y, nullptr, 1.2f, false);
+	}
+}
+
+void ARogue10mHUD::DrawPlayerDamageFeedback()
+{
+	if (!Canvas || !GetWorld() || PlayerDamageFeedbackEndTime <= 0.0f)
+	{
+		return;
+	}
+
+	const float RemainingTime = PlayerDamageFeedbackEndTime - GetWorld()->GetTimeSeconds();
+	if (RemainingTime <= 0.0f)
+	{
+		PlayerDamageFeedbackEndTime = 0.0f;
+		PlayerDamageFeedbackStrength = 0.0f;
+		return;
+	}
+
+	const float Alpha = FMath::Clamp(RemainingTime / 0.35f, 0.0f, 1.0f) * PlayerDamageFeedbackStrength;
+	DrawRect(FLinearColor(0.8f, 0.02f, 0.02f, 0.16f * Alpha), 0.0f, 0.0f, Canvas->SizeX, Canvas->SizeY);
+	DrawRect(FLinearColor(0.9f, 0.03f, 0.02f, 0.26f * Alpha), 0.0f, 0.0f, Canvas->SizeX, 28.0f);
+	DrawRect(FLinearColor(0.9f, 0.03f, 0.02f, 0.26f * Alpha), 0.0f, Canvas->SizeY - 28.0f, Canvas->SizeX, 28.0f);
+	DrawRect(FLinearColor(0.9f, 0.03f, 0.02f, 0.2f * Alpha), 0.0f, 0.0f, 24.0f, Canvas->SizeY);
+	DrawRect(FLinearColor(0.9f, 0.03f, 0.02f, 0.2f * Alpha), Canvas->SizeX - 24.0f, 0.0f, 24.0f, Canvas->SizeY);
+}
+
 void ARogue10mHUD::DrawPanelShortcutHints()
 {
 	if (!Canvas)
@@ -309,9 +403,9 @@ void ARogue10mHUD::DrawPanelShortcutHints()
 
 	const FShortcutHint Hints[] =
 	{
-		{ TEXT("B"), TEXT("Inventory"), FLinearColor(0.35f, 0.92f, 0.72f, 1.0f), bItemWindowVisible },
-		{ TEXT("I"), TEXT("Equipment"), FLinearColor(0.92f, 0.72f, 0.35f, 1.0f), bInventoryVisible },
-		{ TEXT("K"), TEXT("Skill Tree"), FLinearColor(0.58f, 0.72f, 1.0f, 1.0f), bSkillTreeVisible }
+		{ TEXT("B"), TEXT("아이템"), FLinearColor(0.35f, 0.92f, 0.72f, 1.0f), bItemWindowVisible },
+		{ TEXT("I"), TEXT("장비"), FLinearColor(0.92f, 0.72f, 0.35f, 1.0f), bInventoryVisible },
+		{ TEXT("K"), TEXT("스킬트리"), FLinearColor(0.58f, 0.72f, 1.0f, 1.0f), bSkillTreeVisible }
 	};
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.38f), PanelX - 8.0f, PanelY - 8.0f, RowWidth + 16.0f, RowHeight * 3.0f + Gap * 2.0f + 16.0f);
@@ -326,7 +420,7 @@ void ARogue10mHUD::DrawPanelShortcutHints()
 		DrawRect(Hint.Color, PanelX + 6.0f, RowY + 6.0f, 20.0f, 20.0f);
 		DrawText(Hint.Key, FLinearColor::Black, PanelX + 12.0f, RowY + 8.0f, nullptr, 0.62f, false);
 		DrawText(Hint.Label, InventoryTextColor, PanelX + 38.0f, RowY + 8.0f, nullptr, 0.74f, false);
-		DrawText(Hint.bActive ? TEXT("Open") : TEXT("Toggle"), Hint.bActive ? Hint.Color : FLinearColor(0.62f, 0.68f, 0.76f, 1.0f), PanelX + RowWidth - 58.0f, RowY + 8.0f, nullptr, 0.62f, false);
+		DrawText(Hint.bActive ? TEXT("열림") : TEXT("전환"), Hint.bActive ? Hint.Color : FLinearColor(0.62f, 0.68f, 0.76f, 1.0f), PanelX + RowWidth - 58.0f, RowY + 8.0f, nullptr, 0.62f, false);
 	}
 }
 
@@ -407,30 +501,30 @@ void ARogue10mHUD::DrawCharacterInfo()
 	float TextY = PanelY + 14.0f;
 
 	const FString StateText = RogueCharacter->IsDead()
-		? TEXT("Dead")
-		: (IsAnyBlockingWindowVisible() ? TEXT("UI Locked") : TEXT("Ready"));
+		? TEXT("사망")
+		: (IsAnyBlockingWindowVisible() ? TEXT("UI 조작 중") : TEXT("준비"));
 
 	DrawRect(FLinearColor(0.01f, 0.014f, 0.02f, 0.72f), PanelX, PanelY, PanelWidth, PanelHeight);
 	DrawRect(FLinearColor(0.55f, 0.72f, 0.95f, 0.85f), PanelX, PanelY, PanelWidth, 2.0f);
 
-	DrawText(TEXT("CHARACTER INFO"), FLinearColor(0.78f, 0.86f, 1.0f, 1.0f), PanelX + 14.0f, TextY, nullptr, TextScale, false);
+	DrawText(TEXT("캐릭터 정보"), FLinearColor(0.78f, 0.86f, 1.0f, 1.0f), PanelX + 14.0f, TextY, nullptr, TextScale, false);
 	TextY += LineHeight + 4.0f;
-	DrawText(FString::Printf(TEXT("Name : %s"), *RogueCharacter->GetCharacterDisplayName().ToString()), InventoryTextColor, PanelX + 14.0f, TextY, nullptr, TextScale, false);
+	DrawText(FString::Printf(TEXT("이름: %s"), *RogueCharacter->GetCharacterDisplayName().ToString()), InventoryTextColor, PanelX + 14.0f, TextY, nullptr, TextScale, false);
 	TextY += LineHeight;
-	DrawText(FString::Printf(TEXT("Job : %s"), *RogueCharacter->GetCharacterJobName().ToString()), InventoryTextColor, PanelX + 14.0f, TextY, nullptr, TextScale, false);
+	DrawText(FString::Printf(TEXT("직업: %s"), *RogueCharacter->GetCharacterJobName().ToString()), InventoryTextColor, PanelX + 14.0f, TextY, nullptr, TextScale, false);
 	TextY += LineHeight;
-	DrawText(FString::Printf(TEXT("State : %s"), *StateText), InventoryTextColor, PanelX + 14.0f, TextY, nullptr, TextScale, false);
+	DrawText(FString::Printf(TEXT("상태: %s"), *StateText), InventoryTextColor, PanelX + 14.0f, TextY, nullptr, TextScale, false);
 	TextY += LineHeight;
-	DrawText(FString::Printf(TEXT("Weapon : %s"), *GetWeaponTypeText(RogueCharacter->GetEquippedWeaponType())), InventoryTextColor, PanelX + 14.0f, TextY, nullptr, TextScale, false);
+	DrawText(FString::Printf(TEXT("무기: %s"), *GetWeaponTypeText(RogueCharacter->GetEquippedWeaponType())), InventoryTextColor, PanelX + 14.0f, TextY, nullptr, TextScale, false);
 	TextY += LineHeight;
-	DrawText(FString::Printf(TEXT("HP : %.0f / %.0f"), VitalsComponent->GetHealth().Current, VitalsComponent->GetHealth().Max), FLinearColor(1.0f, 0.72f, 0.72f, 1.0f), PanelX + 14.0f, TextY, nullptr, TextScale, false);
+	DrawText(FString::Printf(TEXT("체력: %.0f / %.0f"), VitalsComponent->GetHealth().Current, VitalsComponent->GetHealth().Max), FLinearColor(1.0f, 0.72f, 0.72f, 1.0f), PanelX + 14.0f, TextY, nullptr, TextScale, false);
 	TextY += LineHeight;
 	if (VitalsComponent->ShouldShowMana())
 	{
-		DrawText(FString::Printf(TEXT("MP : %.0f / %.0f"), VitalsComponent->GetMana().Current, VitalsComponent->GetMana().Max), FLinearColor(0.68f, 0.8f, 1.0f, 1.0f), PanelX + 14.0f, TextY, nullptr, TextScale, false);
+		DrawText(FString::Printf(TEXT("마나: %.0f / %.0f"), VitalsComponent->GetMana().Current, VitalsComponent->GetMana().Max), FLinearColor(0.68f, 0.8f, 1.0f, 1.0f), PanelX + 14.0f, TextY, nullptr, TextScale, false);
 		TextY += LineHeight;
 	}
-	DrawText(FString::Printf(TEXT("SP : %.0f / %.0f"), VitalsComponent->GetStamina().Current, VitalsComponent->GetStamina().Max), FLinearColor(0.7f, 1.0f, 0.72f, 1.0f), PanelX + 14.0f, TextY, nullptr, TextScale, false);
+	DrawText(FString::Printf(TEXT("스테미나: %.0f / %.0f"), VitalsComponent->GetStamina().Current, VitalsComponent->GetStamina().Max), FLinearColor(0.7f, 1.0f, 0.72f, 1.0f), PanelX + 14.0f, TextY, nullptr, TextScale, false);
 }
 
 void ARogue10mHUD::DrawLookedAtMonsterInfo()
@@ -456,7 +550,7 @@ void ARogue10mHUD::DrawLookedAtMonsterInfo()
 	const float BarY = PanelY + 44.0f;
 	const float BarWidth = PanelWidth - 36.0f;
 	const float BarHeight = 12.0f;
-	const FString StateText = Monster->IsDead() ? TEXT("Dead") : TEXT("Hostile");
+	const FString StateText = Monster->IsDead() ? TEXT("사망") : TEXT("적대");
 
 	DrawRect(FLinearColor(0.01f, 0.012f, 0.016f, 0.78f), PanelX, PanelY, PanelWidth, PanelHeight);
 	DrawRect(FLinearColor(0.84f, 0.22f, 0.18f, 0.95f), PanelX, PanelY, PanelWidth, 3.0f);
@@ -465,7 +559,7 @@ void ARogue10mHUD::DrawLookedAtMonsterInfo()
 
 	DrawRect(FLinearColor(0.05f, 0.055f, 0.065f, 0.95f), BarX, BarY, BarWidth, BarHeight);
 	DrawRect(FLinearColor(0.92f, 0.1f, 0.08f, 1.0f), BarX, BarY, BarWidth * Health.GetNormalized(), BarHeight);
-	DrawText(FString::Printf(TEXT("HP %.0f / %.0f"), Health.Current, Health.Max), InventoryTextColor, BarX + BarWidth - 92.0f, BarY - 2.0f, nullptr, 0.62f, false);
+	DrawText(FString::Printf(TEXT("체력 %.0f / %.0f"), Health.Current, Health.Max), InventoryTextColor, BarX + BarWidth - 112.0f, BarY - 2.0f, nullptr, 0.62f, false);
 }
 
 void ARogue10mHUD::DrawInventory()
@@ -497,8 +591,8 @@ void ARogue10mHUD::DrawInventory()
 
 	DrawRect(InventoryPanelColor, PanelX, PanelY, PanelWidth, PanelHeight);
 	DrawRect(FLinearColor(0.08f, 0.09f, 0.1f, 0.95f), PanelX, PanelY, PanelWidth, 56.0f);
-	DrawText(TEXT("INVENTORY"), InventoryTextColor, PanelX + 28.0f, PanelY + 22.0f, nullptr, 1.35f, false);
-	DrawText(TEXT("I : Close  |  Drag title bar"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 250.0f, PanelY + 26.0f, nullptr, 0.85f, false);
+	DrawText(TEXT("장비창"), InventoryTextColor, PanelX + 28.0f, PanelY + 22.0f, nullptr, 1.35f, false);
+	DrawText(TEXT("I : 닫기  |  제목줄 드래그"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 250.0f, PanelY + 26.0f, nullptr, 0.85f, false);
 
 	DrawCharacterPreview(RogueCharacter, PanelX + PanelWidth * 0.27f, PanelY + 62.0f, PanelWidth * 0.46f, PanelHeight - 78.0f);
 	DrawInventorySlots(InventoryComponent->GetLeftEquipmentSlots(), PanelX + 34.0f, PanelY + 74.0f, SlotSize, SlotGap, false);
@@ -533,8 +627,8 @@ void ARogue10mHUD::DrawItemWindow()
 
 	DrawRect(InventoryPanelColor, PanelX, PanelY, PanelWidth, PanelHeight);
 	DrawRect(FLinearColor(0.08f, 0.09f, 0.1f, 0.96f), PanelX, PanelY, PanelWidth, HeaderHeight);
-	DrawText(TEXT("ITEMS"), InventoryTextColor, PanelX + PanelWidth * 0.5f - 36.0f, PanelY + 18.0f, nullptr, 1.35f, false);
-	DrawText(TEXT("B : Close"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 112.0f, PanelY + 22.0f, nullptr, 0.85f, false);
+	DrawText(TEXT("아이템"), InventoryTextColor, PanelX + PanelWidth * 0.5f - 36.0f, PanelY + 18.0f, nullptr, 1.35f, false);
+	DrawText(TEXT("B : 닫기"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 112.0f, PanelY + 22.0f, nullptr, 0.85f, false);
 
 	const float TabY = PanelY + HeaderHeight + 10.0f;
 	const float TabSize = 38.0f;
@@ -549,8 +643,8 @@ void ARogue10mHUD::DrawItemWindow()
 
 	const float FooterY = PanelY + PanelHeight - 44.0f;
 	DrawRect(FLinearColor(0.03f, 0.04f, 0.05f, 0.96f), PanelX, FooterY, PanelWidth, 44.0f);
-	DrawText(FString::Printf(TEXT("Gold  %d"), InventoryComponent->GetGold()), FLinearColor(0.35f, 1.0f, 0.72f, 1.0f), PanelX + PanelWidth * 0.44f, FooterY + 12.0f, nullptr, 1.0f, false);
-	DrawText(FString::Printf(TEXT("Crystals  %d"), InventoryComponent->GetCrystals()), FLinearColor(0.62f, 0.8f, 1.0f, 1.0f), PanelX + PanelWidth * 0.72f, FooterY + 12.0f, nullptr, 1.0f, false);
+	DrawText(FString::Printf(TEXT("골드  %d"), InventoryComponent->GetGold()), FLinearColor(0.35f, 1.0f, 0.72f, 1.0f), PanelX + PanelWidth * 0.44f, FooterY + 12.0f, nullptr, 1.0f, false);
+	DrawText(FString::Printf(TEXT("수정  %d"), InventoryComponent->GetCrystals()), FLinearColor(0.62f, 0.8f, 1.0f, 1.0f), PanelX + PanelWidth * 0.72f, FooterY + 12.0f, nullptr, 1.0f, false);
 }
 
 void ARogue10mHUD::DrawSkillTree()
@@ -573,8 +667,8 @@ void ARogue10mHUD::DrawSkillTree()
 
 	DrawRect(FLinearColor(0.012f, 0.016f, 0.024f, 0.96f), PanelX, PanelY, PanelWidth, PanelHeight);
 	DrawRect(FLinearColor(0.08f, 0.09f, 0.105f, 0.98f), PanelX, PanelY, PanelWidth, 58.0f);
-	DrawText(TEXT("SKILL TREE"), InventoryTextColor, PanelX + 24.0f, PanelY + 19.0f, nullptr, 1.35f, false);
-	DrawText(TEXT("K : Close  |  Drag title bar"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 260.0f, PanelY + 23.0f, nullptr, 0.84f, false);
+	DrawText(TEXT("스킬트리"), InventoryTextColor, PanelX + 24.0f, PanelY + 19.0f, nullptr, 1.35f, false);
+	DrawText(TEXT("K : 닫기  |  제목줄 드래그"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 260.0f, PanelY + 23.0f, nullptr, 0.84f, false);
 
 	if (SkillTreeView == ERogue10mSkillTreeView::WeaponSelect)
 	{
@@ -610,7 +704,7 @@ void ARogue10mHUD::DrawSkillTreeWeaponSelect(float PanelX, float PanelY, float P
 		bLeftClickPressed = OwningPlayerController->WasInputKeyJustPressed(EKeys::LeftMouseButton);
 	}
 
-	DrawText(TEXT("Select a weapon"), FLinearColor(0.82f, 0.88f, 0.96f, 1.0f), PanelX + 28.0f, PanelY + 74.0f, nullptr, 0.95f, false);
+	DrawText(TEXT("무기 선택"), FLinearColor(0.82f, 0.88f, 0.96f, 1.0f), PanelX + 28.0f, PanelY + 74.0f, nullptr, 0.95f, false);
 
 	// 무기 이미지는 아직 에셋이 없으므로 색상 카드로 대체합니다. 배치는 가로 3칸, 세로 최대 4칸까지 확장 가능합니다.
 	const int32 Columns = 3;
@@ -813,7 +907,7 @@ void ARogue10mHUD::DrawInventorySlots(const TArray<FRogue10mInventorySlot>& Slot
 		if (Slot.bLocked)
 		{
 			DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f), X, SlotY, SlotSize, SlotSize);
-			DrawText(TEXT("LOCK"), FLinearColor(0.9f, 0.9f, 0.9f, 1.0f), X + 12.0f, SlotY + 38.0f, nullptr, 0.75f, false);
+			DrawText(TEXT("잠김"), FLinearColor(0.9f, 0.9f, 0.9f, 1.0f), X + 12.0f, SlotY + 38.0f, nullptr, 0.75f, false);
 		}
 		else if (Slot.bEquipped)
 		{
@@ -960,7 +1054,7 @@ void ARogue10mHUD::DrawItemGrid(URogue10mInventoryComponent* InventoryComponent,
 		if (Item.bLocked)
 		{
 			DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f), SlotX, SlotY, SlotSize, SlotSize);
-			DrawText(TEXT("LOCK"), FLinearColor(0.95f, 0.95f, 0.95f, 1.0f), SlotX + 7.0f, SlotY + SlotSize - 20.0f, nullptr, 0.65f, false);
+			DrawText(TEXT("잠김"), FLinearColor(0.95f, 0.95f, 0.95f, 1.0f), SlotX + 7.0f, SlotY + SlotSize - 20.0f, nullptr, 0.65f, false);
 		}
 	}
 }
@@ -973,7 +1067,8 @@ void ARogue10mHUD::DrawHoveredItemTooltip()
 	}
 
 	const float TooltipWidth = 300.0f;
-	const float TooltipHeight = HoveredItem.EquipSlotType == ERogue10mInventorySlotType::Weapon ? 192.0f : (HoveredItem.Category == ERogue10mItemCategory::Equipment ? 170.0f : 145.0f);
+	const bool bHoveredWeapon = HoveredItem.EquipSlotType == ERogue10mInventorySlotType::MainWeapon || HoveredItem.EquipSlotType == ERogue10mInventorySlotType::SecondaryWeapon;
+	const float TooltipHeight = bHoveredWeapon ? 192.0f : (HoveredItem.Category == ERogue10mItemCategory::Equipment ? 170.0f : 145.0f);
 	const FVector2D TooltipSize(TooltipWidth, TooltipHeight);
 	FVector2D TooltipPosition = HoveredItemMousePosition + FVector2D(18.0f, 18.0f);
 	TooltipPosition = ClampWindowPosition(TooltipPosition, TooltipSize);
@@ -983,37 +1078,37 @@ void ARogue10mHUD::DrawHoveredItemTooltip()
 
 	const float TextX = TooltipPosition.X + 14.0f;
 	float TextY = TooltipPosition.Y + 16.0f;
-	DrawText(HoveredItem.DisplayName.ToString(), InventoryTextColor, TextX, TextY, nullptr, 1.05f, false);
+	DrawText(FString::Printf(TEXT("아이템명: %s"), *HoveredItem.DisplayName.ToString()), InventoryTextColor, TextX, TextY, nullptr, 1.05f, false);
 
 	TextY += 28.0f;
-	DrawText(FString::Printf(TEXT("%s  |  Qty %d"), *GetItemCategoryText(HoveredItem.Category), HoveredItem.Quantity), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), TextX, TextY, nullptr, 0.78f, false);
+	DrawText(FString::Printf(TEXT("분류: %s  |  수량: %d"), *GetItemCategoryText(HoveredItem.Category), HoveredItem.Quantity), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), TextX, TextY, nullptr, 0.78f, false);
 
 	if (HoveredItem.Category == ERogue10mItemCategory::Equipment)
 	{
 		TextY += 22.0f;
-		DrawText(FString::Printf(TEXT("Slot : %s"), *GetEquipmentSlotText(HoveredItem.EquipSlotType)), FLinearColor(0.85f, 0.76f, 0.48f, 1.0f), TextX, TextY, nullptr, 0.8f, false);
-		if (HoveredItem.EquipSlotType == ERogue10mInventorySlotType::Weapon)
+		DrawText(FString::Printf(TEXT("장착 위치: %s"), *GetEquipmentSlotText(HoveredItem.EquipSlotType)), FLinearColor(0.85f, 0.76f, 0.48f, 1.0f), TextX, TextY, nullptr, 0.8f, false);
+		if (bHoveredWeapon)
 		{
 			// 무기 아이템은 숙련도/스킬 분기를 위해 세부 무기 타입도 함께 보여줍니다.
 			TextY += 22.0f;
-			DrawText(FString::Printf(TEXT("Type : %s"), *GetWeaponTypeText(HoveredItem.WeaponType)), FLinearColor(0.9f, 0.66f, 0.42f, 1.0f), TextX, TextY, nullptr, 0.8f, false);
+			DrawText(FString::Printf(TEXT("무기 타입: %s"), *GetWeaponTypeText(HoveredItem.WeaponType)), FLinearColor(0.9f, 0.66f, 0.42f, 1.0f), TextX, TextY, nullptr, 0.8f, false);
 		}
 	}
 
 	TextY += 28.0f;
-	DrawText(HoveredItem.Description.ToString(), FLinearColor(0.82f, 0.86f, 0.9f, 1.0f), TextX, TextY, nullptr, 0.72f, false);
+	DrawText(FString::Printf(TEXT("아이템 세부 설명: %s"), *HoveredItem.Description.ToString()), FLinearColor(0.82f, 0.86f, 0.9f, 1.0f), TextX, TextY, nullptr, 0.72f, false);
 
 	TextY += 38.0f;
-	FString ActionText = TEXT("Right-click : Equip");
+	FString ActionText = TEXT("우클릭: 장착");
 	FLinearColor ActionColor = FLinearColor(0.35f, 1.0f, 0.72f, 1.0f);
 	if (HoveredItem.bLocked)
 	{
-		ActionText = TEXT("Locked item");
+		ActionText = TEXT("잠긴 아이템");
 		ActionColor = WarningColor;
 	}
 	else if (HoveredItem.Category != ERogue10mItemCategory::Equipment)
 	{
-		ActionText = TEXT("Not equipable");
+		ActionText = TEXT("장착 불가");
 		ActionColor = FLinearColor(0.68f, 0.72f, 0.78f, 1.0f);
 	}
 
@@ -1041,7 +1136,7 @@ void ARogue10mHUD::DrawDraggedItem()
 	DrawRect(DraggedItem.ItemColor, DrawPosition.X + 6.0f, DrawPosition.Y + 6.0f, DragSlotSize - 12.0f, DragSlotSize - 12.0f);
 	DrawText(DraggedItem.DisplayName.ToString(), InventoryTextColor, DrawPosition.X + 7.0f, DrawPosition.Y + 11.0f, nullptr, 0.58f, false);
 
-	const FString DropText = bCanEquipDrop ? TEXT("Release : Equip") : (bCanMoveDrop ? TEXT("Release : Move") : TEXT("Drop on slot"));
+	const FString DropText = bCanEquipDrop ? TEXT("놓기: 장착") : (bCanMoveDrop ? TEXT("놓기: 이동") : TEXT("슬롯에 놓기"));
 	DrawText(DropText, BorderColor, DrawPosition.X + DragSlotSize + 10.0f, DrawPosition.Y + 18.0f, nullptr, 0.8f, false);
 }
 
@@ -1054,7 +1149,7 @@ void ARogue10mHUD::DrawCharacterPreview(const ARogue10mCharacter* RogueCharacter
 	const int32 RenderTargetHeight = FMath::Max(384, FMath::RoundToInt(Height * 2.0f));
 	if (!EnsureCharacterPreview(RogueCharacter, RenderTargetWidth, RenderTargetHeight))
 	{
-		DrawText(TEXT("Character preview unavailable"), FLinearColor(0.75f, 0.82f, 0.9f, 1.0f), X + 20.0f, Y + Height * 0.5f, nullptr, 0.9f, false);
+		DrawText(TEXT("캐릭터 미리보기를 사용할 수 없습니다."), FLinearColor(0.75f, 0.82f, 0.9f, 1.0f), X + 20.0f, Y + Height * 0.5f, nullptr, 0.9f, false);
 		return;
 	}
 
@@ -1287,17 +1382,17 @@ FString ARogue10mHUD::GetItemCategoryText(ERogue10mItemCategory Category) const
 	switch (Category)
 	{
 	case ERogue10mItemCategory::Equipment:
-		return TEXT("Equipment");
+		return TEXT("장비");
 	case ERogue10mItemCategory::Consumable:
-		return TEXT("Consumable");
+		return TEXT("소모품");
 	case ERogue10mItemCategory::Material:
-		return TEXT("Material");
+		return TEXT("재료");
 	case ERogue10mItemCategory::Currency:
-		return TEXT("Currency");
+		return TEXT("재화");
 	case ERogue10mItemCategory::Quest:
-		return TEXT("Quest");
+		return TEXT("퀘스트");
 	default:
-		return TEXT("Unknown");
+		return TEXT("알 수 없음");
 	}
 }
 
@@ -1305,28 +1400,38 @@ FString ARogue10mHUD::GetEquipmentSlotText(ERogue10mInventorySlotType SlotType) 
 {
 	switch (SlotType)
 	{
+	case ERogue10mInventorySlotType::MainWeapon:
+		return TEXT("주무기");
+	case ERogue10mInventorySlotType::SecondaryWeapon:
+		return TEXT("보조무기");
 	case ERogue10mInventorySlotType::Head:
-		return TEXT("Head");
+		return TEXT("머리");
+	case ERogue10mInventorySlotType::Armor:
+		return TEXT("갑옷");
+	case ERogue10mInventorySlotType::Shoes:
+		return TEXT("신발");
 	case ERogue10mInventorySlotType::Chest:
-		return TEXT("Chest");
+		return TEXT("가슴");
 	case ERogue10mInventorySlotType::Legs:
-		return TEXT("Legs");
+		return TEXT("다리");
 	case ERogue10mInventorySlotType::Hands:
-		return TEXT("Hands");
+		return TEXT("손");
 	case ERogue10mInventorySlotType::Weapon:
-		return TEXT("Weapon");
+		return TEXT("무기");
 	case ERogue10mInventorySlotType::Charm:
-		return TEXT("Charm");
+		return TEXT("부적");
 	case ERogue10mInventorySlotType::Ring:
-		return TEXT("Ring");
+		return TEXT("반지");
+	case ERogue10mInventorySlotType::Earring:
+		return TEXT("귀걸이");
 	case ERogue10mInventorySlotType::Relic:
-		return TEXT("Relic");
+		return TEXT("유물");
 	case ERogue10mInventorySlotType::Consumable:
-		return TEXT("Consumable");
+		return TEXT("소모품");
 	case ERogue10mInventorySlotType::Material:
-		return TEXT("Material");
+		return TEXT("재료");
 	default:
-		return TEXT("Unknown");
+		return TEXT("알 수 없음");
 	}
 }
 
@@ -1335,21 +1440,21 @@ FString ARogue10mHUD::GetWeaponTypeText(ERogue10mWeaponType WeaponType) const
 	switch (WeaponType)
 	{
 	case ERogue10mWeaponType::Unarmed:
-		return TEXT("Unarmed");
+		return TEXT("맨손");
 	case ERogue10mWeaponType::Dagger:
-		return TEXT("Dagger");
+		return TEXT("단검");
 	case ERogue10mWeaponType::GreatSword:
-		return TEXT("Great Sword");
+		return TEXT("대검");
 	case ERogue10mWeaponType::DualBlades:
-		return TEXT("Dual Blades");
+		return TEXT("쌍검");
 	case ERogue10mWeaponType::Bow:
-		return TEXT("Bow");
+		return TEXT("활");
 	case ERogue10mWeaponType::Staff:
-		return TEXT("Staff");
+		return TEXT("지팡이");
 	case ERogue10mWeaponType::Knuckle:
-		return TEXT("Knuckle");
+		return TEXT("너클");
 	default:
-		return TEXT("Unknown");
+		return TEXT("알 수 없음");
 	}
 }
 

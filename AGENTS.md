@@ -48,6 +48,8 @@ Check this list on every user command before finishing:
 - When a feature is developed, add a clearly marked Notion summary candidate inside the DevLog.
 - Before any GitHub commit or push summary, list the changed files and a short explanation.
 - Do not commit unless the user explicitly confirms.
+- Write every new DevLog entry in Korean.
+- Always switch to an appropriate work branch before feature development.
 
 ## Unreal Engineering Rules
 
@@ -56,6 +58,9 @@ Check this list on every user command before finishing:
 - All UObject member references that must be GC-tracked use `UPROPERTY()` and `TObjectPtr<T>`.
 - Use `TWeakObjectPtr<T>` for non-owning cached references.
 - Prefer Enhanced Input, Subsystems, StateTree, Niagara, MetaSounds, Gameplay Tags, and Data Assets when appropriate.
+- Prefer `PlayerState` for persistent player-facing character state, and split growing feature logic into dedicated `ActorComponent` classes.
+- Prefer `Data Asset` definitions for future gameplay data such as weapons, skills, items, monsters, balance values, and NPC setup.
+- For Unreal-specific guidance, prefer the Epic community assistant URL: `https://dev.epicgames.com/community/assistant/unreal-engine/conversation`.
 - Keep Tick disabled by default. Prefer events, delegates, timers, and cached references.
 - Do not call `GetWorld()`, player lookups, or subsystem access from constructors.
 - Dynamic delegate callbacks must be declared with `UFUNCTION()`.
