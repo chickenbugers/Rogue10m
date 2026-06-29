@@ -174,6 +174,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
 	void AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount);
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Debug")
+	bool ToggleCombatLogVisible();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Debug")
+	void SetCombatLogVisible(bool bNewVisible);
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Debug")
+	bool IsCombatLogVisible() const { return bShowCombatLog; }
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Debug")
+	void SetFloatingDamageNumbersVisible(bool bNewVisible);
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Debug")
+	bool AreFloatingDamageNumbersVisible() const { return bShowFloatingDamageNumbers; }
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Debug")
+	void SetPlayerDamageFeedbackVisible(bool bNewVisible);
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Debug")
+	bool IsPlayerDamageFeedbackVisible() const { return bShowPlayerDamageFeedback; }
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Debug")
+	void SetAllCombatDebugVisible(bool bNewVisible);
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD")
 	FLinearColor TimerColor = FLinearColor::White;
@@ -195,6 +219,15 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory")
 	FLinearColor InventoryTextColor = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rogue10m|Debug")
+	bool bShowCombatLog = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rogue10m|Debug")
+	bool bShowFloatingDamageNumbers = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rogue10m|Debug")
+	bool bShowPlayerDamageFeedback = true;
 
 private:
 	void DrawRunTimer();

@@ -179,6 +179,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Settings")
 	virtual void DoToggleSettings();
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Debug")
+	virtual void DoToggleCombatLog();
+
 	/** 1번 퀵 슬롯을 사용합니다. */
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Quick Slot")
 	virtual void DoQuickSlot1();

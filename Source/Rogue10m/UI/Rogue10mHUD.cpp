@@ -142,7 +142,7 @@ bool ARogue10mHUD::ActivateQuickSlot(int32 SlotNumber)
 
 void ARogue10mHUD::AddCombatLogMessage(const FString& Message, const FLinearColor& Color, float Duration)
 {
-	if (!GetWorld())
+	if (!bShowCombatLog || !GetWorld())
 	{
 		return;
 	}
@@ -160,6 +160,47 @@ void ARogue10mHUD::AddCombatLogMessage(const FString& Message, const FLinearColo
 	}
 }
 
+bool ARogue10mHUD::ToggleCombatLogVisible()
+{
+	SetCombatLogVisible(!bShowCombatLog);
+	return bShowCombatLog;
+}
+
+void ARogue10mHUD::SetCombatLogVisible(bool bNewVisible)
+{
+	bShowCombatLog = bNewVisible;
+	if (!bShowCombatLog)
+	{
+		CombatLogEntries.Reset();
+	}
+}
+
+void ARogue10mHUD::SetFloatingDamageNumbersVisible(bool bNewVisible)
+{
+	bShowFloatingDamageNumbers = bNewVisible;
+	if (!bShowFloatingDamageNumbers)
+	{
+		FloatingDamageEntries.Reset();
+	}
+}
+
+void ARogue10mHUD::SetPlayerDamageFeedbackVisible(bool bNewVisible)
+{
+	bShowPlayerDamageFeedback = bNewVisible;
+	if (!bShowPlayerDamageFeedback)
+	{
+		PlayerDamageFeedbackEndTime = 0.0f;
+		PlayerDamageFeedbackStrength = 0.0f;
+	}
+}
+
+void ARogue10mHUD::SetAllCombatDebugVisible(bool bNewVisible)
+{
+	SetCombatLogVisible(bNewVisible);
+	SetFloatingDamageNumbersVisible(bNewVisible);
+	SetPlayerDamageFeedbackVisible(bNewVisible);
+}
+
 void ARogue10mHUD::NotifyPlayerDamaged(float DamageAmount)
 {
 	if (!GetWorld() || DamageAmount <= 0.0f)
@@ -167,14 +208,17 @@ void ARogue10mHUD::NotifyPlayerDamaged(float DamageAmount)
 		return;
 	}
 
-	PlayerDamageFeedbackEndTime = GetWorld()->GetTimeSeconds() + 0.35f;
-	PlayerDamageFeedbackStrength = FMath::Clamp(DamageAmount / 25.0f, 0.25f, 1.0f);
+	if (bShowPlayerDamageFeedback)
+	{
+		PlayerDamageFeedbackEndTime = GetWorld()->GetTimeSeconds() + 0.35f;
+		PlayerDamageFeedbackStrength = FMath::Clamp(DamageAmount / 25.0f, 0.25f, 1.0f);
+	}
 	AddCombatLogMessage(FString::Printf(TEXT("플레이어 피격: 피해 %.0f"), DamageAmount), FLinearColor(1.0f, 0.42f, 0.36f, 1.0f), 1.6f);
 }
 
 void ARogue10mHUD::AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount)
 {
-	if (!GetWorld() || !TargetActor || DamageAmount <= 0.0f)
+	if (!bShowFloatingDamageNumbers || !GetWorld() || !TargetActor || DamageAmount <= 0.0f)
 	{
 		return;
 	}
@@ -303,7 +347,7 @@ void ARogue10mHUD::DrawCombatLog()
 	const float LineHeight = 22.0f;
 	const float PanelWidth = 420.0f;
 	const float PanelHeight = CombatLogEntries.Num() * LineHeight + 16.0f;
-	if (CombatLogEntries.Num() <= 0)
+	if (!bShowCombatLog || CombatLogEntries.Num() <= 0)
 	{
 		return;
 	}
@@ -326,6 +370,12 @@ void ARogue10mHUD::DrawFloatingDamageNumbers()
 	APlayerController* OwningPlayerController = GetOwningPlayerController();
 	if (!OwningPlayerController)
 	{
+		return;
+	}
+
+	if (!bShowFloatingDamageNumbers)
+	{
+		FloatingDamageEntries.Reset();
 		return;
 	}
 
@@ -359,7 +409,19 @@ void ARogue10mHUD::DrawFloatingDamageNumbers()
 
 void ARogue10mHUD::DrawPlayerDamageFeedback()
 {
-	if (!Canvas || !GetWorld() || PlayerDamageFeedbackEndTime <= 0.0f)
+	if (!Canvas || !GetWorld())
+	{
+		return;
+	}
+
+	if (!bShowPlayerDamageFeedback)
+	{
+		PlayerDamageFeedbackEndTime = 0.0f;
+		PlayerDamageFeedbackStrength = 0.0f;
+		return;
+	}
+
+	if (PlayerDamageFeedbackEndTime <= 0.0f)
 	{
 		return;
 	}

@@ -84,6 +84,7 @@ void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ARogue10mCharacter::DoToggleItemWindow);
 	PlayerInputComponent->BindKey(EKeys::K, IE_Pressed, this, &ARogue10mCharacter::DoToggleSkillTree);
 	PlayerInputComponent->BindKey(EKeys::O, IE_Pressed, this, &ARogue10mCharacter::DoToggleSettings);
+	PlayerInputComponent->BindKey(EKeys::L, IE_Pressed, this, &ARogue10mCharacter::DoToggleCombatLog);
 
 	// 숫자 1~5 키를 하단 퀵 슬롯 UI와 연결합니다.
 	PlayerInputComponent->BindKey(EKeys::One, IE_Pressed, this, &ARogue10mCharacter::DoQuickSlot1);
@@ -358,6 +359,24 @@ void ARogue10mCharacter::DoToggleSettings()
 		if (RogueHUD->IsAnyBlockingWindowVisible())
 		{
 			GetCharacterMovement()->StopMovementImmediately();
+		}
+	}
+}
+
+void ARogue10mCharacter::DoToggleCombatLog()
+{
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
+	{
+		const bool bLogVisible = RogueHUD->ToggleCombatLogVisible();
+		if (bLogVisible)
+		{
+			RogueHUD->AddCombatLogMessage(TEXT("전투 로그 표시 켜짐"), FLinearColor(0.58f, 0.85f, 1.0f, 1.0f));
 		}
 	}
 }
