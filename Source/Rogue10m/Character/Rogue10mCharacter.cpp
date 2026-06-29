@@ -5,6 +5,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/DamageEvents.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -13,6 +14,7 @@
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Rogue10m.h"
+#include "Rogue10mAttackSkillData.h"
 #include "Rogue10mHUD.h"
 #include "Rogue10mInventoryComponent.h"
 #include "Rogue10mVitalsComponent.h"
@@ -475,12 +477,22 @@ void ARogue10mCharacter::EndCombatAttack(bool bPrimaryAttack)
 
 	const float HeldTime = World->GetTimeSeconds() - PressedTime;
 	PressedTime = -1.0f;
-	ExecuteCombatAttack(bPrimaryAttack, HeldTime >= ChargeAttackThreshold);
+	const bool bJumpAttack = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
+	const URogue10mAttackSkillData* ChargedSkill = ResolveChargedAttackSkill(bPrimaryAttack, bJumpAttack);
+	const float RequiredChargeSeconds = ChargedSkill ? ChargedSkill->ChargeSeconds : ChargeAttackThreshold;
+	ExecuteCombatAttack(bPrimaryAttack, ChargedSkill && HeldTime >= RequiredChargeSeconds);
 }
 
 void ARogue10mCharacter::ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedAttack)
 {
 	const bool bJumpAttack = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
+	const URogue10mAttackSkillData* SkillData = ResolveAttackSkill(bPrimaryAttack, bChargedAttack, bJumpAttack);
+	if (!SkillData)
+	{
+		AddCombatScreenLog(FString::Printf(TEXT("%s 공격 잠김: 스킬 Data Asset이 지정되지 않았습니다."), *GetAttackInputText(bPrimaryAttack, bJumpAttack)), FLinearColor(1.0f, 0.35f, 0.25f, 1.0f));
+		return;
+	}
+
 	const FString ActionText = GetCombatActionText(bPrimaryAttack, bChargedAttack, bJumpAttack);
 	const FLinearColor LogColor = bPrimaryAttack
 		? FLinearColor(1.0f, 0.72f, 0.42f, 1.0f)
@@ -488,18 +500,118 @@ void ARogue10mCharacter::ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedA
 
 	AddCombatScreenLog(ActionText, LogColor);
 	UE_LOG(LogRogue10m, Log, TEXT("%s"), *ActionText);
+	ExecuteAttackSkill(*SkillData);
+}
 
-	// 현재는 모든 공격 변형이 같은 주먹 판정 트레이스를 사용합니다.
-	// 이후 무기별/공격별 데미지, 애니메이션, 이펙트를 이 분기에서 교체합니다.
-	switch (EquippedWeaponType)
+void ARogue10mCharacter::ExecuteAttackSkill(const URogue10mAttackSkillData& SkillData)
+{
+	if (bIsDead || !FirstPersonCameraComponent)
 	{
-	case ERogue10mWeaponType::Unarmed:
-		DoUnarmedAttack();
-		break;
-	default:
-		AddCombatScreenLog(TEXT("무기별 공격은 아직 구현되지 않았습니다."), FLinearColor(0.9f, 0.9f, 0.65f, 1.0f));
-		break;
+		return;
 	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float CurrentTime = World->GetTimeSeconds();
+	if (CurrentTime - LastAttackTime < SkillData.AttackCooldown)
+	{
+		AddCombatScreenLog(FString::Printf(TEXT("%s 재사용 대기 중입니다."), *SkillData.SkillName.ToString()), FLinearColor(1.0f, 0.65f, 0.35f, 1.0f));
+		return;
+	}
+
+	LastAttackTime = CurrentTime;
+
+	if (SkillData.AttackMontage)
+	{
+		if (UAnimInstance* FirstPersonAnimInstance = FirstPersonMesh ? FirstPersonMesh->GetAnimInstance() : nullptr)
+		{
+			FirstPersonAnimInstance->Montage_Play(SkillData.AttackMontage);
+		}
+		else if (UAnimInstance* ThirdPersonAnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+		{
+			ThirdPersonAnimInstance->Montage_Play(SkillData.AttackMontage);
+		}
+	}
+
+	const FVector TraceStart = FirstPersonCameraComponent->GetComponentLocation();
+	const FVector TraceEnd = TraceStart + FirstPersonCameraComponent->GetForwardVector() * SkillData.AttackRange;
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(Rogue10mAttackSkill), false, this);
+	FHitResult HitResult;
+	const bool bHit = World->SweepSingleByChannel(
+		HitResult,
+		TraceStart,
+		TraceEnd,
+		FQuat::Identity,
+		ECC_Pawn,
+		FCollisionShape::MakeSphere(SkillData.AttackTraceRadius),
+		QueryParams);
+
+	if (SkillData.bDrawDebugAttack)
+	{
+		DrawAttackDebug(TraceStart, TraceEnd, SkillData.AttackTraceRadius, SkillData.DebugColor, bHit, HitResult);
+	}
+
+	if (bHit && HitResult.GetActor())
+	{
+		UGameplayStatics::ApplyDamage(HitResult.GetActor(), SkillData.Damage, GetController(), this, UDamageType::StaticClass());
+		AddCombatScreenLog(FString::Printf(TEXT("%s 명중: %s / 피해 %.0f"), *SkillData.SkillName.ToString(), *GetNameSafe(HitResult.GetActor()), SkillData.Damage), FLinearColor(0.35f, 1.0f, 0.62f, 1.0f));
+	}
+	else
+	{
+		AddCombatScreenLog(FString::Printf(TEXT("%s 빗나감"), *SkillData.SkillName.ToString()), FLinearColor(0.85f, 0.86f, 0.9f, 1.0f));
+	}
+}
+
+void ARogue10mCharacter::DrawAttackDebug(const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius, const FLinearColor& DebugColor, bool bHit, const FHitResult& HitResult) const
+{
+	if (!bDrawAttackDebug)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const FColor DrawColor = DebugColor.ToFColor(true);
+	DrawDebugLine(World, TraceStart, TraceEnd, DrawColor, false, 1.2f, 0, 2.0f);
+	DrawDebugSphere(World, TraceEnd, TraceRadius, 16, DrawColor, false, 1.2f, 0, 1.5f);
+	if (bHit)
+	{
+		DrawDebugSphere(World, HitResult.ImpactPoint, TraceRadius * 1.25f, 16, FColor::Red, false, 1.2f, 0, 2.5f);
+	}
+}
+
+const URogue10mAttackSkillData* ARogue10mCharacter::ResolveAttackSkill(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
+{
+	if (bChargedAttack)
+	{
+		return ResolveChargedAttackSkill(bPrimaryAttack, bJumpAttack);
+	}
+
+	if (bJumpAttack)
+	{
+		return bPrimaryAttack ? JumpPrimaryAttackSkill : JumpSpecialAttackSkill;
+	}
+
+	return bPrimaryAttack ? PrimaryAttackSkill : SpecialAttackSkill;
+}
+
+const URogue10mAttackSkillData* ARogue10mCharacter::ResolveChargedAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const
+{
+	if (bJumpAttack)
+	{
+		return nullptr;
+	}
+
+	return bPrimaryAttack ? ChargedPrimaryAttackSkill : ChargedSpecialAttackSkill;
 }
 
 void ARogue10mCharacter::AddCombatScreenLog(const FString& Message, const FLinearColor& Color) const
@@ -515,12 +627,22 @@ void ARogue10mCharacter::AddCombatScreenLog(const FString& Message, const FLinea
 
 FString ARogue10mCharacter::GetCombatActionText(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
 {
-	const FString ButtonText = bPrimaryAttack ? TEXT("좌클릭") : TEXT("우클릭");
+	const FString ButtonText = GetAttackInputText(bPrimaryAttack, bJumpAttack);
 	const FString AttackText = bPrimaryAttack ? TEXT("기본 공격") : TEXT("특수 공격");
-	const FString JumpPrefix = bJumpAttack ? TEXT("점프 ") : TEXT("");
 	const FString ChargePrefix = bChargedAttack ? TEXT("차징 ") : TEXT("");
-	const float DamagePreview = EquippedWeaponType == ERogue10mWeaponType::Unarmed ? UnarmedDamage : 0.0f;
-	return FString::Printf(TEXT("%s%s%s 실행: %s / 예상 피해 %.0f"), *JumpPrefix, *ChargePrefix, *AttackText, *ButtonText, DamagePreview);
+	const URogue10mAttackSkillData* SkillData = ResolveAttackSkill(bPrimaryAttack, bChargedAttack, bJumpAttack);
+	const float DamagePreview = SkillData ? SkillData->Damage : 0.0f;
+	return FString::Printf(TEXT("%s%s 실행: %s / 피해 %.0f"), *ChargePrefix, *AttackText, *ButtonText, DamagePreview);
+}
+
+FString ARogue10mCharacter::GetAttackInputText(bool bPrimaryAttack, bool bJumpAttack) const
+{
+	if (bJumpAttack)
+	{
+		return bPrimaryAttack ? TEXT("점프 좌클릭") : TEXT("점프 우클릭");
+	}
+
+	return bPrimaryAttack ? TEXT("좌클릭") : TEXT("우클릭");
 }
 
 bool ARogue10mCharacter::ActivateQuickSlot(int32 SlotNumber)

@@ -13,6 +13,7 @@ class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
 class URogue10mInventoryComponent;
+class URogue10mAttackSkillData;
 class URogue10mVitalsComponent;
 struct FInputActionValue;
 
@@ -89,6 +90,27 @@ protected:
 	/** 마우스 버튼을 이 시간 이상 누르고 떼면 차징 공격으로 판정합니다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat", meta=(ClampMin="0.05"))
 	float ChargeAttackThreshold = 0.65f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
+	TObjectPtr<URogue10mAttackSkillData> PrimaryAttackSkill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
+	TObjectPtr<URogue10mAttackSkillData> SpecialAttackSkill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
+	TObjectPtr<URogue10mAttackSkillData> JumpPrimaryAttackSkill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
+	TObjectPtr<URogue10mAttackSkillData> JumpSpecialAttackSkill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
+	TObjectPtr<URogue10mAttackSkillData> ChargedPrimaryAttackSkill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data")
+	TObjectPtr<URogue10mAttackSkillData> ChargedSpecialAttackSkill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Debug")
+	bool bDrawAttackDebug = true;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|State")
 	bool bIsDead = false;
@@ -231,8 +253,13 @@ private:
 	void BeginCombatAttack(bool bPrimaryAttack);
 	void EndCombatAttack(bool bPrimaryAttack);
 	void ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedAttack);
+	void ExecuteAttackSkill(const URogue10mAttackSkillData& SkillData);
+	void DrawAttackDebug(const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius, const FLinearColor& DebugColor, bool bHit, const FHitResult& HitResult) const;
+	const URogue10mAttackSkillData* ResolveAttackSkill(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
+	const URogue10mAttackSkillData* ResolveChargedAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const;
 	void AddCombatScreenLog(const FString& Message, const FLinearColor& Color = FLinearColor::White) const;
 	FString GetCombatActionText(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
+	FString GetAttackInputText(bool bPrimaryAttack, bool bJumpAttack) const;
 
 	// 숫자 키 입력을 HUD 퀵 슬롯 활성화로 전달합니다.
 	bool ActivateQuickSlot(int32 SlotNumber);
