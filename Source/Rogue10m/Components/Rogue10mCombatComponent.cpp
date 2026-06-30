@@ -111,13 +111,23 @@ float URogue10mCombatComponent::ConsumeAttackHeldTime(bool bPrimaryAttack, float
 
 bool URogue10mCombatComponent::IsAttackOnCooldown(float CurrentTime) const
 {
-	return CurrentTime < AttackCooldownEndTime;
+	return CurrentTime >= AttackCooldownStartTime && CurrentTime < AttackCooldownEndTime;
+}
+
+bool URogue10mCombatComponent::IsComboSequenceActive(float CurrentTime) const
+{
+	return ActiveComboSourceSkill.IsValid() && CurrentTime <= ActiveComboWindowCloseTime;
 }
 
 float URogue10mCombatComponent::GetAttackCooldownRemaining() const
 {
 	const UWorld* World = GetWorld();
-	return World ? FMath::Max(0.0f, AttackCooldownEndTime - World->GetTimeSeconds()) : 0.0f;
+	if (!World || !IsAttackOnCooldown(World->GetTimeSeconds()))
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(0.0f, AttackCooldownEndTime - World->GetTimeSeconds());
 }
 
 void URogue10mCombatComponent::StartSharedAttackCooldown(const URogue10mAttackSkillData& SkillData, bool bComboAttack)
@@ -143,7 +153,19 @@ void URogue10mCombatComponent::StartSharedAttackCooldown(const URogue10mAttackSk
 
 	AttackCooldownSourceSkill = CooldownSource;
 	AttackCooldownDuration = FMath::Max(0.0f, CooldownSource->AttackCooldown);
-	AttackCooldownEndTime = World->GetTimeSeconds() + AttackCooldownDuration;
+
+	const bool bHasNextCombo = bAllowAttackCombo && SkillData.bEnableCombo && SkillData.NextComboSkill;
+	if (bHasNextCombo)
+	{
+		const float CloseOffset = FMath::Max(FMath::Max(0.0f, SkillData.ComboWindowOpenSeconds), SkillData.ComboWindowCloseSeconds);
+		AttackCooldownStartTime = World->GetTimeSeconds() + CloseOffset;
+	}
+	else
+	{
+		AttackCooldownStartTime = World->GetTimeSeconds();
+	}
+
+	AttackCooldownEndTime = AttackCooldownStartTime + AttackCooldownDuration;
 }
 
 void URogue10mCombatComponent::OpenComboWindow(const URogue10mAttackSkillData& SkillData)

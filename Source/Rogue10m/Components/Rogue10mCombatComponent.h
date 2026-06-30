@@ -24,6 +24,7 @@ public:
 	float ConsumeAttackHeldTime(bool bPrimaryAttack, float CurrentTime);
 
 	bool IsAttackOnCooldown(float CurrentTime) const;
+	bool IsComboSequenceActive(float CurrentTime) const;
 	float GetAttackCooldownRemaining() const;
 	float GetAttackCooldownDuration() const { return AttackCooldownDuration; }
 	void StartSharedAttackCooldown(const URogue10mAttackSkillData& SkillData, bool bComboAttack);
@@ -63,6 +64,7 @@ private:
 	TWeakObjectPtr<const URogue10mAttackSkillData> AttackCooldownSourceSkill;
 	float ActiveComboWindowOpenTime = -1.0f;
 	float ActiveComboWindowCloseTime = -1.0f;
+	float AttackCooldownStartTime = -1.0f;
 	float AttackCooldownEndTime = -1.0f;
 	float AttackCooldownDuration = 0.0f;
 };

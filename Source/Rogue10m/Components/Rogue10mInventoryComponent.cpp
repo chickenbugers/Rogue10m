@@ -276,6 +276,49 @@ bool URogue10mInventoryComponent::TryMoveItemSlot(int32 SourceItemSlotIndex, int
 	return true;
 }
 
+bool URogue10mInventoryComponent::RemoveItemFromSlot(int32 ItemSlotIndex, FRogue10mItemStack& OutRemovedItem)
+{
+	if (!ItemSlots.IsValidIndex(ItemSlotIndex))
+	{
+		return false;
+	}
+
+	FRogue10mItemStack& SourceItem = ItemSlots[ItemSlotIndex];
+	if (!SourceItem.bOccupied || SourceItem.bLocked)
+	{
+		return false;
+	}
+
+	OutRemovedItem = SourceItem;
+	SourceItem = MakeEmptyItem();
+	return true;
+}
+
+bool URogue10mInventoryComponent::RemoveEquippedItemFromSlot(ERogue10mInventorySlotType TargetSlotType, FRogue10mItemStack& OutRemovedItem)
+{
+	FRogue10mInventorySlot* EquipmentSlot = FindEquipmentSlot(TargetSlotType);
+	if (!EquipmentSlot || EquipmentSlot->bLocked || !EquipmentSlot->bHasEquippedItem || !EquipmentSlot->EquippedItem.bOccupied)
+	{
+		return false;
+	}
+
+	OutRemovedItem = EquipmentSlot->EquippedItem;
+	EquipmentSlot->EquippedItem = MakeEmptyItem();
+	EquipmentSlot->bHasEquippedItem = false;
+	EquipmentSlot->bEquipped = false;
+	ResetEquipmentSlotDisplay(*EquipmentSlot, TargetSlotType);
+
+	if (TargetSlotType == ERogue10mInventorySlotType::MainWeapon)
+	{
+		if (ARogue10mCharacter* OwningCharacter = Cast<ARogue10mCharacter>(GetOwner()))
+		{
+			OwningCharacter->SetEquippedWeaponType(ERogue10mWeaponType::Unarmed);
+		}
+	}
+
+	return true;
+}
+
 FRogue10mInventorySlot* URogue10mInventoryComponent::FindEquipmentSlot(ERogue10mInventorySlotType SlotType)
 {
 	for (FRogue10mInventorySlot& Slot : LeftEquipmentSlots)

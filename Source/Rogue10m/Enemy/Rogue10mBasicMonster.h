@@ -27,6 +27,12 @@ public:
 	FText GetMonsterDisplayName() const { return MonsterDisplayName; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
+	int32 GetMonsterLevel() const { return MonsterLevel; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
+	FText GetMonsterAttributeText() const { return MonsterAttributeText; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
 	bool IsDead() const { return bIsDead; }
 
 protected:
@@ -37,6 +43,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster")
 	FText MonsterDisplayName = FText::FromString(TEXT("기본 몬스터"));
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster", meta=(ClampMin="1"))
+	int32 MonsterLevel = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster")
+	FText MonsterAttributeText = FText::FromString(TEXT("일반"));
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Movement", meta=(ClampMin="0.0"))
 	float DetectionRange = 1800.0f;

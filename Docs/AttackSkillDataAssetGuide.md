@@ -11,6 +11,15 @@
 - 에디터 생성 기준 위치: `Content/DataAsset`
 - 공격 스킬 세부 권장 위치: `Content/DataAsset/AttackSkill`
 
+무기별 공격 스킬 권장 위치:
+
+- `Content/DataAsset/AttackSkill/Knuckle`
+- `Content/DataAsset/AttackSkill/Dagger`
+- `Content/DataAsset/AttackSkill/GreatSword`
+- `Content/DataAsset/AttackSkill/DualBlades`
+- `Content/DataAsset/AttackSkill/Bow`
+- `Content/DataAsset/AttackSkill/Staff`
+
 ## 생성 방법
 
 1. Unreal Editor Content Browser에서 `Miscellaneous > Data Asset`을 선택한다.
@@ -143,6 +152,8 @@ HUD는 화면 6시 방향 퀵 슬롯 위에 현재 공격 정보를 표시한다
 - 콤보 입력 가능 시간이 열리면 아이콘과 이름이 즉시 다음 콤보 스킬로 바뀐다.
 - 쿨타임 오버레이와 남은 시간은 캐릭터의 공유 공격 쿨타임 값을 기준으로 표시한다.
 - 콤보 공격은 개별 쿨타임을 따로 쓰지 않고 콤보 루트 스킬의 쿨타임을 공유한다.
+- 콤보 중에는 다음 입력 가능 시간이 닫히기 전까지 쿨타임이 바로 흐르지 않는다.
+- 마지막 공격이 콤보를 더 이어갈 수 없거나, 다음 입력 가능 시간이 끝나면 첫 공격 상태로 돌아가며 공유 쿨타임이 시작된다.
 
 ## 자원 소모 설정
 

@@ -43,6 +43,7 @@ enum class ERogue10mDraggedItemSource : uint8
 class AActor;
 class ARogue10mCharacter;
 class ARogue10mBasicMonster;
+struct FCompositeFont;
 class USceneCaptureComponent2D;
 class USkeletalMeshComponent;
 class UTextureRenderTarget2D;
@@ -109,6 +110,14 @@ struct FRogue10mFloatingDamageEntry
 	float ExpireTime = 0.0f;
 };
 
+struct FRogue10mItemAcquisitionEntry
+{
+	FString Message;
+	FLinearColor Color = FLinearColor::White;
+	float StartTime = 0.0f;
+	float ExpireTime = 0.0f;
+};
+
 /**
  * Minimal C++ HUD for prototype run state.
  */
@@ -121,6 +130,7 @@ public:
 	ARogue10mHUD();
 
 	virtual void DrawHUD() override;
+	virtual void BeginPlay() override;
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory")
 	void ToggleInventory();
@@ -173,6 +183,12 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Settings")
 	float GetLookSensitivityY() const { return LookSensitivityY; }
 
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Settings")
+	int32 GetCurrentFpsLimit() const { return CurrentFpsLimit; }
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Settings")
+	void SetFpsLimit(int32 FpsValue);
+
 	// 숫자 키 입력으로 들어온 퀵 슬롯 사용 요청을 처리합니다.
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Quick Slot")
 	bool ActivateQuickSlot(int32 SlotNumber);
@@ -223,6 +239,27 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD")
 	float ResultScale = 2.4f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Font")
+	FString UIFontRelativePath = TEXT("Slate/Fonts/DroidSansFallback.ttf");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Font")
+	bool bUseCustomUIFont = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Font", meta=(ClampMin="8", ClampMax="48"))
+	int32 UIFontBaseSize = 12;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Aim")
+	FLinearColor AimCrossLineColor = FLinearColor(0.72f, 0.92f, 1.0f, 0.86f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Aim", meta=(ClampMin="4", ClampMax="48"))
+	float AimCrossLineLength = 16.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Aim", meta=(ClampMin="2", ClampMax="24"))
+	float AimCrossLineGap = 7.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Aim", meta=(ClampMin="1", ClampMax="6"))
+	float AimCrossLineThickness = 2.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory")
 	FLinearColor InventoryPanelColor = FLinearColor(0.015f, 0.02f, 0.03f, 0.92f);
 
@@ -242,22 +279,27 @@ protected:
 	bool bShowPlayerDamageFeedback = true;
 
 private:
+	void DrawText(const FString& Text, FLinearColor TextColor, float ScreenX, float ScreenY, UFont* Font = nullptr, float Scale = 1.0f, bool bScalePosition = false);
+	TSharedPtr<const FCompositeFont> GetUIFont() const;
 	void DrawRunTimer();
 	void DrawRunResult();
 	void DrawVitals();
 	void DrawVitalBar(const FString& Label, const struct FRogue10mVitalValue& Vital, const FVector2D& Position, const FVector2D& Size, const FLinearColor& FillColor);
+	void DrawMiniMap();
 	void DrawCharacterInfo();
 	void DrawLookedAtMonsterInfo();
+	void DrawItemAcquisitionPanel();
 	void DrawCombatLog();
 	void DrawFloatingDamageNumbers();
 	void DrawPlayerDamageFeedback();
+	void DrawAimCrossLine();
 	void DrawPanelShortcutHints();
 	void DrawAttackCooldownSlot();
 	// 화면 6시 방향에 1~5번 퀵 슬롯 묶음을 그립니다.
 	void DrawQuickSlots();
 
 	// 단일 퀵 슬롯의 키, 아이콘 대체색, 이름, 쿨타임 표시를 그립니다.
-	void DrawQuickSlot(const FRogue10mQuickSlotView& QuickSlot, const FVector2D& Position, float SlotSize);
+	void DrawQuickSlot(const FRogue10mQuickSlotView& QuickSlot, const FVector2D& Position, float SlotSize, const FString& KeyLabel);
 
 	// 현재 월드 시간을 기준으로 남은 쿨타임을 계산합니다.
 	float GetQuickSlotCooldownRemaining(const FRogue10mQuickSlotView& QuickSlot) const;
@@ -268,7 +310,8 @@ private:
 	void DrawSkillTreeWeaponDetail(float PanelX, float PanelY, float PanelWidth, float PanelHeight);
 	void DrawSettingsPanel();
 	void DrawSettingsSlider(const FString& Label, ERogue10mSettingsSlider SliderType, float Value, float MinValue, float MaxValue, const FVector2D& Position, float Width);
-	void DrawSettingsFpsButton(int32 FpsValue, const FVector2D& Position, const FVector2D& Size);
+	void DrawSettingsFpsButton(int32 FpsValue, const FString& Label, const FVector2D& Position, const FVector2D& Size);
+	void AddItemAcquisitionMessage(const FString& Message, const FLinearColor& Color);
 	void DrawInventorySlots(const TArray<struct FRogue10mInventorySlot>& Slots, float X, float Y, float SlotSize, float Gap, bool bRightSide);
 	void DrawItemGrid(class URogue10mInventoryComponent* InventoryComponent, float X, float Y, float SlotSize, float Gap, float MaxWidth, float MaxHeight);
 	void DrawEquipmentCharacterStats(const ARogue10mCharacter* RogueCharacter, float X, float Y, float Width, float Height);
@@ -287,6 +330,7 @@ private:
 	FLinearColor GetWeaponTypeColor(ERogue10mWeaponType WeaponType) const;
 	bool IsWeaponSkillTreeUnlocked(ERogue10mWeaponType WeaponType) const;
 	int32 GetWeaponProficiencyLevel(ERogue10mWeaponType WeaponType) const;
+	int32 GetVisibleSkillSlotCount() const;
 	bool IsKnuckleSkillUnlocked(int32 SkillIndex) const;
 	bool CanUnlockKnuckleSkill(int32 SkillIndex) const;
 	void UnlockKnuckleSkillForTest(int32 SkillIndex);
@@ -294,8 +338,11 @@ private:
 	const FRogue10mItemSlotHitArea* FindItemSlotHitArea(const FVector2D& MousePosition) const;
 	const FRogue10mSkillWeaponHitArea* FindSkillWeaponHitArea(const FVector2D& MousePosition) const;
 	bool IsItemCompatibleWithSlot(const FRogue10mItemStack& Item, ERogue10mInventorySlotType SlotType) const;
+	bool TryDropDraggedItemToWorld(class URogue10mInventoryComponent* InventoryComponent);
+	bool SpawnDroppedItemInWorld(const FRogue10mItemStack& ItemStack);
 	void ClearDraggedItem();
 	bool IsPointInRect(const FVector2D& Point, const FVector2D& RectPosition, const FVector2D& RectSize) const;
+	bool IsMouseOverInventoryOrItemWindow(const FVector2D& MousePosition) const;
 	FVector2D ClampWindowPosition(const FVector2D& Position, const FVector2D& Size) const;
 	void UpdateSettingsInteraction();
 	void UpdateSettingsSliderValue(ERogue10mSettingsSlider SliderType, float LocalAlpha);
@@ -330,6 +377,7 @@ private:
 	TArray<FRogue10mEquipmentSlotHitArea> EquipmentSlotHitAreas;
 	TArray<FRogue10mItemSlotHitArea> ItemSlotHitAreas;
 	TArray<FRogue10mQuickSlotView> QuickSlots;
+	TArray<FRogue10mItemAcquisitionEntry> ItemAcquisitionEntries;
 	TArray<FRogue10mSkillWeaponHitArea> SkillWeaponHitAreas;
 	TArray<FRogue10mCombatLogEntry> CombatLogEntries;
 	TArray<FRogue10mFloatingDamageEntry> FloatingDamageEntries;
@@ -346,6 +394,8 @@ private:
 	int32 CurrentFpsLimit = 120;
 	float PlayerDamageFeedbackEndTime = 0.0f;
 	float PlayerDamageFeedbackStrength = 0.0f;
+	mutable FString CachedUIFontAbsolutePath;
+	mutable TSharedPtr<const FCompositeFont> CachedUIFont;
 
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> CharacterPreviewActor;

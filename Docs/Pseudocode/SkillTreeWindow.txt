@@ -107,7 +107,16 @@ Pseudo:
       CooldownSource = SkillData
       ActiveComboRootSkill = SkillData
     AttackCooldownDuration = CooldownSource.AttackCooldown
-    AttackCooldownEndTime = Now + AttackCooldownDuration
+    If SkillData has a next combo skill:
+      AttackCooldownStartTime = Now + SkillData.ComboWindowCloseSeconds
+    Else:
+      AttackCooldownStartTime = Now
+    AttackCooldownEndTime = AttackCooldownStartTime + AttackCooldownDuration
+
+  Character.ExecuteCombatAttack:
+    If combo sequence is active and current input is not the expected combo input:
+      Ignore direct base attack restart
+      Keep waiting for the combo window to close
 
   HUD.DrawAttackCooldownSlot:
     DisplaySkill = Character.GetDisplayedAttackSkillForHUD

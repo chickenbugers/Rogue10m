@@ -3,21 +3,27 @@
 #include "Rogue10mHUD.h"
 
 #include "Camera/CameraComponent.h"
+#include "CanvasItem.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Canvas.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Fonts/CompositeFont.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Misc/Paths.h"
 #include "Rogue10mBasicMonster.h"
 #include "Rogue10mAttackSkillData.h"
 #include "Rogue10mCharacter.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mInventoryComponent.h"
+#include "Rogue10mPlayerState.h"
 #include "Rogue10mVitalsComponent.h"
+#include "Rogue10mDroppedItem.h"
 
 ARogue10mHUD::ARogue10mHUD()
 {
@@ -34,6 +40,59 @@ ARogue10mHUD::ARogue10mHUD()
 	};
 }
 
+void ARogue10mHUD::BeginPlay()
+{
+	Super::BeginPlay();
+
+	ApplyFpsLimit(CurrentFpsLimit);
+}
+
+void ARogue10mHUD::DrawText(const FString& Text, FLinearColor TextColor, float ScreenX, float ScreenY, UFont* Font, float Scale, bool bScalePosition)
+{
+	if (!Canvas)
+	{
+		return;
+	}
+
+	if (!bUseCustomUIFont)
+	{
+		Super::DrawText(Text, TextColor, ScreenX, ScreenY, Font, Scale, bScalePosition);
+		return;
+	}
+
+	// HUD 전체 텍스트를 같은 한글 지원 Slate 폰트로 그려 UI 인상을 통일합니다.
+	const TSharedPtr<const FCompositeFont> CompositeFont = GetUIFont();
+	if (!CompositeFont.IsValid())
+	{
+		Super::DrawText(Text, TextColor, ScreenX, ScreenY, Font, Scale, bScalePosition);
+		return;
+	}
+
+	const FSlateFontInfo SlateFontInfo(CompositeFont, UIFontBaseSize);
+	const FVector2D DrawPosition = bScalePosition ? FVector2D(ScreenX * Scale, ScreenY * Scale) : FVector2D(ScreenX, ScreenY);
+
+	FCanvasTextItem TextItem(DrawPosition, FText::FromString(Text), SlateFontInfo, TextColor);
+	TextItem.Scale = FVector2D(Scale, Scale);
+	TextItem.EnableShadow(FLinearColor(0.0f, 0.0f, 0.0f, 0.55f), FVector2D(1.0f, 1.0f));
+	Canvas->DrawItem(TextItem);
+}
+
+TSharedPtr<const FCompositeFont> ARogue10mHUD::GetUIFont() const
+{
+	const FString FontPath = FPaths::EngineContentDir() / UIFontRelativePath;
+	if (!CachedUIFont.IsValid() || CachedUIFontAbsolutePath != FontPath)
+	{
+		CachedUIFontAbsolutePath = FontPath;
+		CachedUIFont = MakeShared<FCompositeFont>(
+			TEXT("Rogue10mUIFont"),
+			FString(FontPath),
+			EFontHinting::Default,
+			EFontLoadingPolicy::LazyLoad);
+	}
+
+	return CachedUIFont;
+}
+
 void ARogue10mHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -47,8 +106,10 @@ void ARogue10mHUD::DrawHUD()
 	UpdateWindowDrag();
 	DrawRunTimer();
 	DrawVitals();
-	DrawCharacterInfo();
+	DrawMiniMap();
 	DrawLookedAtMonsterInfo();
+	DrawItemAcquisitionPanel();
+	DrawAimCrossLine();
 	DrawCombatLog();
 	DrawFloatingDamageNumbers();
 	DrawAttackCooldownSlot();
@@ -116,6 +177,11 @@ void ARogue10mHUD::SetSettingsVisible(bool bNewSettingsVisible)
 	UpdateInventoryCursor();
 }
 
+void ARogue10mHUD::SetFpsLimit(int32 FpsValue)
+{
+	ApplyFpsLimit(FpsValue);
+}
+
 bool ARogue10mHUD::ActivateQuickSlot(int32 SlotNumber)
 {
 	if (!GetWorld())
@@ -153,10 +219,15 @@ void ARogue10mHUD::AddCombatLogMessage(const FString& Message, const FLinearColo
 	FRogue10mCombatLogEntry Entry;
 	Entry.Message = Message;
 	Entry.Color = Color;
-	Entry.ExpireTime = GetWorld()->GetTimeSeconds() + FMath::Max(0.2f, Duration);
+	Entry.ExpireTime = GetWorld()->GetTimeSeconds() + FMath::Max(4.0f, Duration);
 	CombatLogEntries.Insert(Entry, 0);
 
-	constexpr int32 MaxCombatLogCount = 6;
+	if (Message.Contains(TEXT("획득")) || Message.Contains(TEXT("얻었습니다")) || Message.Contains(TEXT("경험치")))
+	{
+		AddItemAcquisitionMessage(Message, Color);
+	}
+
+	constexpr int32 MaxCombatLogCount = 40;
 	if (CombatLogEntries.Num() > MaxCombatLogCount)
 	{
 		CombatLogEntries.SetNum(MaxCombatLogCount);
@@ -298,24 +369,48 @@ void ARogue10mHUD::DrawVitals()
 
 	const ARogue10mCharacter* RogueCharacter = GetOwningPawn() ? Cast<ARogue10mCharacter>(GetOwningPawn()) : nullptr;
 	const URogue10mVitalsComponent* VitalsComponent = RogueCharacter ? RogueCharacter->GetVitalsComponent() : nullptr;
+	const ARogue10mPlayerState* RoguePlayerState = GetOwningPlayerController() ? GetOwningPlayerController()->GetPlayerState<ARogue10mPlayerState>() : nullptr;
 	if (!VitalsComponent)
 	{
 		return;
 	}
 
-	const FVector2D BarSize(260.0f, 20.0f);
-	const int32 VisibleBarCount = VitalsComponent->ShouldShowMana() ? 3 : 2;
-	const FVector2D StartPosition(32.0f, Canvas->SizeY - (VisibleBarCount * 34.0f + 16.0f));
-	DrawVitalBar(TEXT("HP"), VitalsComponent->GetHealth(), StartPosition, BarSize, FLinearColor(0.92f, 0.12f, 0.12f, 1.0f));
+	const float BarWidth = FMath::Clamp(Canvas->SizeX * 0.145f, 260.0f, 390.0f);
+	const FVector2D BarSize(BarWidth, 16.0f);
+	const FVector2D HealthPosition(Canvas->SizeX * 0.305f, Canvas->SizeY * 0.836f);
+	const FVector2D StaminaPosition(Canvas->SizeX * 0.535f, Canvas->SizeY * 0.836f);
 
-	float NextBarOffsetY = 34.0f;
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.28f), HealthPosition.X - 8.0f, HealthPosition.Y - 8.0f, BarWidth + 16.0f, 32.0f);
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.28f), StaminaPosition.X - 8.0f, StaminaPosition.Y - 8.0f, BarWidth + 16.0f, VitalsComponent->ShouldShowMana() ? 54.0f : 32.0f);
+	DrawVitalBar(TEXT("체력"), VitalsComponent->GetHealth(), HealthPosition, BarSize, FLinearColor(0.92f, 0.12f, 0.12f, 1.0f));
+	DrawVitalBar(TEXT("스테미나"), VitalsComponent->GetStamina(), StaminaPosition, BarSize, FLinearColor(0.16f, 0.86f, 0.32f, 1.0f));
+
 	if (VitalsComponent->ShouldShowMana())
 	{
-		DrawVitalBar(TEXT("MP"), VitalsComponent->GetMana(), StartPosition + FVector2D(0.0f, NextBarOffsetY), BarSize, FLinearColor(0.15f, 0.42f, 1.0f, 1.0f));
-		NextBarOffsetY += 34.0f;
+		DrawVitalBar(TEXT("마나"), VitalsComponent->GetMana(), StaminaPosition + FVector2D(0.0f, 22.0f), BarSize, FLinearColor(0.15f, 0.42f, 1.0f, 1.0f));
 	}
 
-	DrawVitalBar(TEXT("SP"), VitalsComponent->GetStamina(), StartPosition + FVector2D(0.0f, NextBarOffsetY), BarSize, FLinearColor(0.16f, 0.86f, 0.32f, 1.0f));
+	if (RoguePlayerState && RogueCharacter)
+	{
+		const FVector2D LevelPosition(0.0f, Canvas->SizeY * 0.9684f);
+		const FVector2D LevelSize(Canvas->SizeX * 0.3915f, Canvas->SizeY * 0.0316f);
+		const float ExperienceBarHeight = FMath::Max(6.0f, LevelSize.Y - 14.0f);
+		DrawRect(FLinearColor(0.015f, 0.02f, 0.03f, 0.88f), LevelPosition.X, LevelPosition.Y, LevelSize.X, LevelSize.Y);
+		DrawText(FString::Printf(TEXT("Lv.%d"), RoguePlayerState->GetPlayerLevel()), FLinearColor(0.92f, 0.86f, 0.56f, 1.0f), LevelPosition.X + 14.0f, LevelPosition.Y + 5.0f, nullptr, 0.68f, false);
+		DrawRect(FLinearColor(0.04f, 0.055f, 0.07f, 0.96f), LevelPosition.X + 92.0f, LevelPosition.Y + 7.0f, LevelSize.X - 108.0f, ExperienceBarHeight);
+		DrawRect(FLinearColor(0.45f, 0.72f, 1.0f, 0.95f), LevelPosition.X + 92.0f, LevelPosition.Y + 7.0f, (LevelSize.X - 108.0f) * RoguePlayerState->GetExperienceNormalized(), ExperienceBarHeight);
+
+		const FVector2D IdentityPosition(Canvas->SizeX * 0.445f, Canvas->SizeY * 0.858f);
+		const FVector2D IdentitySize(FMath::Clamp(Canvas->SizeX * 0.075f, 92.0f, 134.0f), FMath::Clamp(Canvas->SizeY * 0.095f, 68.0f, 92.0f));
+		const float IdentityBarHeight = 8.0f;
+		DrawRect(FLinearColor(0.02f, 0.024f, 0.032f, 0.88f), IdentityPosition.X, IdentityPosition.Y, IdentitySize.X, IdentitySize.Y);
+		DrawRect(FLinearColor(0.58f, 0.64f, 0.72f, 0.42f), IdentityPosition.X + 2.0f, IdentityPosition.Y + 2.0f, IdentitySize.X - 4.0f, IdentitySize.Y - 4.0f);
+		DrawText(TEXT("아이덴티티"), FLinearColor(0.72f, 0.94f, 0.9f, 1.0f), IdentityPosition.X + 12.0f, IdentityPosition.Y + 10.0f, nullptr, 0.58f, false);
+		DrawText(FString::Printf(TEXT("%s 숙련 %d"), *GetWeaponTypeText(RogueCharacter->GetEquippedWeaponType()), RoguePlayerState->GetWeaponMasteryLevel(RogueCharacter->GetEquippedWeaponType())), InventoryTextColor, IdentityPosition.X + 10.0f, IdentityPosition.Y + 34.0f, nullptr, 0.52f, false);
+		DrawRect(FLinearColor(0.05f, 0.055f, 0.065f, 0.95f), IdentityPosition.X + 8.0f, IdentityPosition.Y + IdentitySize.Y - 16.0f, IdentitySize.X - 16.0f, IdentityBarHeight);
+		DrawRect(FLinearColor(0.18f, 0.88f, 0.72f, 0.95f), IdentityPosition.X + 8.0f, IdentityPosition.Y + IdentitySize.Y - 16.0f, (IdentitySize.X - 16.0f) * RoguePlayerState->GetIdentityNormalized(), IdentityBarHeight);
+		DrawText(FString::Printf(TEXT("EXP %d / %d"), RoguePlayerState->GetCurrentExperience(), RoguePlayerState->GetExperienceToNextLevel()), FLinearColor(0.62f, 0.75f, 0.95f, 1.0f), LevelPosition.X + 106.0f, LevelPosition.Y + 5.0f, nullptr, 0.56f, false);
+	}
 }
 
 void ARogue10mHUD::DrawVitalBar(const FString& Label, const FRogue10mVitalValue& Vital, const FVector2D& Position, const FVector2D& Size, const FLinearColor& FillColor)
@@ -326,8 +421,60 @@ void ARogue10mHUD::DrawVitalBar(const FString& Label, const FRogue10mVitalValue&
 	DrawRect(FillColor, Position.X, Position.Y, FillWidth, Size.Y);
 	DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.18f), Position.X, Position.Y, Size.X, 2.0f);
 
-	DrawText(Label, InventoryTextColor, Position.X + 8.0f, Position.Y + 3.0f, nullptr, 0.82f, false);
-	DrawText(FString::Printf(TEXT("%.0f / %.0f"), Vital.Current, Vital.Max), InventoryTextColor, Position.X + Size.X - 86.0f, Position.Y + 3.0f, nullptr, 0.82f, false);
+	DrawText(Label, InventoryTextColor, Position.X + 8.0f, Position.Y + 2.0f, nullptr, 0.68f, false);
+	DrawText(FString::Printf(TEXT("%.0f / %.0f"), Vital.Current, Vital.Max), InventoryTextColor, Position.X + Size.X - 92.0f, Position.Y + 2.0f, nullptr, 0.68f, false);
+}
+
+void ARogue10mHUD::DrawMiniMap()
+{
+	if (!Canvas)
+	{
+		return;
+	}
+
+	const APawn* OwningPawn = GetOwningPawn();
+	const FVector2D MapSize(Canvas->SizeX * 0.2012f, Canvas->SizeY * 0.3041f);
+	const FVector2D MapPosition(Canvas->SizeX * 0.7988f, 0.0f);
+	const FVector PawnLocation = OwningPawn ? OwningPawn->GetActorLocation() : FVector::ZeroVector;
+	const float PawnYaw = OwningPawn ? OwningPawn->GetActorRotation().Yaw : 0.0f;
+
+	DrawRect(FLinearColor(0.01f, 0.014f, 0.018f, 0.78f), MapPosition.X, MapPosition.Y, MapSize.X, MapSize.Y);
+	DrawRect(FLinearColor(0.42f, 0.52f, 0.58f, 0.65f), MapPosition.X, MapPosition.Y, MapSize.X, 2.0f);
+	DrawRect(FLinearColor(0.42f, 0.52f, 0.58f, 0.65f), MapPosition.X, MapPosition.Y + MapSize.Y - 2.0f, MapSize.X, 2.0f);
+	DrawRect(FLinearColor(0.42f, 0.52f, 0.58f, 0.65f), MapPosition.X, MapPosition.Y, 2.0f, MapSize.Y);
+	DrawRect(FLinearColor(0.42f, 0.52f, 0.58f, 0.65f), MapPosition.X + MapSize.X - 2.0f, MapPosition.Y, 2.0f, MapSize.Y);
+
+	const float CenterX = MapPosition.X + MapSize.X * 0.5f;
+	const float CenterY = MapPosition.Y + MapSize.Y * 0.5f;
+	DrawRect(FLinearColor(0.55f, 0.62f, 0.68f, 0.18f), CenterX - 1.0f, MapPosition.Y + 14.0f, 2.0f, MapSize.Y - 28.0f);
+	DrawRect(FLinearColor(0.55f, 0.62f, 0.68f, 0.18f), MapPosition.X + 14.0f, CenterY - 1.0f, MapSize.X - 28.0f, 2.0f);
+
+	DrawText(TEXT("N"), FLinearColor(0.72f, 0.9f, 1.0f, 1.0f), CenterX - 4.0f, MapPosition.Y + 7.0f, nullptr, 0.62f, false);
+	DrawRect(FLinearColor(0.28f, 0.86f, 1.0f, 0.95f), CenterX - 5.0f, CenterY - 5.0f, 10.0f, 10.0f);
+	DrawText(FString::Printf(TEXT("%.0f"), PawnYaw), FLinearColor(0.72f, 0.78f, 0.86f, 1.0f), MapPosition.X + 10.0f, MapPosition.Y + MapSize.Y - 22.0f, nullptr, 0.52f, false);
+	DrawText(FString::Printf(TEXT("X %.0f  Y %.0f"), PawnLocation.X, PawnLocation.Y), FLinearColor(0.72f, 0.78f, 0.86f, 1.0f), MapPosition.X + 10.0f, MapPosition.Y + MapSize.Y - 42.0f, nullptr, 0.56f, false);
+
+	struct FMinimapMarker
+	{
+		FVector2D Offset;
+		FLinearColor Color;
+		float Size;
+	};
+
+	const FMinimapMarker Markers[] =
+	{
+		{ FVector2D(-0.27f, -0.18f), FLinearColor(0.92f, 0.18f, 0.12f, 0.95f), 7.0f },
+		{ FVector2D(0.31f, -0.06f), FLinearColor(0.35f, 0.9f, 0.42f, 0.95f), 6.0f },
+		{ FVector2D(-0.12f, 0.28f), FLinearColor(0.96f, 0.78f, 0.28f, 0.95f), 6.0f },
+		{ FVector2D(0.18f, 0.24f), FLinearColor(0.55f, 0.68f, 1.0f, 0.95f), 5.0f }
+	};
+	for (const FMinimapMarker& Marker : Markers)
+	{
+		DrawRect(Marker.Color, CenterX + Marker.Offset.X * MapSize.X - Marker.Size * 0.5f, CenterY + Marker.Offset.Y * MapSize.Y - Marker.Size * 0.5f, Marker.Size, Marker.Size);
+	}
+
+	DrawText(TEXT("적"), FLinearColor(0.92f, 0.18f, 0.12f, 1.0f), MapPosition.X + 12.0f, MapPosition.Y + MapSize.Y - 64.0f, nullptr, 0.46f, false);
+	DrawText(TEXT("NPC"), FLinearColor(0.35f, 0.9f, 0.42f, 1.0f), MapPosition.X + 46.0f, MapPosition.Y + MapSize.Y - 64.0f, nullptr, 0.46f, false);
 }
 
 void ARogue10mHUD::DrawCombatLog()
@@ -346,20 +493,40 @@ void ARogue10mHUD::DrawCombatLog()
 		}
 	}
 
-	const FVector2D PanelPosition(32.0f, Canvas->SizeY * 0.34f);
-	const float LineHeight = 22.0f;
-	const float PanelWidth = 420.0f;
-	const float PanelHeight = CombatLogEntries.Num() * LineHeight + 16.0f;
-	if (!bShowCombatLog || CombatLogEntries.Num() <= 0)
+	const FVector2D PanelPosition(Canvas->SizeX * 0.008f, Canvas->SizeY * 0.69f);
+	const float LineHeight = FMath::Clamp(Canvas->SizeY * 0.018f, 16.0f, 22.0f);
+	const float PanelWidth = FMath::Clamp(Canvas->SizeX * 0.205f, 300.0f, 430.0f);
+	const float PanelHeight = FMath::Clamp(Canvas->SizeY * 0.245f, 180.0f, 270.0f);
+	if (!bShowCombatLog)
 	{
 		return;
 	}
 
-	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.46f), PanelPosition.X - 8.0f, PanelPosition.Y - 8.0f, PanelWidth, PanelHeight);
-	for (int32 Index = 0; Index < CombatLogEntries.Num(); ++Index)
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.34f), PanelPosition.X, PanelPosition.Y, PanelWidth, PanelHeight);
+	DrawRect(FLinearColor(0.6f, 0.64f, 0.68f, 0.28f), PanelPosition.X, PanelPosition.Y, PanelWidth, 1.0f);
+	DrawText(TEXT("시스템"), FLinearColor(0.86f, 0.92f, 1.0f, 1.0f), PanelPosition.X + 10.0f, PanelPosition.Y + 8.0f, nullptr, 0.62f, false);
+	if (CombatLogEntries.Num() <= 0)
+	{
+		DrawText(TEXT("표시할 로그가 없습니다."), FLinearColor(0.62f, 0.68f, 0.76f, 1.0f), PanelPosition.X + 10.0f, PanelPosition.Y + 34.0f, nullptr, 0.58f, false);
+		return;
+	}
+
+	const int32 MaxVisibleLines = FMath::Max(1, FMath::FloorToInt((PanelHeight - 42.0f) / LineHeight));
+	const int32 VisibleLineCount = FMath::Min(MaxVisibleLines, CombatLogEntries.Num());
+	for (int32 Index = 0; Index < VisibleLineCount; ++Index)
 	{
 		const FRogue10mCombatLogEntry& Entry = CombatLogEntries[Index];
-		DrawText(Entry.Message, Entry.Color, PanelPosition.X, PanelPosition.Y + Index * LineHeight, nullptr, 0.82f, false);
+		DrawText(Entry.Message, Entry.Color, PanelPosition.X + 10.0f, PanelPosition.Y + 34.0f + Index * LineHeight, nullptr, 0.58f, false);
+	}
+
+	if (CombatLogEntries.Num() > MaxVisibleLines)
+	{
+		const float TrackX = PanelPosition.X + PanelWidth - 8.0f;
+		const float TrackY = PanelPosition.Y + 32.0f;
+		const float TrackHeight = PanelHeight - 42.0f;
+		const float ThumbHeight = FMath::Clamp(TrackHeight * static_cast<float>(MaxVisibleLines) / static_cast<float>(CombatLogEntries.Num()), 24.0f, TrackHeight);
+		DrawRect(FLinearColor(0.35f, 0.38f, 0.42f, 0.42f), TrackX, TrackY, 3.0f, TrackHeight);
+		DrawRect(FLinearColor(0.8f, 0.86f, 0.92f, 0.62f), TrackX, TrackY, 3.0f, ThumbHeight);
 	}
 }
 
@@ -445,6 +612,39 @@ void ARogue10mHUD::DrawPlayerDamageFeedback()
 	DrawRect(FLinearColor(0.9f, 0.03f, 0.02f, 0.2f * Alpha), Canvas->SizeX - 24.0f, 0.0f, 24.0f, Canvas->SizeY);
 }
 
+void ARogue10mHUD::DrawAimCrossLine()
+{
+	if (!Canvas || IsAnyBlockingWindowVisible())
+	{
+		return;
+	}
+
+	const ARogue10mCharacter* RogueCharacter = GetOwningPawn() ? Cast<ARogue10mCharacter>(GetOwningPawn()) : nullptr;
+	if (!RogueCharacter || RogueCharacter->IsDead())
+	{
+		return;
+	}
+
+	const float CenterX = Canvas->SizeX * 0.5f;
+	const float CenterY = Canvas->SizeY * 0.5f;
+	const float LineLength = AimCrossLineLength;
+	const float Gap = AimCrossLineGap;
+	const float Thickness = AimCrossLineThickness;
+	const FLinearColor ShadowColor(0.0f, 0.0f, 0.0f, 0.42f);
+
+	// 중앙 공격점을 비워두고 네 방향 선만 그려 실제 타격 지점을 가리지 않게 합니다.
+	DrawRect(ShadowColor, CenterX - Gap - LineLength + 1.0f, CenterY - Thickness * 0.5f + 1.0f, LineLength, Thickness);
+	DrawRect(ShadowColor, CenterX + Gap + 1.0f, CenterY - Thickness * 0.5f + 1.0f, LineLength, Thickness);
+	DrawRect(ShadowColor, CenterX - Thickness * 0.5f + 1.0f, CenterY - Gap - LineLength + 1.0f, Thickness, LineLength);
+	DrawRect(ShadowColor, CenterX - Thickness * 0.5f + 1.0f, CenterY + Gap + 1.0f, Thickness, LineLength);
+
+	DrawRect(AimCrossLineColor, CenterX - Gap - LineLength, CenterY - Thickness * 0.5f, LineLength, Thickness);
+	DrawRect(AimCrossLineColor, CenterX + Gap, CenterY - Thickness * 0.5f, LineLength, Thickness);
+	DrawRect(AimCrossLineColor, CenterX - Thickness * 0.5f, CenterY - Gap - LineLength, Thickness, LineLength);
+	DrawRect(AimCrossLineColor, CenterX - Thickness * 0.5f, CenterY + Gap, Thickness, LineLength);
+	DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), CenterX - 1.0f, CenterY - 1.0f, 2.0f, 2.0f);
+}
+
 void ARogue10mHUD::DrawPanelShortcutHints()
 {
 	if (!Canvas)
@@ -452,13 +652,7 @@ void ARogue10mHUD::DrawPanelShortcutHints()
 		return;
 	}
 
-	const float RowWidth = 188.0f;
-	const float RowHeight = 32.0f;
-	const float Gap = 8.0f;
-	const float PanelX = Canvas->SizeX - RowWidth - 28.0f;
-	const float PanelY = Canvas->SizeY - (RowHeight * 3.0f + Gap * 2.0f) - 28.0f;
-
-	struct FShortcutHint
+	struct FMainHudButton
 	{
 		const TCHAR* Key;
 		const TCHAR* Label;
@@ -466,26 +660,29 @@ void ARogue10mHUD::DrawPanelShortcutHints()
 		bool bActive;
 	};
 
-	const FShortcutHint Hints[] =
+	const FVector2D ButtonSize(FMath::Clamp(Canvas->SizeX * 0.042f, 54.0f, 74.0f), FMath::Clamp(Canvas->SizeY * 0.052f, 38.0f, 52.0f));
+	const float ButtonGap = FMath::Clamp(Canvas->SizeX * 0.008f, 8.0f, 18.0f);
+	const float ButtonY = Canvas->SizeY - ButtonSize.Y - 22.0f;
+	const FMainHudButton Buttons[] =
 	{
-		{ TEXT("B"), TEXT("아이템"), FLinearColor(0.35f, 0.92f, 0.72f, 1.0f), bItemWindowVisible },
 		{ TEXT("I"), TEXT("장비"), FLinearColor(0.92f, 0.72f, 0.35f, 1.0f), bInventoryVisible },
-		{ TEXT("K"), TEXT("스킬트리"), FLinearColor(0.58f, 0.72f, 1.0f, 1.0f), bSkillTreeVisible }
+		{ TEXT("B"), TEXT("인벤"), FLinearColor(0.35f, 0.92f, 0.72f, 1.0f), bItemWindowVisible },
+		{ TEXT("K"), TEXT("스킬"), FLinearColor(0.58f, 0.72f, 1.0f, 1.0f), bSkillTreeVisible },
+		{ TEXT("O"), TEXT("설정"), FLinearColor(0.72f, 0.58f, 1.0f, 1.0f), bSettingsVisible }
 	};
+	const float TotalWidth = UE_ARRAY_COUNT(Buttons) * ButtonSize.X + (UE_ARRAY_COUNT(Buttons) - 1) * ButtonGap;
+	const float StartX = Canvas->SizeX - TotalWidth - FMath::Clamp(Canvas->SizeX * 0.018f, 18.0f, 38.0f);
 
-	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.38f), PanelX - 8.0f, PanelY - 8.0f, RowWidth + 16.0f, RowHeight * 3.0f + Gap * 2.0f + 16.0f);
-
-	for (int32 Index = 0; Index < 3; ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Buttons); ++Index)
 	{
-		const FShortcutHint& Hint = Hints[Index];
-		const float RowY = PanelY + Index * (RowHeight + Gap);
-		const FLinearColor RowColor = Hint.bActive ? FLinearColor(0.12f, 0.18f, 0.26f, 0.94f) : FLinearColor(0.025f, 0.03f, 0.04f, 0.86f);
+		const FMainHudButton& Button = Buttons[Index];
+		const float ButtonX = StartX + Index * (ButtonSize.X + ButtonGap);
+		const FLinearColor FillColor = Button.bActive ? FLinearColor(0.12f, 0.18f, 0.26f, 0.94f) : FLinearColor(0.025f, 0.03f, 0.04f, 0.82f);
 
-		DrawRect(RowColor, PanelX, RowY, RowWidth, RowHeight);
-		DrawRect(Hint.Color, PanelX + 6.0f, RowY + 6.0f, 20.0f, 20.0f);
-		DrawText(Hint.Key, FLinearColor::Black, PanelX + 12.0f, RowY + 8.0f, nullptr, 0.62f, false);
-		DrawText(Hint.Label, InventoryTextColor, PanelX + 38.0f, RowY + 8.0f, nullptr, 0.74f, false);
-		DrawText(Hint.bActive ? TEXT("열림") : TEXT("전환"), Hint.bActive ? Hint.Color : FLinearColor(0.62f, 0.68f, 0.76f, 1.0f), PanelX + RowWidth - 58.0f, RowY + 8.0f, nullptr, 0.62f, false);
+		DrawRect(Button.Color, ButtonX - 2.0f, ButtonY - 2.0f, ButtonSize.X + 4.0f, ButtonSize.Y + 4.0f);
+		DrawRect(FillColor, ButtonX, ButtonY, ButtonSize.X, ButtonSize.Y);
+		DrawText(Button.Key, Button.Color, ButtonX + 8.0f, ButtonY + 6.0f, nullptr, 0.62f, false);
+		DrawText(Button.Label, InventoryTextColor, ButtonX + 8.0f, ButtonY + ButtonSize.Y - 20.0f, nullptr, 0.56f, false);
 	}
 }
 
@@ -496,22 +693,57 @@ void ARogue10mHUD::DrawQuickSlots()
 		return;
 	}
 
-	const float SlotSize = FMath::Clamp(Canvas->SizeY * 0.058f, 44.0f, 56.0f);
-	const float SlotGap = 8.0f;
-	const float GroupWidth = QuickSlots.Num() * SlotSize + (QuickSlots.Num() - 1) * SlotGap;
-	const float StartX = Canvas->SizeX * 0.5f - GroupWidth * 0.5f;
-	const float StartY = Canvas->SizeY - SlotSize - 24.0f;
+	const float SlotSize = FMath::Clamp(Canvas->SizeY * 0.052f, 42.0f, 56.0f);
+	const float SlotGap = FMath::Max(6.0f, Canvas->SizeX * 0.004f);
+	const int32 SkillSlotCount = GetVisibleSkillSlotCount();
+	const int32 ItemSlotCount = 4;
+	const float SkillGroupWidth = SkillSlotCount * SlotSize + FMath::Max(0, SkillSlotCount - 1) * SlotGap;
+	const float ItemGroupWidth = ItemSlotCount * SlotSize + FMath::Max(0, ItemSlotCount - 1) * SlotGap;
+	const float StartX = Canvas->SizeX * 0.305f;
+	const float StartY = Canvas->SizeY * 0.8643f;
 
-	// 너무 크지 않은 하단 중앙 묶음으로 배치해 전투 시야를 가리지 않게 합니다.
-	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.42f), StartX - 10.0f, StartY - 10.0f, GroupWidth + 20.0f, SlotSize + 20.0f);
+	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.42f), StartX - 12.0f, StartY - 22.0f, SkillGroupWidth + 24.0f, SlotSize + 34.0f);
+	DrawText(TEXT("스킬"), FLinearColor(0.68f, 0.78f, 0.9f, 1.0f), StartX, StartY - 18.0f, nullptr, 0.54f, false);
 
-	for (int32 Index = 0; Index < QuickSlots.Num(); ++Index)
+	for (int32 Index = 0; Index < SkillSlotCount; ++Index)
 	{
-		DrawQuickSlot(QuickSlots[Index], FVector2D(StartX + Index * (SlotSize + SlotGap), StartY), SlotSize);
+		const FVector2D SlotPosition(StartX + Index * (SlotSize + SlotGap), StartY);
+		if (QuickSlots.IsValidIndex(Index))
+		{
+			DrawQuickSlot(QuickSlots[Index], SlotPosition, SlotSize, FString::FromInt(Index + 1));
+		}
+		else
+		{
+			DrawRect(FLinearColor(0.42f, 0.46f, 0.52f, 0.32f), SlotPosition.X - 2.0f, SlotPosition.Y - 2.0f, SlotSize + 4.0f, SlotSize + 4.0f);
+			DrawRect(FLinearColor(0.015f, 0.018f, 0.024f, 0.78f), SlotPosition.X, SlotPosition.Y, SlotSize, SlotSize);
+			DrawText(TEXT("잠김"), FLinearColor(0.58f, 0.62f, 0.68f, 1.0f), SlotPosition.X + 8.0f, SlotPosition.Y + SlotSize - 17.0f, nullptr, 0.52f, false);
+		}
+	}
+
+	if (ItemSlotCount > 0)
+	{
+		const float ItemStartX = Canvas->SizeX * 0.535f;
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.42f), ItemStartX - 12.0f, StartY - 22.0f, ItemGroupWidth + 24.0f, SlotSize + 34.0f);
+		DrawText(TEXT("사용 아이템"), FLinearColor(0.92f, 0.82f, 0.58f, 1.0f), ItemStartX, StartY - 18.0f, nullptr, 0.54f, false);
+
+		for (int32 Index = 0; Index < ItemSlotCount; ++Index)
+		{
+			const int32 QuickSlotIndex = SkillSlotCount + Index;
+			const FVector2D SlotPosition(ItemStartX + Index * (SlotSize + SlotGap), StartY);
+			if (QuickSlots.IsValidIndex(QuickSlotIndex))
+			{
+				DrawQuickSlot(QuickSlots[QuickSlotIndex], SlotPosition, SlotSize, FString::FromInt(QuickSlots[QuickSlotIndex].SlotNumber));
+			}
+			else
+			{
+				DrawRect(FLinearColor(0.42f, 0.46f, 0.52f, 0.42f), SlotPosition.X - 2.0f, SlotPosition.Y - 2.0f, SlotSize + 4.0f, SlotSize + 4.0f);
+				DrawRect(FLinearColor(0.025f, 0.03f, 0.04f, 0.78f), SlotPosition.X, SlotPosition.Y, SlotSize, SlotSize);
+			}
+		}
 	}
 }
 
-void ARogue10mHUD::DrawQuickSlot(const FRogue10mQuickSlotView& QuickSlot, const FVector2D& Position, float SlotSize)
+void ARogue10mHUD::DrawQuickSlot(const FRogue10mQuickSlotView& QuickSlot, const FVector2D& Position, float SlotSize, const FString& KeyLabel)
 {
 	const float CooldownRemaining = GetQuickSlotCooldownRemaining(QuickSlot);
 	const bool bOnCooldown = CooldownRemaining > 0.0f;
@@ -524,7 +756,7 @@ void ARogue10mHUD::DrawQuickSlot(const FRogue10mQuickSlotView& QuickSlot, const 
 	DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.14f), Position.X + InnerPadding, Position.Y + InnerPadding, SlotSize - InnerPadding * 2.0f, 3.0f);
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.72f), Position.X + 3.0f, Position.Y + 3.0f, KeyBoxSize, KeyBoxSize);
-	DrawText(FString::FromInt(QuickSlot.SlotNumber), InventoryTextColor, Position.X + 7.0f, Position.Y + 4.0f, nullptr, 0.62f, false);
+	DrawText(KeyLabel, InventoryTextColor, Position.X + 7.0f, Position.Y + 4.0f, nullptr, 0.62f, false);
 
 	if (bOnCooldown)
 	{
@@ -563,11 +795,11 @@ void ARogue10mHUD::DrawAttackCooldownSlot()
 		return;
 	}
 
-	const float SlotSize = FMath::Clamp(Canvas->SizeY * 0.072f, 54.0f, 68.0f);
-	const float PanelWidth = SlotSize + 176.0f;
+	const float SlotSize = FMath::Clamp(Canvas->SizeY * 0.058f, 48.0f, 60.0f);
+	const float PanelWidth = SlotSize + 150.0f;
 	const float PanelHeight = SlotSize + 18.0f;
-	const float PanelX = Canvas->SizeX * 0.5f - PanelWidth * 0.5f;
-	const float PanelY = Canvas->SizeY - SlotSize - 104.0f;
+	const float PanelX = Canvas->SizeX * 0.4152f - (PanelWidth - Canvas->SizeX * 0.1072f) * 0.5f;
+	const float PanelY = Canvas->SizeY * 0.656f;
 	const FVector2D IconPosition(PanelX + 9.0f, PanelY + 9.0f);
 	const float CooldownRemaining = RogueCharacter->GetAttackCooldownRemaining();
 	const float CooldownDuration = RogueCharacter->GetAttackCooldownDuration();
@@ -618,7 +850,7 @@ void ARogue10mHUD::DrawCharacterInfo()
 	const float PanelWidth = 300.0f;
 	const float PanelHeight = VitalsComponent->ShouldShowMana() ? 166.0f : 148.0f;
 	const float PanelX = Canvas->SizeX - PanelWidth - 28.0f;
-	const float PanelY = 28.0f;
+	const float PanelY = FMath::Clamp(Canvas->SizeY * 0.18f, 150.0f, 196.0f) + 58.0f;
 	const float TextScale = 0.72f;
 	const float LineHeight = 18.0f;
 	float TextY = PanelY + 14.0f;
@@ -665,24 +897,65 @@ void ARogue10mHUD::DrawLookedAtMonsterInfo()
 	}
 
 	const FRogue10mVitalValue& Health = VitalsComponent->GetHealth();
-	const float PanelWidth = 360.0f;
-	const float PanelHeight = 74.0f;
-	const float PanelX = Canvas->SizeX * 0.5f - PanelWidth * 0.5f;
-	const float PanelY = 28.0f;
+	const float PanelWidth = Canvas->SizeX * 0.4184f;
+	const float PanelHeight = FMath::Max(56.0f, Canvas->SizeY * 0.0608f);
+	const float PanelX = Canvas->SizeX * 0.2566f;
+	const float PanelY = Canvas->SizeY * 0.0222f;
 	const float BarX = PanelX + 18.0f;
 	const float BarY = PanelY + 44.0f;
 	const float BarWidth = PanelWidth - 36.0f;
 	const float BarHeight = 12.0f;
 	const FString StateText = Monster->IsDead() ? TEXT("사망") : TEXT("적대");
+	const float HealthPercent = Health.GetNormalized() * 100.0f;
 
 	DrawRect(FLinearColor(0.01f, 0.012f, 0.016f, 0.78f), PanelX, PanelY, PanelWidth, PanelHeight);
 	DrawRect(FLinearColor(0.84f, 0.22f, 0.18f, 0.95f), PanelX, PanelY, PanelWidth, 3.0f);
 	DrawText(Monster->GetMonsterDisplayName().ToString(), InventoryTextColor, PanelX + 18.0f, PanelY + 14.0f, nullptr, 0.9f, false);
-	DrawText(StateText, FLinearColor(1.0f, 0.62f, 0.5f, 1.0f), PanelX + PanelWidth - 76.0f, PanelY + 15.0f, nullptr, 0.72f, false);
+	DrawText(FString::Printf(TEXT("Lv.%d  %s  %s"), Monster->GetMonsterLevel(), *Monster->GetMonsterAttributeText().ToString(), *StateText), FLinearColor(1.0f, 0.72f, 0.5f, 1.0f), PanelX + PanelWidth - 210.0f, PanelY + 15.0f, nullptr, 0.68f, false);
 
 	DrawRect(FLinearColor(0.05f, 0.055f, 0.065f, 0.95f), BarX, BarY, BarWidth, BarHeight);
 	DrawRect(FLinearColor(0.92f, 0.1f, 0.08f, 1.0f), BarX, BarY, BarWidth * Health.GetNormalized(), BarHeight);
-	DrawText(FString::Printf(TEXT("체력 %.0f / %.0f"), Health.Current, Health.Max), InventoryTextColor, BarX + BarWidth - 112.0f, BarY - 2.0f, nullptr, 0.62f, false);
+	DrawText(FString::Printf(TEXT("체력 %.0f / %.0f  %.0f%%"), Health.Current, Health.Max, HealthPercent), InventoryTextColor, BarX + BarWidth - 178.0f, BarY - 2.0f, nullptr, 0.62f, false);
+}
+
+void ARogue10mHUD::DrawItemAcquisitionPanel()
+{
+	if (!Canvas || IsAnyBlockingWindowVisible())
+	{
+		return;
+	}
+
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	for (int32 Index = ItemAcquisitionEntries.Num() - 1; Index >= 0; --Index)
+	{
+		if (ItemAcquisitionEntries[Index].ExpireTime <= CurrentTime)
+		{
+			ItemAcquisitionEntries.RemoveAt(Index);
+		}
+	}
+
+	if (ItemAcquisitionEntries.Num() <= 0)
+	{
+		return;
+	}
+
+	const FVector2D PanelPosition(Canvas->SizeX * 0.535f, Canvas->SizeY * 0.30f);
+	const float PanelWidth = FMath::Clamp(Canvas->SizeX * 0.18f, 240.0f, 360.0f);
+	const float RowHeight = FMath::Clamp(Canvas->SizeY * 0.035f, 28.0f, 38.0f);
+	const int32 VisibleCount = FMath::Min(5, ItemAcquisitionEntries.Num());
+
+	for (int32 Index = 0; Index < VisibleCount; ++Index)
+	{
+		const FRogue10mItemAcquisitionEntry& Entry = ItemAcquisitionEntries[Index];
+		const float RemainingAlpha = FMath::Clamp((Entry.ExpireTime - CurrentTime) / 3.0f, 0.0f, 1.0f);
+		const float RowY = PanelPosition.Y + Index * (RowHeight + 5.0f);
+		const FLinearColor BackColor(0.0f, 0.0f, 0.0f, 0.16f + 0.24f * RemainingAlpha);
+		const FLinearColor TextColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, FMath::Clamp(0.45f + 0.55f * RemainingAlpha, 0.0f, 1.0f));
+
+		DrawRect(BackColor, PanelPosition.X, RowY, PanelWidth, RowHeight);
+		DrawRect(FLinearColor(0.95f, 0.78f, 0.3f, 0.58f * RemainingAlpha), PanelPosition.X, RowY, 3.0f, RowHeight);
+		DrawText(Entry.Message, TextColor, PanelPosition.X + 12.0f, RowY + 7.0f, nullptr, 0.58f, false);
+	}
 }
 
 void ARogue10mHUD::DrawInventory()
@@ -1025,20 +1298,21 @@ void ARogue10mHUD::DrawSettingsPanel()
 	const float PanelY = SettingsWindowPosition.Y;
 	DrawRect(FLinearColor(0.012f, 0.016f, 0.024f, 0.97f), PanelX, PanelY, PanelWidth, PanelHeight);
 	DrawRect(FLinearColor(0.08f, 0.09f, 0.105f, 0.98f), PanelX, PanelY, PanelWidth, 56.0f);
-	DrawText(TEXT("SETTINGS"), InventoryTextColor, PanelX + 24.0f, PanelY + 18.0f, nullptr, 1.25f, false);
-	DrawText(TEXT("O : Close  |  Drag title bar"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 236.0f, PanelY + 22.0f, nullptr, 0.78f, false);
+	DrawText(TEXT("설정"), InventoryTextColor, PanelX + 24.0f, PanelY + 18.0f, nullptr, 1.25f, false);
+	DrawText(TEXT("O : 닫기  |  제목줄 드래그"), FLinearColor(0.65f, 0.78f, 0.9f, 1.0f), PanelX + PanelWidth - 250.0f, PanelY + 22.0f, nullptr, 0.78f, false);
 
 	const float SliderX = PanelX + 44.0f;
 	const float SliderWidth = PanelWidth - 88.0f;
-	DrawSettingsSlider(TEXT("Voice Volume"), ERogue10mSettingsSlider::MasterVolume, MasterVolume, 0.0f, 1.0f, FVector2D(SliderX, PanelY + 94.0f), SliderWidth);
-	DrawSettingsSlider(TEXT("Look Sensitivity X"), ERogue10mSettingsSlider::LookSensitivityX, LookSensitivityX, 0.2f, 3.0f, FVector2D(SliderX, PanelY + 154.0f), SliderWidth);
-	DrawSettingsSlider(TEXT("Look Sensitivity Y"), ERogue10mSettingsSlider::LookSensitivityY, LookSensitivityY, 0.2f, 3.0f, FVector2D(SliderX, PanelY + 214.0f), SliderWidth);
+	DrawSettingsSlider(TEXT("음성 볼륨"), ERogue10mSettingsSlider::MasterVolume, MasterVolume, 0.0f, 1.0f, FVector2D(SliderX, PanelY + 94.0f), SliderWidth);
+	DrawSettingsSlider(TEXT("시점 감도 X"), ERogue10mSettingsSlider::LookSensitivityX, LookSensitivityX, 0.2f, 3.0f, FVector2D(SliderX, PanelY + 154.0f), SliderWidth);
+	DrawSettingsSlider(TEXT("시점 감도 Y"), ERogue10mSettingsSlider::LookSensitivityY, LookSensitivityY, 0.2f, 3.0f, FVector2D(SliderX, PanelY + 214.0f), SliderWidth);
 
-	DrawText(TEXT("FPS Limit"), InventoryTextColor, SliderX, PanelY + 274.0f, nullptr, 0.86f, false);
+	DrawText(FString::Printf(TEXT("FPS 제한  |  현재: %s"), CurrentFpsLimit > 0 ? *FString::Printf(TEXT("%d FPS"), CurrentFpsLimit) : TEXT("제한 없음")), InventoryTextColor, SliderX, PanelY + 274.0f, nullptr, 0.86f, false);
 	const FVector2D ButtonSize(78.0f, 34.0f);
-	DrawSettingsFpsButton(60, FVector2D(SliderX, PanelY + 304.0f), ButtonSize);
-	DrawSettingsFpsButton(120, FVector2D(SliderX + 94.0f, PanelY + 304.0f), ButtonSize);
-	DrawSettingsFpsButton(140, FVector2D(SliderX + 188.0f, PanelY + 304.0f), ButtonSize);
+	DrawSettingsFpsButton(60, TEXT("60"), FVector2D(SliderX, PanelY + 304.0f), ButtonSize);
+	DrawSettingsFpsButton(120, TEXT("120"), FVector2D(SliderX + 94.0f, PanelY + 304.0f), ButtonSize);
+	DrawSettingsFpsButton(140, TEXT("140"), FVector2D(SliderX + 188.0f, PanelY + 304.0f), ButtonSize);
+	DrawSettingsFpsButton(0, TEXT("해제"), FVector2D(SliderX + 282.0f, PanelY + 304.0f), ButtonSize);
 }
 
 void ARogue10mHUD::DrawSettingsSlider(const FString& Label, ERogue10mSettingsSlider SliderType, float Value, float MinValue, float MaxValue, const FVector2D& Position, float Width)
@@ -1053,7 +1327,7 @@ void ARogue10mHUD::DrawSettingsSlider(const FString& Label, ERogue10mSettingsSli
 	DrawRect(DraggedSettingsSlider == SliderType ? FLinearColor(1.0f, 0.9f, 0.42f, 1.0f) : FLinearColor(0.88f, 0.92f, 1.0f, 1.0f), KnobX - 6.0f, TrackY - 6.0f, 12.0f, 20.0f);
 }
 
-void ARogue10mHUD::DrawSettingsFpsButton(int32 FpsValue, const FVector2D& Position, const FVector2D& Size)
+void ARogue10mHUD::DrawSettingsFpsButton(int32 FpsValue, const FString& Label, const FVector2D& Position, const FVector2D& Size)
 {
 	FVector2D MousePosition = FVector2D::ZeroVector;
 	bool bHovered = false;
@@ -1072,13 +1346,34 @@ void ARogue10mHUD::DrawSettingsFpsButton(int32 FpsValue, const FVector2D& Positi
 
 	if (bClicked)
 	{
-		ApplyFpsLimit(FpsValue);
+		SetFpsLimit(FpsValue);
 	}
 
 	const bool bSelected = CurrentFpsLimit == FpsValue;
 	const FLinearColor ButtonColor = bSelected ? FLinearColor(0.24f, 0.64f, 0.36f, 0.96f) : (bHovered ? FLinearColor(0.26f, 0.38f, 0.56f, 0.96f) : FLinearColor(0.14f, 0.18f, 0.25f, 0.96f));
 	DrawRect(ButtonColor, Position.X, Position.Y, Size.X, Size.Y);
-	DrawText(FString::Printf(TEXT("%d"), FpsValue), InventoryTextColor, Position.X + 22.0f, Position.Y + 9.0f, nullptr, 0.82f, false);
+	DrawText(Label, InventoryTextColor, Position.X + 18.0f, Position.Y + 9.0f, nullptr, 0.82f, false);
+}
+
+void ARogue10mHUD::AddItemAcquisitionMessage(const FString& Message, const FLinearColor& Color)
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	FRogue10mItemAcquisitionEntry Entry;
+	Entry.Message = Message;
+	Entry.Color = Color;
+	Entry.StartTime = GetWorld()->GetTimeSeconds();
+	Entry.ExpireTime = Entry.StartTime + 3.0f;
+	ItemAcquisitionEntries.Insert(Entry, 0);
+
+	constexpr int32 MaxAcquisitionCount = 8;
+	if (ItemAcquisitionEntries.Num() > MaxAcquisitionCount)
+	{
+		ItemAcquisitionEntries.SetNum(MaxAcquisitionCount);
+	}
 }
 
 void ARogue10mHUD::DrawInventorySlots(const TArray<FRogue10mInventorySlot>& Slots, float X, float Y, float SlotSize, float Gap, bool bRightSide)
@@ -1196,11 +1491,12 @@ void ARogue10mHUD::DrawItemGrid(URogue10mInventoryComponent* InventoryComponent,
 		DraggedItemMousePosition = MousePosition;
 		if (bLeftClickReleased)
 		{
+			bool bHandledDrop = false;
 			if (DraggedItemSource == ERogue10mDraggedItemSource::ItemSlot)
 			{
 				if (const FRogue10mEquipmentSlotHitArea* DropTarget = FindEquipmentSlotHitArea(MousePosition))
 				{
-					InventoryComponent->TryEquipItemToSlot(DraggedItemSlotIndex, DropTarget->SlotType);
+					bHandledDrop = InventoryComponent->TryEquipItemToSlot(DraggedItemSlotIndex, DropTarget->SlotType);
 				}
 				else
 				{
@@ -1217,7 +1513,7 @@ void ARogue10mHUD::DrawItemGrid(URogue10mInventoryComponent* InventoryComponent,
 						&& IsPointInRect(MousePosition, FVector2D(TargetSlotX, TargetSlotY), FVector2D(SlotSize, SlotSize)))
 					{
 						const int32 TargetItemSlotIndex = TargetRow * SafeColumns + TargetColumn;
-						InventoryComponent->TryMoveItemSlot(DraggedItemSlotIndex, TargetItemSlotIndex);
+						bHandledDrop = InventoryComponent->TryMoveItemSlot(DraggedItemSlotIndex, TargetItemSlotIndex);
 					}
 				}
 			}
@@ -1238,7 +1534,15 @@ void ARogue10mHUD::DrawItemGrid(URogue10mInventoryComponent* InventoryComponent,
 				{
 					TargetItemSlotIndex = TargetRow * SafeColumns + TargetColumn;
 				}
-				InventoryComponent->TryUnequipItemFromSlotToItemSlot(DraggedEquipmentSlotType, TargetItemSlotIndex);
+				if (TargetItemSlotIndex != INDEX_NONE)
+				{
+					bHandledDrop = InventoryComponent->TryUnequipItemFromSlotToItemSlot(DraggedEquipmentSlotType, TargetItemSlotIndex);
+				}
+			}
+
+			if (!bHandledDrop && !IsMouseOverInventoryOrItemWindow(MousePosition))
+			{
+				TryDropDraggedItemToWorld(InventoryComponent);
 			}
 
 			ClearDraggedItem();
@@ -1667,7 +1971,23 @@ void ARogue10mHUD::UpdateInventoryCursor() const
 {
 	if (APlayerController* OwningPlayerController = GetOwningPlayerController())
 	{
-		OwningPlayerController->SetShowMouseCursor(IsAnyBlockingWindowVisible());
+		const bool bShouldUseUiCursor = IsAnyBlockingWindowVisible();
+		OwningPlayerController->SetShowMouseCursor(bShouldUseUiCursor);
+		OwningPlayerController->bEnableClickEvents = bShouldUseUiCursor;
+		OwningPlayerController->bEnableMouseOverEvents = bShouldUseUiCursor;
+
+		if (bShouldUseUiCursor)
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			InputMode.SetHideCursorDuringCapture(false);
+			OwningPlayerController->SetInputMode(InputMode);
+		}
+		else
+		{
+			FInputModeGameOnly InputMode;
+			OwningPlayerController->SetInputMode(InputMode);
+		}
 	}
 }
 
@@ -1781,6 +2101,15 @@ bool ARogue10mHUD::IsWeaponSkillTreeUnlocked(ERogue10mWeaponType WeaponType) con
 int32 ARogue10mHUD::GetWeaponProficiencyLevel(ERogue10mWeaponType WeaponType) const
 {
 	return IsWeaponSkillTreeUnlocked(WeaponType) ? 1 : 0;
+}
+
+int32 ARogue10mHUD::GetVisibleSkillSlotCount() const
+{
+	const ARogue10mCharacter* RogueCharacter = GetOwningPawn() ? Cast<ARogue10mCharacter>(GetOwningPawn()) : nullptr;
+	const ERogue10mWeaponType WeaponType = RogueCharacter ? RogueCharacter->GetEquippedWeaponType() : ERogue10mWeaponType::Knuckle;
+	const int32 ProficiencyLevel = GetWeaponProficiencyLevel(WeaponType);
+	const int32 BaseSlotCount = FMath::Max(3, QuickSlots.Num() - 1);
+	return FMath::Clamp(BaseSlotCount + FMath::Max(0, ProficiencyLevel - 1), 3, 8);
 }
 
 bool ARogue10mHUD::IsAttackSkillUnlockedForUse(const URogue10mAttackSkillData* SkillData) const
@@ -1960,6 +2289,64 @@ bool ARogue10mHUD::IsItemCompatibleWithSlot(const FRogue10mItemStack& Item, ERog
 		&& Item.EquipSlotType == SlotType;
 }
 
+bool ARogue10mHUD::TryDropDraggedItemToWorld(URogue10mInventoryComponent* InventoryComponent)
+{
+	if (!InventoryComponent || !DraggedItem.bOccupied)
+	{
+		return false;
+	}
+
+	const FRogue10mItemStack ItemToDrop = DraggedItem;
+	if (!SpawnDroppedItemInWorld(ItemToDrop))
+	{
+		return false;
+	}
+
+	FRogue10mItemStack RemovedItem;
+	bool bRemoved = false;
+	if (DraggedItemSource == ERogue10mDraggedItemSource::ItemSlot)
+	{
+		bRemoved = InventoryComponent->RemoveItemFromSlot(DraggedItemSlotIndex, RemovedItem);
+	}
+	else if (DraggedItemSource == ERogue10mDraggedItemSource::EquipmentSlot)
+	{
+		bRemoved = InventoryComponent->RemoveEquippedItemFromSlot(DraggedEquipmentSlotType, RemovedItem);
+	}
+
+	if (!bRemoved || !RemovedItem.bOccupied)
+	{
+		return false;
+	}
+
+	AddCombatLogMessage(FString::Printf(TEXT("아이템 버림: %s"), *RemovedItem.DisplayName.ToString()), FLinearColor(0.95f, 0.82f, 0.42f, 1.0f), 1.8f);
+	return true;
+}
+
+bool ARogue10mHUD::SpawnDroppedItemInWorld(const FRogue10mItemStack& ItemStack)
+{
+	UWorld* World = GetWorld();
+	const APawn* OwningPawn = GetOwningPawn();
+	if (!World || !OwningPawn || !ItemStack.bOccupied)
+	{
+		return false;
+	}
+
+	const FVector SpawnLocation = OwningPawn->GetActorLocation() + OwningPawn->GetActorForwardVector() * 150.0f + FVector(0.0f, 0.0f, 28.0f);
+	const FRotator SpawnRotation(0.0f, OwningPawn->GetActorRotation().Yaw, 0.0f);
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = const_cast<APawn*>(OwningPawn);
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	ARogue10mDroppedItem* DroppedItem = World->SpawnActor<ARogue10mDroppedItem>(ARogue10mDroppedItem::StaticClass(), SpawnLocation, SpawnRotation, SpawnParameters);
+	if (!DroppedItem)
+	{
+		return false;
+	}
+
+	DroppedItem->InitializeDroppedItem(ItemStack);
+	return true;
+}
+
 void ARogue10mHUD::ClearDraggedItem()
 {
 	bIsDraggingItem = false;
@@ -1976,6 +2363,19 @@ bool ARogue10mHUD::IsPointInRect(const FVector2D& Point, const FVector2D& RectPo
 		&& Point.Y >= RectPosition.Y
 		&& Point.X <= RectPosition.X + RectSize.X
 		&& Point.Y <= RectPosition.Y + RectSize.Y;
+}
+
+bool ARogue10mHUD::IsMouseOverInventoryOrItemWindow(const FVector2D& MousePosition) const
+{
+	if (!Canvas)
+	{
+		return false;
+	}
+
+	const FVector2D InventorySize(Canvas->SizeX * 0.5f, Canvas->SizeY * 0.5f);
+	const FVector2D ItemSize(Canvas->SizeX * 0.3f, Canvas->SizeY * 0.5f);
+	return (bInventoryVisible && IsPointInRect(MousePosition, InventoryWindowPosition, InventorySize))
+		|| (bItemWindowVisible && IsPointInRect(MousePosition, ItemWindowPosition, ItemSize));
 }
 
 FVector2D ARogue10mHUD::ClampWindowPosition(const FVector2D& Position, const FVector2D& Size) const

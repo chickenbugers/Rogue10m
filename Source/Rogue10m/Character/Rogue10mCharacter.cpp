@@ -87,6 +87,8 @@ void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ARogue10mCharacter::DoToggleItemWindow);
 	PlayerInputComponent->BindKey(EKeys::K, IE_Pressed, this, &ARogue10mCharacter::DoToggleSkillTree);
 	PlayerInputComponent->BindKey(EKeys::O, IE_Pressed, this, &ARogue10mCharacter::DoToggleSettings);
+	PlayerInputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ARogue10mCharacter::DoToggleSettings);
+	PlayerInputComponent->BindKey(EKeys::F10, IE_Pressed, this, &ARogue10mCharacter::DoToggleSettings);
 	PlayerInputComponent->BindKey(EKeys::L, IE_Pressed, this, &ARogue10mCharacter::DoToggleCombatLog);
 
 	// 숫자 1~5 키를 하단 퀵 슬롯 UI와 연결합니다.
@@ -554,6 +556,15 @@ void ARogue10mCharacter::ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedA
 {
 	const bool bJumpAttack = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
 	const URogue10mAttackSkillData* ComboSkillData = !bChargedAttack ? ResolveComboAttackSkill(bPrimaryAttack, bJumpAttack) : nullptr;
+	if (!ComboSkillData && !bChargedAttack && CombatComponent)
+	{
+		if (const UWorld* World = GetWorld(); World && CombatComponent->IsComboSequenceActive(World->GetTimeSeconds()))
+		{
+			AddCombatScreenLog(TEXT("콤보 입력 타이밍이 맞지 않아 다음 입력을 기다립니다."), FLinearColor(1.0f, 0.76f, 0.36f, 1.0f));
+			return;
+		}
+	}
+
 	const URogue10mAttackSkillData* SkillData = ComboSkillData ? ComboSkillData : ResolveAttackSkill(bPrimaryAttack, bChargedAttack, bJumpAttack);
 	if (!SkillData)
 	{

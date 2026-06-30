@@ -147,6 +147,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
 	bool TryMoveItemSlot(int32 SourceItemSlotIndex, int32 TargetItemSlotIndex);
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
+	bool RemoveItemFromSlot(int32 ItemSlotIndex, FRogue10mItemStack& OutRemovedItem);
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
+	bool RemoveEquippedItemFromSlot(ERogue10mInventorySlotType TargetSlotType, FRogue10mItemStack& OutRemovedItem);
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory")
 	TArray<FRogue10mInventorySlot> LeftEquipmentSlots;

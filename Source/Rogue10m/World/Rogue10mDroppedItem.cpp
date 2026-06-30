@@ -1,0 +1,49 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Rogue10mDroppedItem.h"
+
+#include "Components/StaticMeshComponent.h"
+#include "Components/TextRenderComponent.h"
+#include "UObject/ConstructorHelpers.h"
+
+ARogue10mDroppedItem::ARogue10mDroppedItem()
+{
+	PrimaryActorTick.bCanEverTick = false;
+
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	SetRootComponent(SceneRoot);
+
+	ItemMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
+	ItemMesh->SetupAttachment(SceneRoot);
+	ItemMesh->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+	ItemMesh->SetRelativeScale3D(FVector(0.32f, 0.32f, 0.16f));
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (CubeMesh.Succeeded())
+	{
+		ItemMesh->SetStaticMesh(CubeMesh.Object);
+	}
+
+	ItemNameText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("ItemNameText"));
+	ItemNameText->SetupAttachment(SceneRoot);
+	ItemNameText->SetRelativeLocation(FVector(0.0f, 0.0f, 44.0f));
+	ItemNameText->SetHorizontalAlignment(EHTA_Center);
+	ItemNameText->SetTextRenderColor(FColor(235, 245, 255));
+	ItemNameText->SetWorldSize(18.0f);
+	ItemNameText->SetText(FText::FromString(TEXT("드랍 아이템")));
+}
+
+void ARogue10mDroppedItem::InitializeDroppedItem(const FRogue10mItemStack& NewItemStack)
+{
+	ItemStack = NewItemStack;
+
+	if (ItemMesh)
+	{
+		ItemMesh->SetCustomPrimitiveDataFloat(0, ItemStack.ItemColor.R);
+	}
+
+	if (ItemNameText)
+	{
+		ItemNameText->SetText(ItemStack.DisplayName.IsEmpty() ? FText::FromString(TEXT("이름 없는 아이템")) : ItemStack.DisplayName);
+	}
+}
