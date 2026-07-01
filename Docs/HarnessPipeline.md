@@ -8,6 +8,25 @@ It is based on the role-separated pipeline described in `BaeJongHo/Unreal_Harnes
 Unreal work mixes C++, Blueprints, binary assets, generated code, editor-only state, and long builds.
 The harness keeps those concerns separated so feature work is easier to review, test, and recover.
 
+## Lazy Codex Overlay
+
+For large or unclear requests, this project uses the Lazy Codex overlay defined in `Docs/LazyCodexHarness.md`.
+
+The overlay does not require installing an external package. It adds a stricter work loop to this repository:
+
+```text
+Scope Gate -> Ultrawork Breakdown -> Architect -> Implementer -> Builder -> Reviewer -> Doc Writer -> Exit Gate
+```
+
+Use it when a request touches multiple gameplay systems, UI, data ownership, build settings, assets, or documentation.
+
+The overlay adds four rules:
+
+- Break big work into small Ultrawork Packets.
+- Validate each packet with a concrete command or editor check.
+- Route the work through the correct harness role.
+- Stop repeated failed attempts and return to design or review.
+
 ## Pipeline Stages
 
 | Game Pipeline | Harness Stage | Role | Output |
@@ -49,6 +68,7 @@ Architect work is read-first and design-focused.
 The plan must include:
 
 - feature summary
+- ultrawork packet list for large work
 - touched modules and files
 - new classes and responsibilities
 - UPROPERTY/UFUNCTION exposure
@@ -103,6 +123,7 @@ Include:
 
 - what changed
 - why it changed
+- ultrawork packets completed
 - files touched
 - build result
 - review result
