@@ -103,6 +103,13 @@ void ARogue10mHUD::DrawHUD()
 	ItemSlotHitAreas.Reset();
 	SkillWeaponHitAreas.Reset();
 
+	if (!bDrawCanvasPrototypeHUD)
+	{
+		DrawPlayerDamageFeedback();
+		DrawDraggedItem();
+		return;
+	}
+
 	UpdateWindowDrag();
 	DrawRunTimer();
 	DrawVitals();

@@ -32,6 +32,7 @@ public class Rogue10m : ModuleRules
 			"Rogue10m/Data",
 			"Rogue10m/Enemy",
 			"Rogue10m/UI",
+			"Rogue10m/UI/Widgets",
 			"Rogue10m/World",
 			"Rogue10m/Variant_Horror",
 			"Rogue10m/Variant_Horror/UI",

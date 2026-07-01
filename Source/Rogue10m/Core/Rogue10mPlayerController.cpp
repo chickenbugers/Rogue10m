@@ -7,6 +7,7 @@
 #include "InputMappingContext.h"
 #include "Rogue10mCameraManager.h"
 #include "Rogue10mGameState.h"
+#include "Rogue10mHUD.h"
 #include "Rogue10mRunHUD.h"
 #include "Blueprint/UserWidget.h"
 #include "Rogue10m.h"
@@ -16,6 +17,9 @@ ARogue10mPlayerController::ARogue10mPlayerController()
 {
 	// set the player camera manager class
 	PlayerCameraManagerClass = ARogue10mCameraManager::StaticClass();
+
+	// Content/Widget/UW_Rogue10mMainWidget을 기본 HUD Widget Blueprint로 사용한다.
+	DefaultRunHUDClass = TSoftClassPtr<URogue10mRunHUD>(FSoftClassPath(TEXT("/Game/Widget/UW_Rogue10mMainWidget.UW_Rogue10mMainWidget_C")));
 }
 
 void ARogue10mPlayerController::BeginPlay()
@@ -81,12 +85,18 @@ bool ARogue10mPlayerController::ShouldUseTouchControls() const
 
 void ARogue10mPlayerController::InitializeRunHUD()
 {
-	if (!IsLocalPlayerController() || !RunHUDClass)
+	if (!IsLocalPlayerController())
 	{
 		return;
 	}
 
-	RunHUD = CreateWidget<URogue10mRunHUD>(this, RunHUDClass);
+	TSubclassOf<URogue10mRunHUD> ResolvedRunHUDClass = ResolveRunHUDClass();
+	if (!ResolvedRunHUDClass)
+	{
+		return;
+	}
+
+	RunHUD = CreateWidget<URogue10mRunHUD>(this, ResolvedRunHUDClass);
 	if (!RunHUD)
 	{
 		UE_LOG(LogRogue10m, Error, TEXT("Could not spawn run HUD widget."));
@@ -94,6 +104,14 @@ void ARogue10mPlayerController::InitializeRunHUD()
 	}
 
 	RunHUD->AddToPlayerScreen(0);
+
+	if (bDisableCanvasPrototypeHUDWhenRunHUDIsCreated)
+	{
+		if (ARogue10mHUD* RogueHUD = GetHUD<ARogue10mHUD>())
+		{
+			RogueHUD->SetDrawCanvasPrototypeHUD(false);
+		}
+	}
 
 	if (ARogue10mGameState* RogueGameState = GetWorld() ? GetWorld()->GetGameState<ARogue10mGameState>() : nullptr)
 	{
@@ -104,4 +122,27 @@ void ARogue10mPlayerController::InitializeRunHUD()
 			RogueGameState->GetRunDurationSeconds(),
 			RogueGameState->GetRunProgressAlpha());
 	}
+}
+
+TSubclassOf<URogue10mRunHUD> ARogue10mPlayerController::ResolveRunHUDClass()
+{
+	if (RunHUDClass)
+	{
+		return RunHUDClass;
+	}
+
+	UClass* LoadedRunHUDClass = DefaultRunHUDClass.LoadSynchronous();
+	if (!LoadedRunHUDClass)
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("RunHUDClass is empty and the default run HUD widget could not be loaded."));
+		return nullptr;
+	}
+
+	if (!LoadedRunHUDClass->IsChildOf(URogue10mRunHUD::StaticClass()))
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("Default run HUD widget '%s' must inherit from Rogue10mRunHUD or Rogue10mMainHUDWidget."), *LoadedRunHUDClass->GetName());
+		return nullptr;
+	}
+
+	return LoadedRunHUDClass;
 }

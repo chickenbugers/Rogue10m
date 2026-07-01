@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/SoftObjectPtr.h"
 #include "Rogue10mPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -51,6 +52,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Rogue10m|HUD")
 	TSubclassOf<URogue10mRunHUD> RunHUDClass;
 
+	/** RunHUDClass가 비어 있을 때 Content/Widget의 기본 메인 HUD Widget Blueprint를 로드한다. */
+	UPROPERTY(EditAnywhere, Category="Rogue10m|HUD")
+	TSoftClassPtr<URogue10mRunHUD> DefaultRunHUDClass;
+
+	/** Widget HUD가 생성되면 Canvas 기반 프로토타입 HUD를 자동으로 숨겨 UI 배치 겹침을 막는다. */
+	UPROPERTY(EditAnywhere, Category="Rogue10m|HUD")
+	bool bDisableCanvasPrototypeHUDWhenRunHUDIsCreated = true;
+
 	UPROPERTY()
 	TObjectPtr<URogue10mRunHUD> RunHUD;
 
@@ -64,4 +73,6 @@ protected:
 	bool ShouldUseTouchControls() const;
 
 	void InitializeRunHUD();
+
+	TSubclassOf<URogue10mRunHUD> ResolveRunHUDClass();
 };
