@@ -1,0 +1,140 @@
+﻿# 2026-07-01 개발 로그
+
+## Widget Blueprint용 HUD C++ 부모 클래스 제작
+
+### 작업 배경
+- `Rogue10m/Content/Widget` 경로에서 생성할 Widget Blueprint들이 상속할 수 있는 C++ UserWidget 부모 클래스를 준비했다.
+- 메인 UI 초안 기준 HUD를 C++ Canvas가 아니라 Widget Blueprint에서 배치/수정할 수 있도록 기능별 위젯 클래스를 분류했다.
+
+### 구현 내용
+- `Source/Rogue10m/UI/Widgets` 폴더를 새로 만들고 HUD Widget C++ 클래스를 배치했다.
+- `URogue10mMainHUDWidget`을 추가해 메인 HUD Widget Blueprint의 부모 클래스로 사용할 수 있게 했다.
+- `URogue10mVitalBarWidget`, `URogue10mProgressionWidget`, `URogue10mIdentityWidget`, `URogue10mMonsterInfoWidget`, `URogue10mQuickSlotWidget`, `URogue10mLogLineWidget`, `URogue10mMinimapMarkerWidget`, `URogue10mShortcutHintWidget`을 추가했다.
+- 각 하위 위젯은 C++ View 데이터를 `Set...View` 함수로 받고, Blueprint에서 `BP_On...Changed` 이벤트를 구현해 실제 UI 표시를 갱신하는 구조로 만들었다.
+- `URogue10mMainHUDWidget`은 `HealthBarWidget`, `StaminaBarWidget`, `ManaBarWidget`, `ProgressionWidget`, `IdentityWidget`, `MonsterInfoWidget`, `EquipmentShortcutWidget`, `ItemWindowShortcutWidget`, `SkillTreeShortcutWidget`, `SettingsShortcutWidget` 이름의 하위 위젯을 `BindWidgetOptional`로 자동 연결할 수 있게 했다.
+- `Rogue10m.Build.cs`에 `Rogue10m/UI/Widgets` include path를 추가했다.
+- `Docs/WidgetBlueprintHUDGuide.md`에 C++ 부모 클래스 분류, `Content/Widget` 사용 기준, 자동 바인딩 이름 규칙을 보강했다.
+
+### 검증
+- `Scripts/BuildEditor.ps1` 실행 결과: 성공.
+- XGE 라이선스 경고가 있었지만 standalone 모드로 빌드가 완료되었다.
+- `Scripts/CheckGeneratedChanges.ps1` 실행 결과를 이어서 확인한다.
+
+### Notion 정리 후보
+- Widget Blueprint는 `Content/Widget` 아래에 만들고, 메인 HUD는 `Rogue10mMainHUDWidget`을 부모 클래스로 사용한다.
+- 하위 위젯은 기능별 C++ 부모 클래스를 상속해 데이터 수신과 표시 갱신을 분리한다.
+- `Scripts/CheckGeneratedChanges.ps1` 실행 결과: 통과.
+
+## Content/Widget HUD 에셋 분석 및 기본 연결
+
+### 작업 배경
+- `Content/Widget/BP_Rogue10mHUD.uasset`와 `Content/Widget/UW_Rogue10mMainWidget.uasset`를 기준으로 현재 HUD UI를 Widget Blueprint에서 배치할 수 있도록 연결 상태를 정리했다.
+- C++ Canvas HUD와 Widget Blueprint HUD가 동시에 보이면 UI 배치가 깨져 보일 수 있으므로, Widget HUD가 생성되면 Canvas 프로토타입 HUD를 자동으로 숨기는 구조가 필요했다.
+
+### 분석 내용
+- `BP_Rogue10mHUD.uasset`는 Unreal 명령줄 검사에서 일반 Blueprint 에셋으로 로드되었다.
+- `UW_Rogue10mMainWidget.uasset`는 Widget Blueprint 에셋으로 로드되었다.
+- 메인 UI 배치용 에셋은 `UW_Rogue10mMainWidget`을 사용하는 것이 적합하다.
+- `UW_Rogue10mMainWidget`은 Unreal Editor에서 부모 클래스를 `Rogue10mMainHUDWidget` 또는 최소 `Rogue10mRunHUD` 계열로 맞춰야 C++ HUD 데이터 Getter와 자동 바인딩을 사용할 수 있다.
+
+### 구현 내용
+- `ARogue10mPlayerController`에 `DefaultRunHUDClass`를 추가했다.
+- `RunHUDClass`가 비어 있으면 `/Game/Widget/UW_Rogue10mMainWidget.UW_Rogue10mMainWidget_C`를 기본 HUD Widget Blueprint로 로드하도록 했다.
+- Widget HUD가 정상 생성되면 `ARogue10mHUD::SetDrawCanvasPrototypeHUD(false)`를 호출해 Canvas 기반 프로토타입 HUD를 자동으로 숨기도록 했다.
+- `Docs/WidgetBlueprintHUDGuide.md`에 현재 `Content/Widget` 에셋별 사용 기준과 부모 클래스 설정 기준을 추가했다.
+
+### 검증
+- Unreal Editor 명령줄 Python 검사 결과: 두 에셋 모두 로드 성공.
+- `Scripts/BuildEditor.ps1` 실행 결과: 성공.
+- `Scripts/CheckGeneratedChanges.ps1` 실행 결과: 통과.
+
+### Notion 정리 후보
+- 메인 HUD 배치는 `Content/Widget/UW_Rogue10mMainWidget`에서 진행한다.
+- 해당 Widget Blueprint의 부모 클래스는 `Rogue10mMainHUDWidget`으로 설정한다.
+- PlayerController의 `RunHUDClass`가 비어 있어도 기본 경로의 메인 HUD Widget Blueprint를 자동으로 생성한다.
+- Widget HUD 생성 시 Canvas 프로토타입 HUD는 자동 비활성화되어 UI 겹침을 줄인다.
+
+## 메인 HUD Widget Blueprint 임시 골격 추가
+
+### 작업 배경
+- `UW_Rogue10mMainWidget`에 바로 정교한 디자인을 넣기 전, 현재 UI 구성 요소가 어디에 놓일지 확인할 수 있는 간단한 구조가 필요했다.
+- 명령줄 Unreal Python 환경에서는 Widget Blueprint Designer 트리를 안정적으로 저장하는 편집 API가 노출되지 않아, 부모 C++ 클래스에서 비어 있는 Widget Blueprint에 런타임 임시 골격을 생성하는 방식으로 처리했다.
+
+### 구현 내용
+- `URogue10mMainHUDWidget`에 `bCreatePrototypeLayoutWhenEmpty` 옵션을 추가했다.
+- `UW_Rogue10mMainWidget`이 비어 있거나 대표 위젯이 아직 배치되지 않은 경우, 런타임에 `CanvasPanel_Root` 기반의 임시 HUD 구조를 만든다.
+- 임시 구조에는 몬스터 정보, 미니맵, 아이템 획득 알림, 시스템 로그, 하단 HUD, 단축키 힌트 영역을 배치했다.
+- 하단 HUD에는 체력, 스킬 슬롯, 아이덴티티, 스테미나, 아이템 슬롯 자리표시 텍스트를 추가했다.
+- 기존 한글 UI 라벨 중 깨져 있던 체력, 스테미나, 마나, 장비, 아이템, 스킬, 설정 문자열을 UTF-8 기준 한국어로 정리했다.
+
+### 사용 방법
+- Unreal Editor에서 `UW_Rogue10mMainWidget`의 부모 클래스를 `Rogue10mMainHUDWidget`으로 지정한다.
+- 아직 Designer에 실제 위젯을 넣지 않았다면 PIE 실행 시 임시 HUD 골격이 보인다.
+- 실제 Designer 배치를 시작하면 `HealthBarWidget`, `StaminaBarWidget`, `MonsterInfoWidget` 등 대표 위젯을 배치하거나 `bCreatePrototypeLayoutWhenEmpty`를 끄면 임시 골격은 생성되지 않는다.
+
+### 검증
+- `Scripts/BuildEditor.ps1` 실행 결과: 성공.
+- `Scripts/CheckGeneratedChanges.ps1` 실행 결과: 통과.
+
+### Notion 정리 후보
+- 메인 HUD는 Widget Blueprint에서 최종 배치하되, 빈 상태에서는 C++ 부모 클래스가 임시 골격을 생성해 배치 기준을 빠르게 확인한다.
+- 실제 위젯이 들어가면 임시 골격은 자동으로 생성되지 않으며, `bCreatePrototypeLayoutWhenEmpty` 옵션으로 끌 수 있다.
+
+## HUD 파트별 Widget Blueprint 생성
+
+### 작업 배경
+- 메인 HUD 위치 조정은 `UW_Rogue10mMainWidget`에서 진행하고, 각 UI 파트의 내부 디자인은 별도 Widget Blueprint에서 제작할 수 있도록 분리 구조가 필요했다.
+- 디자이너 작업을 바로 시작할 수 있도록 파트별 빈 Widget Blueprint 에셋을 먼저 생성했다.
+
+### 생성 에셋
+- `Content/Widget/Parts/WBP_VitalBar`: 체력, 스테미나, 마나 바 공통 파트
+- `Content/Widget/Parts/WBP_QuickSlot`: 스킬 슬롯, 아이템 슬롯 공통 파트
+- `Content/Widget/Parts/WBP_MonsterInfo`: 몬스터 정보 파트
+- `Content/Widget/Parts/WBP_Progression`: 레벨, 경험치 파트
+- `Content/Widget/Parts/WBP_Identity`: 아이덴티티 파트
+- `Content/Widget/Parts/WBP_ShortcutHint`: 장비, 아이템, 스킬, 설정 단축키 힌트 파트
+- `Content/Widget/Parts/WBP_LogLine`: 시스템 로그 한 줄 파트
+- `Content/Widget/Parts/WBP_ItemAcquisitionLine`: 아이템 획득 알림 한 줄 파트
+- `Content/Widget/Parts/WBP_MinimapMarker`: 미니맵 마커 파트
+
+### 사용 방법
+- `UW_Rogue10mMainWidget`에서 필요한 위치에 위 파트 Widget Blueprint를 배치한다.
+- 자동 바인딩이 필요한 주요 파트는 인스턴스 이름을 `HealthBarWidget`, `StaminaBarWidget`, `MonsterInfoWidget`, `IdentityWidget`처럼 C++ 이름 규칙에 맞춘다.
+- 각 파트의 내부 디자인은 해당 `WBP_*` 파일의 Designer에서 제작한다.
+
+### 검증
+- Unreal Editor 명령줄 검사 결과: 생성된 9개 Widget Blueprint가 모두 정상 로드되었다.
+
+### Notion 정리 후보
+- HUD는 `UW_Rogue10mMainWidget`에서 위치를 잡고, 내부 디자인은 `Content/Widget/Parts`의 파트별 Widget Blueprint에서 분리 제작한다.
+- 자동 데이터 바인딩은 C++ 부모 클래스와 메인 위젯의 인스턴스 이름 규칙을 통해 연결한다.
+
+## HUD 파트 위젯 기본 Canvas 미리보기 설정
+
+### 작업 배경
+- 파트 위젯 내부 디자인을 시작하기 전에 각 `WBP_*` 파일이 어떤 용도로 쓰이는지 바로 확인할 수 있는 기본 구조가 필요했다.
+- Unreal Engine 5.7 명령줄 Python 환경에서는 Widget Blueprint의 `WidgetTree.RootWidget`이 보호 속성이라 Designer 트리를 직접 저장하지 않는 것이 안전하다고 판단했다.
+
+### 구현 내용
+- `URogue10mHudPartWidget`에 `NativePreConstruct` 기반의 임시 디자인 스캐폴드를 추가했다.
+- 파트 위젯이 비어 있으면 C++ 부모 클래스가 `CanvasPanel_Root`, `Border_DesignScaffold`, `Text_DesignTitle`, `Text_DesignDescription`로 구성된 간단한 미리보기 구조를 만든다.
+- 각 파트별로 용도와 권장 크기를 다르게 보여주도록 설정했다.
+  - 체력/스테미나/마나 바
+  - 레벨/경험치
+  - 아이덴티티
+  - 몬스터 정보
+  - 퀵 슬롯
+  - 로그/획득 알림 한 줄
+  - 미니맵 마커
+  - 단축키 힌트
+- `bCreatePrototypeDesignScaffold` 옵션을 추가해 필요하면 미리보기 구조를 끌 수 있게 했다.
+- 실제 Designer에서 루트 위젯이나 자식 위젯을 배치하면 C++ 미리보기 구조는 생성되지 않는다.
+
+### 검증
+- GitHub README를 확인해 현재 HUD/UI가 프로젝트 주요 구현 영역임을 재확인했다.
+- `Scripts/BuildEditor.ps1` 실행 결과: 성공.
+
+### Notion 정리 후보
+- 파트 위젯 Designer 트리는 개발자가 직접 제작한다.
+- 비어 있는 파트 위젯은 C++ 부모 클래스가 Canvas 기반 미리보기 구조를 제공해 용도와 권장 크기를 확인할 수 있다.
+- 실제 디자인이 추가되면 미리보기 구조는 자동으로 비활성화된다.

@@ -226,6 +226,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Debug")
 	void SetAllCombatDebugVisible(bool bNewVisible);
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|HUD")
+	void SetDrawCanvasPrototypeHUD(bool bNewDrawCanvasPrototypeHUD) { bDrawCanvasPrototypeHUD = bNewDrawCanvasPrototypeHUD; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD")
+	bool ShouldDrawCanvasPrototypeHUD() const { return bDrawCanvasPrototypeHUD; }
+
+	const TArray<FRogue10mQuickSlotView>& GetQuickSlotsForWidget() const { return QuickSlots; }
+	const TArray<FRogue10mCombatLogEntry>& GetCombatLogEntriesForWidget() const { return CombatLogEntries; }
+	const TArray<FRogue10mItemAcquisitionEntry>& GetItemAcquisitionEntriesForWidget() const { return ItemAcquisitionEntries; }
+	float GetQuickSlotCooldownRemainingForWidget(const FRogue10mQuickSlotView& QuickSlot) const { return GetQuickSlotCooldownRemaining(QuickSlot); }
+	int32 GetVisibleSkillSlotCountForWidget() const { return GetVisibleSkillSlotCount(); }
+	ARogue10mBasicMonster* FindLookedAtMonsterForWidget() const { return FindLookedAtMonster(); }
+	FString GetWeaponTypeTextForWidget(ERogue10mWeaponType WeaponType) const { return GetWeaponTypeText(WeaponType); }
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD")
 	FLinearColor TimerColor = FLinearColor::White;
@@ -277,6 +291,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rogue10m|Debug")
 	bool bShowPlayerDamageFeedback = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rogue10m|HUD")
+	bool bDrawCanvasPrototypeHUD = true;
 
 private:
 	void DrawText(const FString& Text, FLinearColor TextColor, float ScreenX, float ScreenY, UFont* Font = nullptr, float Scale = 1.0f, bool bScalePosition = false);
