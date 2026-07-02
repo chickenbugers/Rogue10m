@@ -1,13 +1,13 @@
 # Rogue10m Codex Harness
 
-This file defines the working rules for Codex in this Unreal Engine 5.7 project.
+This file defines the working rules for Codex in this Unreal Engine 5.8 project.
 It adapts the harness engineering ideas from `BaeJongHo/Unreal_Harness` to this repository.
 
 ## Project Facts
 
 - Project name: `Rogue10m`
-- Unreal version: UE 5.7
-- Engine root: `D:\Program Files\UE_5.7`
+- Unreal version: UE 5.8
+- Engine root: `D:\Program Files\UE_5.8`
 - Project root: `D:\Project\Rogue10m`
 - Project file: `D:\Project\Rogue10m\Rogue10m.uproject`
 - Runtime module: `Source/Rogue10m`
@@ -93,7 +93,7 @@ Editor target build:
 Project file generation after module or `.Build.cs` changes:
 
 ```powershell
-& "D:\Program Files\UE_5.7\Engine\Build\BatchFiles\Build.bat" -projectfiles -project="D:\Project\Rogue10m\Rogue10m.uproject" -game -engine
+& "D:\Program Files\UE_5.8\Engine\Build\BatchFiles\Build.bat" -projectfiles -project="D:\Project\Rogue10m\Rogue10m.uproject" -game -engine
 ```
 
 Before committing, run:

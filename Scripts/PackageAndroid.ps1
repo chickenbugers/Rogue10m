@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $ProjectFile = Join-Path $ProjectRoot "Rogue10m.uproject"
-$EngineRoot = "D:\Program Files\UE_5.7"
+$EngineRoot = "D:\Program Files\UE_5.8"
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"
 
 & $RunUAT BuildCookRun `

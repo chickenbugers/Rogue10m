@@ -1,0 +1,150 @@
+## 작업: Vital UI 색상 및 퍼센트 바인딩 확장
+
+### 작업 배경
+
+- 체력, 스테미나, 아이덴티티 바를 Widget Blueprint에서 직접 디자인할 때 색상과 퍼센트 계산을 매번 Blueprint에서 반복하지 않도록 C++ View 데이터에서 내려줄 필요가 있었다.
+- UI 바는 현재수치/최대수치 기준으로 채워져야 하며, 텍스트도 같은 기준으로 표시되어야 한다.
+
+### 작업 내용
+
+- `FRogue10mHudVitalView`에 Widget Blueprint 바인딩용 필드를 추가했다.
+  - `Percent`: 현재수치/최대수치 기준 퍼센트 값
+  - `ValueText`: `현재 / 최대` 형태의 표시 텍스트
+  - `PercentText`: `00%` 형태의 표시 텍스트
+  - `FillColor`: ProgressBar 또는 이미지 Tint에 사용할 색상
+- 체력 바 색상을 빨간색으로 설정했다.
+- 스테미나 바 색상을 파란색으로 설정했다.
+- 아이덴티티 바 색상을 회색으로 설정했다.
+- 기존 `Normalized` 값은 현재수치/최대수치 기준 0.0~1.0 값으로 유지하여 ProgressBar Percent에 바로 연결할 수 있게 했다.
+- 아이덴티티 바 변환 함수에서도 동일하게 `Percent`, `ValueText`, `PercentText`, `FillColor`를 채우도록 했다.
+
+### Widget Blueprint 적용 가이드
+
+- `WBP_VitalBar`에서 `GetVitalView()`를 사용한다.
+- ProgressBar의 `Percent`에는 `GetVitalView().Normalized`를 연결한다.
+- ProgressBar 또는 Fill 이미지의 색상에는 `GetVitalView().FillColor`를 연결한다.
+- 수치 텍스트에는 `GetVitalView().ValueText`를 연결한다.
+- 퍼센트 텍스트가 필요하면 `GetVitalView().PercentText`를 연결한다.
+
+### 확인 필요
+
+- Unreal Editor에서 Live Coding이 켜져 있으면 외부 빌드가 중단될 수 있다.
+- 에디터에서 `Ctrl+Alt+F11`로 Live Coding 컴파일을 실행하거나, 에디터를 닫은 뒤 전체 빌드를 다시 실행해야 한다.
+
+### Notion 정리 후보
+
+- Vital UI는 C++ View 데이터가 색상, 수치 텍스트, 퍼센트 값을 제공하고 Widget Blueprint는 표시만 담당하는 구조로 유지한다.
+- 체력은 빨간색, 스테미나는 파란색, 아이덴티티는 회색을 기본 색상 규칙으로 사용한다.
+
+---
+
+## 작업: 무기 바인딩 기반 동적 스킬 슬롯 구성
+
+### 작업 배경
+
+- 메인 HUD의 스킬 슬롯은 기본 1칸에서 시작하고, 캐릭터가 장착한 무기에 바인딩된 사용 가능 스킬 개수만큼만 표시되어야 한다.
+- Widget Blueprint에서는 슬롯 컨테이너를 직접 디자인하고, C++에서 전달하는 배열 개수에 맞춰 `AddChild` 방식으로 슬롯 위젯을 생성할 수 있어야 한다.
+- 캐릭터 접속 시점과 무기 변경 시점에 동일한 데이터 조회 흐름을 사용해 슬롯 수를 다시 계산할 수 있어야 한다.
+
+### 작업 내용
+
+- `URogue10mCombatComponent`에 무기 퀵슬롯용 스킬 목록을 반환하는 `GetWeaponQuickSlotSkills()` 함수를 추가했다.
+- 기본 노출 스킬은 현재 주먹/권 기본 공격인 `PrimaryAttackSkill`을 기준으로 하며, 점프 공격은 기본 슬롯 수를 늘리지 않도록 제외했다.
+- `ARogue10mHUD::GetWeaponSkillQuickSlotsForWidget()`를 추가해 CombatComponent의 스킬 Data Asset을 HUD용 슬롯 View 데이터로 변환하도록 했다.
+- `URogue10mRunHUD::GetSkillQuickSlotViews()`가 기존 더미 퀵슬롯 대신 무기 스킬 슬롯 View 배열만 반환하도록 변경했다.
+- 캔버스 프로토타입 HUD의 스킬 슬롯 표시도 같은 무기 스킬 배열을 사용하도록 맞추고, 표시 최소값은 1칸으로 유지했다.
+
+### Widget Blueprint 적용 가이드
+
+- `UW_Rogue10mMainWidget` 또는 스킬 슬롯 파트 위젯에서 `GetSkillQuickSlotViews()`를 호출한다.
+- 반환 배열의 길이만큼 기존 슬롯 자식을 지운 뒤 `AddChild`로 슬롯 위젯을 다시 생성한다.
+- 각 슬롯 위젯에는 `SlotNumber`, `DisplayName`, `IconColor`, `CooldownRemaining`, `CooldownDuration`, `CooldownNormalized`, `bUnlocked` 값을 바인딩한다.
+- 캐릭터 초기화, 장비 변경, 무기 변경 이벤트에서 같은 재구성 함수를 호출하면 된다.
+
+### Notion 정리 후보
+
+- 스킬 슬롯 UI는 고정 5칸 구조가 아니라 현재 무기에서 사용 가능한 스킬 Data Asset 목록을 기준으로 동적 생성한다.
+- 기본 상태는 주먹/권 기본 공격 1칸이며, 무기별 액티브 스킬이 추가되면 Widget Blueprint에서 배열 길이에 맞춰 슬롯 자식 위젯을 생성한다.
+---
+
+## 작업: dotnet 빌드 오류 대응 및 BuildEditor 스크립트 보강
+
+### 작업 배경
+
+- 스킬 슬롯 C++ 변경 후 에디터 빌드 확인 과정에서 `dotnet.exe` 예외 팝업이 발생했다.
+- UBT 로그를 확인한 결과 직접적인 빌드 중단 원인은 Unreal Editor의 Live Coding 세션이 활성화된 상태에서 외부 빌드가 실행된 것이었다.
+
+### 작업 내용
+
+- `Scripts/BuildEditor.ps1`에 기본적으로 `-NoLiveCoding` 인자를 추가하도록 변경했다.
+- 필요할 경우에만 `-AllowLiveCoding` 스위치로 기존 동작을 허용할 수 있게 했다.
+- PowerShell 실행 정책 문제는 `powershell.exe -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1` 방식으로 우회 확인했다.
+
+### 확인 결과
+
+- 기존 로그의 핵심 오류는 `Unable to build while Live Coding is active`였다.
+- 스크립트 변경 후 실행 명령에는 `-NoLiveCoding`이 포함되는 것을 확인했다.
+- 다만 실행 시간이 길어져 현재 Codex 명령 제한 시간에 걸렸으므로, 에디터에서 Live Coding 팝업과 기존 dotnet 오류 창을 닫은 뒤 재시도 확인이 필요하다.
+
+### Notion 정리 후보
+
+- C++ 변경 후 외부 빌드를 할 때는 Live Coding과 충돌하지 않도록 `BuildEditor.ps1`이 기본적으로 `-NoLiveCoding`을 사용한다.
+- 에디터 내부 반복 작업은 `Ctrl+Alt+F11` Live Coding 컴파일을 사용하고, 전체 빌드는 에디터 종료 또는 Live Coding 비활성 상태에서 실행하는 규칙을 권장한다.
+---
+
+## 작업: 우측 하단 패널 숏컷 힌트 제거
+
+### 작업 배경
+
+- 메인 UI 우측에 제공되던 설정, 인벤토리, 장비, 스킬트리 숏컷 힌트를 더 이상 표시하지 않도록 요청되었다.
+- 단축키 기능 자체는 유지하되, 화면에 보이는 별도 숏컷 UI만 제거하는 방향으로 처리했다.
+
+### 작업 내용
+
+- 캔버스 프로토타입 HUD에서 `DrawPanelShortcutHints()` 호출을 제거했다.
+- `URogue10mMainHUDWidget`에서 `EquipmentShortcutWidget`, `ItemWindowShortcutWidget`, `SkillTreeShortcutWidget`, `SettingsShortcutWidget`가 바인딩되어 있으면 자동으로 `Collapsed` 처리하도록 변경했다.
+- C++ 임시 프로토타입 레이아웃 생성 시 `Box_ShortcutHints` 패널을 더 이상 생성하지 않도록 제거했다.
+- 숏컷 패널 제거 후 사용하지 않는 `HorizontalBox` 관련 include를 정리했다.
+
+### 확인 필요
+
+- `UW_Rogue10mMainWidget` 내부에 수동으로 배치한 숏컷 영역이 있다면 해당 위젯 이름이 C++ 바인딩 이름과 맞는지 확인해야 한다.
+- 이름이 다르게 배치된 수동 위젯은 Widget Blueprint Designer에서 직접 제거해야 한다.
+
+### Notion 정리 후보
+
+- 장비, 아이템, 스킬트리, 설정 패널은 단축키로 열리지만, 메인 HUD에는 별도 우측 숏컷 힌트를 표시하지 않는 UI 정책으로 변경했다.
+---
+
+## 작업: 캐릭터 메인 위젯 우측 숏컷 삭제 스크립트 준비
+
+### 작업 배경
+
+- `UW_Rogue10mMainWidget`을 캐릭터 메인 위젯으로 정의하고, 내부에 존재하는 우측 숏컷 위젯을 실제 Widget Blueprint 트리에서 삭제해야 한다.
+- `.uasset` 파일은 바이너리 에셋이므로 직접 텍스트 편집하지 않고 언리얼 에디터 Python을 통해 수정하는 방식이 안전하다.
+
+### 작업 내용
+
+- `Scripts/RemoveMainWidgetShortcuts.py`를 추가했다.
+- 스크립트는 `/Game/Widget/UW_Rogue10mMainWidget`을 로드하고 다음 위젯을 찾아 제거한다.
+  - `EquipmentShortcutWidget`
+  - `ItemWindowShortcutWidget`
+  - `SkillTreeShortcutWidget`
+  - `SettingsShortcutWidget`
+  - `Box_ShortcutHints`
+  - `Box_ShortcutHintItems`
+- 제거 후 Blueprint를 컴파일하고 에셋을 저장하도록 구성했다.
+
+### 실행 방법
+
+- 언리얼 에디터에서 Python 콘솔 또는 Output Log의 Python 실행 기능을 통해 다음 스크립트를 실행한다.
+- `py D:/Project/Rogue10m/Scripts/RemoveMainWidgetShortcuts.py`
+
+### 확인 필요
+
+- 현재 Codex 세션에는 Unreal MCP/UMG Toolset 호출 도구가 직접 노출되어 있지 않아 `.uasset` 내부 삭제를 즉시 실행하지는 못했다.
+- MCP Toolset이 다시 노출되면 같은 대상 위젯을 에디터 자동화로 직접 삭제할 수 있다.
+
+### Notion 정리 후보
+
+- 캐릭터 메인 위젯의 우측 숏컷 힌트는 표시 정책에서 제외되었으며, Widget Blueprint 내부 위젯도 제거 대상이다.

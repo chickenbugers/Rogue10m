@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rogue10mCharacter.h"
+#include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -16,6 +17,7 @@
 #include "Rogue10m.h"
 #include "Rogue10mAttackSkillData.h"
 #include "Rogue10mCombatComponent.h"
+#include "Rogue10mGameplayAbility_Attack.h"
 #include "Rogue10mHUD.h"
 #include "Rogue10mInventoryComponent.h"
 #include "Rogue10mPlayerState.h"
@@ -56,6 +58,27 @@ ARogue10mCharacter::ARogue10mCharacter()
 	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
+
+	DefaultAttackGameplayAbilityClass = URogue10mGameplayAbility_Attack::StaticClass();
+}
+
+UAbilitySystemComponent* ARogue10mCharacter::GetAbilitySystemComponent() const
+{
+	const ARogue10mPlayerState* RoguePlayerState = GetPlayerState<ARogue10mPlayerState>();
+	return RoguePlayerState ? RoguePlayerState->GetAbilitySystemComponent() : nullptr;
+}
+
+void ARogue10mCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	InitializeAbilityActorInfo();
+	GrantDefaultCombatAbilities();
+}
+
+void ARogue10mCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	InitializeAbilityActorInfo();
 }
 
 void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -493,6 +516,19 @@ float ARogue10mCharacter::GetAttackCooldownDuration() const
 	return CombatComponent ? CombatComponent->GetAttackCooldownDuration() : 0.0f;
 }
 
+bool ARogue10mCharacter::ExecutePendingAttackSkillFromAbility()
+{
+	const URogue10mAttackSkillData* SkillData = PendingAbilityAttackSkill.Get();
+	if (!SkillData)
+	{
+		AddCombatScreenLog(TEXT("GAS 공격 실행 실패: 예약된 공격 Data Asset이 없습니다."), FLinearColor(1.0f, 0.35f, 0.25f, 1.0f));
+		return false;
+	}
+
+	TGuardValue<bool> AbilityExecutionGuard(bExecutingAttackFromAbility, true);
+	return ExecuteAttackSkill(*SkillData, bPendingAbilityComboAttack);
+}
+
 bool ARogue10mCharacter::IsInventoryWindowBlockingMovement() const
 {
 	const APlayerController* PlayerController = Cast<APlayerController>(GetController());
@@ -588,6 +624,11 @@ void ARogue10mCharacter::ExecuteCombatAttack(bool bPrimaryAttack, bool bChargedA
 
 	AddCombatScreenLog(ActionText, LogColor);
 	UE_LOG(LogRogue10m, Log, TEXT("%s"), *ActionText);
+	if (TryActivateAttackAbility(*SkillData, ComboSkillData != nullptr))
+	{
+		return;
+	}
+
 	ExecuteAttackSkill(*SkillData, ComboSkillData != nullptr);
 }
 
@@ -861,6 +902,72 @@ FString ARogue10mCharacter::GetAttackInputText(bool bPrimaryAttack, bool bJumpAt
 	}
 
 	return bPrimaryAttack ? TEXT("좌클릭") : TEXT("우클릭");
+}
+
+void ARogue10mCharacter::InitializeAbilityActorInfo()
+{
+	ARogue10mPlayerState* RoguePlayerState = GetPlayerState<ARogue10mPlayerState>();
+	UAbilitySystemComponent* AbilitySystemComponent = RoguePlayerState ? RoguePlayerState->GetAbilitySystemComponent() : nullptr;
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	AbilitySystemComponent->InitAbilityActorInfo(RoguePlayerState, this);
+}
+
+void ARogue10mCharacter::GrantDefaultCombatAbilities()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent();
+	if (!AbilitySystemComponent || !DefaultAttackGameplayAbilityClass)
+	{
+		return;
+	}
+
+	if (AbilitySystemComponent->FindAbilitySpecFromClass(DefaultAttackGameplayAbilityClass))
+	{
+		return;
+	}
+
+	AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(DefaultAttackGameplayAbilityClass, 1, INDEX_NONE, this));
+}
+
+bool ARogue10mCharacter::TryActivateAttackAbility(const URogue10mAttackSkillData& SkillData, bool bComboAttack)
+{
+	if (bExecutingAttackFromAbility)
+	{
+		return false;
+	}
+
+	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent();
+	TSubclassOf<UGameplayAbility> AbilityClass = SkillData.GameplayAbilityClass ? SkillData.GameplayAbilityClass : DefaultAttackGameplayAbilityClass;
+	if (!AbilitySystemComponent || !AbilityClass)
+	{
+		return false;
+	}
+
+	PendingAbilityAttackSkill = &SkillData;
+	bPendingAbilityComboAttack = bComboAttack;
+
+	if (!AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass) && HasAuthority())
+	{
+		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE, this));
+	}
+
+	const bool bActivated = AbilitySystemComponent->TryActivateAbilityByClass(AbilityClass);
+	if (!bActivated)
+	{
+		PendingAbilityAttackSkill.Reset();
+		bPendingAbilityComboAttack = false;
+		AddCombatScreenLog(FString::Printf(TEXT("%s GAS Ability 활성화 실패: 기존 공격 실행으로 전환합니다."), *SkillData.SkillName.ToString()), FLinearColor(1.0f, 0.75f, 0.35f, 1.0f));
+	}
+
+	return bActivated;
 }
 
 bool ARogue10mCharacter::ActivateQuickSlot(int32 SlotNumber)

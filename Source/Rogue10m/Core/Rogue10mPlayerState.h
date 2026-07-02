@@ -3,17 +3,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystemInterface.h"
 #include "GameFramework/PlayerState.h"
+#include "Rogue10mIdentityTypes.h"
 #include "Rogue10mWeaponTypes.h"
 #include "Rogue10mPlayerState.generated.h"
 
+class UAbilitySystemComponent;
+class URogue10mAbilitySystemComponent;
+class URogue10mAttributeSet;
+
 UCLASS()
-class ROGUE10M_API ARogue10mPlayerState : public APlayerState
+class ROGUE10M_API ARogue10mPlayerState : public APlayerState, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
 public:
 	ARogue10mPlayerState();
+
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|GAS")
+	URogue10mAbilitySystemComponent* GetRogueAbilitySystemComponent() const { return AbilitySystemComponent; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|GAS")
+	URogue10mAttributeSet* GetRogueAttributeSet() const { return AttributeSet; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Character")
 	FText GetCharacterDisplayName() const { return CharacterDisplayName; }
@@ -60,7 +74,22 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Identity")
 	float GetIdentityNormalized() const;
 
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Identity")
+	ERogue10mIdentityType GetIdentityType() const { return IdentityType; }
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Identity")
+	void SetIdentityType(ERogue10mIdentityType NewIdentityType);
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Identity")
+	bool HasIdentityResource() const { return IdentityType != ERogue10mIdentityType::None; }
+
 private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rogue10m|GAS", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<URogue10mAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rogue10m|GAS", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<URogue10mAttributeSet> AttributeSet;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character", meta=(AllowPrivateAccess="true"))
 	FText CharacterDisplayName = FText::FromString(TEXT("Rogue"));
 
@@ -87,4 +116,7 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Identity", meta=(AllowPrivateAccess="true", ClampMin="1"))
 	float IdentityMax = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Identity", meta=(AllowPrivateAccess="true"))
+	ERogue10mIdentityType IdentityType = ERogue10mIdentityType::None;
 };

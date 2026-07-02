@@ -28,7 +28,7 @@ protected:
 	TObjectPtr<URogue10mVitalBarWidget> StaminaBarWidget;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Bound Widgets")
-	TObjectPtr<URogue10mVitalBarWidget> ManaBarWidget;
+	TObjectPtr<URogue10mVitalBarWidget> IdentityBarWidget;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Bound Widgets")
 	TObjectPtr<URogue10mProgressionWidget> ProgressionWidget;
@@ -56,7 +56,7 @@ protected:
 
 	/** Widget Blueprint가 아직 비어 있을 때 런타임에서 확인 가능한 임시 HUD 골격을 만든다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|HUD|Prototype")
-	bool bCreatePrototypeLayoutWhenEmpty = true;
+	bool bCreatePrototypeLayoutWhenEmpty = false;
 
 private:
 	void AssignOwningMainHUDToBoundWidgets();

@@ -1,6 +1,6 @@
 # Harness Pipeline
 
-This project uses a lightweight harness for Unreal Engine 5.7 development.
+This project uses a lightweight harness for Unreal Engine 5.8 development.
 It is based on the role-separated pipeline described in `BaeJongHo/Unreal_Harness`, adapted for Codex and this repository.
 
 ## Purpose
@@ -61,7 +61,7 @@ Architect work is read-first and design-focused.
 
 - Inspect existing classes, modules, config, assets referenced by code, and branch context.
 - Ask questions when the request changes core design, player experience, or technical ownership.
-- Prefer UE 5.7 systems over legacy approaches.
+- Prefer UE 5.8 systems over legacy approaches.
 - Decide the C++ / Blueprint boundary.
 - Write a plan before implementation.
 

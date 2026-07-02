@@ -233,12 +233,19 @@ public:
 	bool ShouldDrawCanvasPrototypeHUD() const { return bDrawCanvasPrototypeHUD; }
 
 	const TArray<FRogue10mQuickSlotView>& GetQuickSlotsForWidget() const { return QuickSlots; }
+	TArray<FRogue10mQuickSlotView> GetWeaponSkillQuickSlotsForWidget() const;
 	const TArray<FRogue10mCombatLogEntry>& GetCombatLogEntriesForWidget() const { return CombatLogEntries; }
 	const TArray<FRogue10mItemAcquisitionEntry>& GetItemAcquisitionEntriesForWidget() const { return ItemAcquisitionEntries; }
 	float GetQuickSlotCooldownRemainingForWidget(const FRogue10mQuickSlotView& QuickSlot) const { return GetQuickSlotCooldownRemaining(QuickSlot); }
 	int32 GetVisibleSkillSlotCountForWidget() const { return GetVisibleSkillSlotCount(); }
 	ARogue10mBasicMonster* FindLookedAtMonsterForWidget() const { return FindLookedAtMonster(); }
 	FString GetWeaponTypeTextForWidget(ERogue10mWeaponType WeaponType) const { return GetWeaponTypeText(WeaponType); }
+	FLinearColor GetAimCrossLineColorForWidget() const { return AimCrossLineColor; }
+	float GetAimCrossLineLengthForWidget() const { return AimCrossLineLength; }
+	float GetAimCrossLineGapForWidget() const { return AimCrossLineGap; }
+	float GetAimCrossLineThicknessForWidget() const { return AimCrossLineThickness; }
+	float GetPlayerDamageFeedbackAlphaForWidget() const;
+	float GetPlayerDamageFeedbackStrengthForWidget() const { return PlayerDamageFeedbackStrength; }
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD")
@@ -293,7 +300,7 @@ protected:
 	bool bShowPlayerDamageFeedback = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rogue10m|HUD")
-	bool bDrawCanvasPrototypeHUD = true;
+	bool bDrawCanvasPrototypeHUD = false;
 
 private:
 	void DrawText(const FString& Text, FLinearColor TextColor, float ScreenX, float ScreenY, UFont* Font = nullptr, float Scale = 1.0f, bool bScalePosition = false);
@@ -310,7 +317,6 @@ private:
 	void DrawFloatingDamageNumbers();
 	void DrawPlayerDamageFeedback();
 	void DrawAimCrossLine();
-	void DrawPanelShortcutHints();
 	void DrawAttackCooldownSlot();
 	// 화면 6시 방향에 1~5번 퀵 슬롯 묶음을 그립니다.
 	void DrawQuickSlots();
@@ -320,6 +326,7 @@ private:
 
 	// 현재 월드 시간을 기준으로 남은 쿨타임을 계산합니다.
 	float GetQuickSlotCooldownRemaining(const FRogue10mQuickSlotView& QuickSlot) const;
+	FRogue10mQuickSlotView MakeQuickSlotViewFromAttackSkill(const URogue10mAttackSkillData& SkillData, int32 SlotNumber) const;
 	void DrawInventory();
 	void DrawItemWindow();
 	void DrawSkillTree();

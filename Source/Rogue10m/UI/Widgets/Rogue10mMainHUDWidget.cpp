@@ -6,8 +6,6 @@
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -17,6 +15,20 @@ namespace
 	const FLinearColor PrototypePanelColor(0.02f, 0.025f, 0.03f, 0.68f);
 	const FLinearColor PrototypeAccentColor(0.72f, 0.58f, 0.28f, 1.0f);
 	const FLinearColor PrototypeTextColor(0.92f, 0.90f, 0.84f, 1.0f);
+
+	FRogue10mHudVitalView MakeIdentityResourceVitalView(const FRogue10mHudIdentityView& IdentityView)
+	{
+		FRogue10mHudVitalView VitalView;
+		VitalView.Current = IdentityView.Current;
+		VitalView.Max = IdentityView.Max;
+		VitalView.Normalized = IdentityView.Normalized;
+		VitalView.Percent = IdentityView.Normalized * 100.0f;
+		VitalView.ValueText = FText::FromString(FString::Printf(TEXT("%.0f / %.0f"), IdentityView.Current, IdentityView.Max));
+		VitalView.PercentText = FText::FromString(FString::Printf(TEXT("%.0f%%"), VitalView.Percent));
+		VitalView.FillColor = FLinearColor(0.52f, 0.54f, 0.58f, 1.0f);
+		VitalView.bVisible = IdentityView.bHasIdentityResource;
+		return VitalView;
+	}
 
 	UTextBlock* CreatePrototypeText(UWidgetTree* WidgetTree, FName WidgetName, const FString& Text, float FontSize = 12.0f)
 	{
@@ -103,9 +115,11 @@ void URogue10mMainHUDWidget::RefreshBoundWidgetData()
 		StaminaBarWidget->SetVitalView(FText::FromString(TEXT("스테미나")), GetStaminaView());
 	}
 
-	if (ManaBarWidget)
+	if (IdentityBarWidget)
 	{
-		ManaBarWidget->SetVitalView(FText::FromString(TEXT("마나")), GetManaView());
+		const FRogue10mHudIdentityView IdentityView = GetIdentityView();
+		IdentityBarWidget->SetVisibility(IdentityView.bHasIdentityResource ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		IdentityBarWidget->SetVitalView(FText::FromString(TEXT("아이덴티티")), MakeIdentityResourceVitalView(IdentityView));
 	}
 
 	if (ProgressionWidget)
@@ -123,25 +137,24 @@ void URogue10mMainHUDWidget::RefreshBoundWidgetData()
 		MonsterInfoWidget->SetMonsterInfoView(GetLookedAtMonsterInfoView());
 	}
 
-	const FRogue10mHudPanelStateView PanelState = GetPanelStateView();
 	if (EquipmentShortcutWidget)
 	{
-		EquipmentShortcutWidget->SetShortcutHint(GetEquipmentShortcutText(), FText::FromString(TEXT("장비")), PanelState.bEquipmentVisible);
+		EquipmentShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (ItemWindowShortcutWidget)
 	{
-		ItemWindowShortcutWidget->SetShortcutHint(GetItemWindowShortcutText(), FText::FromString(TEXT("아이템")), PanelState.bItemWindowVisible);
+		ItemWindowShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (SkillTreeShortcutWidget)
 	{
-		SkillTreeShortcutWidget->SetShortcutHint(GetSkillTreeShortcutText(), FText::FromString(TEXT("스킬")), PanelState.bSkillTreeVisible);
+		SkillTreeShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (SettingsShortcutWidget)
 	{
-		SettingsShortcutWidget->SetShortcutHint(GetSettingsShortcutText(), FText::FromString(TEXT("설정")), PanelState.bSettingsVisible);
+		SettingsShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	BP_OnBoundWidgetDataRefreshed();
@@ -159,9 +172,9 @@ void URogue10mMainHUDWidget::AssignOwningMainHUDToBoundWidgets()
 		StaminaBarWidget->SetOwningMainHUD(this);
 	}
 
-	if (ManaBarWidget)
+	if (IdentityBarWidget)
 	{
-		ManaBarWidget->SetOwningMainHUD(this);
+		IdentityBarWidget->SetOwningMainHUD(this);
 	}
 
 	if (ProgressionWidget)
@@ -207,7 +220,7 @@ void URogue10mMainHUDWidget::EnsurePrototypeLayout()
 		return;
 	}
 
-	// Blueprint에서 대표 위젯을 직접 배치했으면 C++ 임시 골격은 만들지 않는다.
+	// Blueprint에서 이미 UI를 직접 배치했다면 C++ 임시 골격은 만들지 않는다.
 	if (HealthBarWidget || StaminaBarWidget || MonsterInfoWidget || GetWidgetFromName(TEXT("BottomHUDPanel")))
 	{
 		return;
@@ -280,26 +293,4 @@ void URogue10mMainHUDWidget::EnsurePrototypeLayout()
 		AddCanvasChild(RootCanvas, BottomPanel, FVector2D(0.5f, 1.0f), FVector2D(0.5f, 1.0f), FVector2D(0.0f, -24.0f), FVector2D(700.0f, 148.0f), FVector2D(0.5f, 1.0f));
 	}
 
-	UBorder* ShortcutPanel = CreatePrototypePanel(WidgetTree, TEXT("Box_ShortcutHints"));
-	UHorizontalBox* ShortcutBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Box_ShortcutHintItems"));
-	if (ShortcutPanel && ShortcutBox)
-	{
-		ShortcutPanel->SetContent(ShortcutBox);
-
-		const TArray<FString> ShortcutLabels = { TEXT("장비[I]"), TEXT("아이템[O]"), TEXT("스킬[K]"), TEXT("설정[Esc]") };
-		for (const FString& ShortcutLabel : ShortcutLabels)
-		{
-			UTextBlock* ShortcutText = CreatePrototypeText(WidgetTree, NAME_None, ShortcutLabel, 12.0f);
-			if (ShortcutText)
-			{
-				ShortcutText->SetColorAndOpacity(FSlateColor(PrototypeAccentColor));
-				if (UHorizontalBoxSlot* ChildSlot = ShortcutBox->AddChildToHorizontalBox(ShortcutText))
-				{
-					ChildSlot->SetPadding(FMargin(6.0f, 0.0f));
-				}
-			}
-		}
-
-		AddCanvasChild(RootCanvas, ShortcutPanel, FVector2D(1.0f, 1.0f), FVector2D(1.0f, 1.0f), FVector2D(-24.0f, -24.0f), FVector2D(280.0f, 42.0f), FVector2D(1.0f, 1.0f));
-	}
 }
