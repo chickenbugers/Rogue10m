@@ -7,6 +7,7 @@
 #include "Rogue10mAttackSkillData.generated.h"
 
 class UAnimMontage;
+class UGameplayAbility;
 class UTexture2D;
 
 UENUM(BlueprintType)
@@ -65,6 +66,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Skill")
 	ERogue10mAttackInputSlot InputSlot = ERogue10mAttackInputSlot::Primary;
+
+	/** 이 스킬 Data Asset을 실행할 GAS Ability입니다. 비어 있으면 캐릭터의 기본 공격 Ability를 사용합니다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|GAS")
+	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Combat", meta=(ClampMin="0.0"))
 	float Damage = 5.0f;

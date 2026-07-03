@@ -1,9 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rogue10mPlayerState.h"
+#include "AbilitySystemComponent.h"
+#include "Rogue10mAbilitySystemComponent.h"
+#include "Rogue10mAttributeSet.h"
 
 ARogue10mPlayerState::ARogue10mPlayerState()
 {
+	AbilitySystemComponent = CreateDefaultSubobject<URogue10mAbilitySystemComponent>(TEXT("Ability System Component"));
+	AbilitySystemComponent->SetIsReplicated(true);
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+
+	AttributeSet = CreateDefaultSubobject<URogue10mAttributeSet>(TEXT("Attribute Set"));
+}
+
+UAbilitySystemComponent* ARogue10mPlayerState::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
 }
 
 void ARogue10mPlayerState::SetEquippedWeaponType(ERogue10mWeaponType NewWeaponType)
@@ -14,6 +27,11 @@ void ARogue10mPlayerState::SetEquippedWeaponType(ERogue10mWeaponType NewWeaponTy
 void ARogue10mPlayerState::SetCharacterDead(bool bNewCharacterDead)
 {
 	bCharacterDead = bNewCharacterDead;
+}
+
+void ARogue10mPlayerState::SetIdentityType(ERogue10mIdentityType NewIdentityType)
+{
+	IdentityType = NewIdentityType;
 }
 
 float ARogue10mPlayerState::GetExperienceNormalized() const

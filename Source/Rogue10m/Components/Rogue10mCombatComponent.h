@@ -18,6 +18,7 @@ public:
 	const URogue10mAttackSkillData* ResolveAttackSkill(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
 	const URogue10mAttackSkillData* ResolveChargedAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const;
 	const URogue10mAttackSkillData* ResolveComboAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const;
+	TArray<const URogue10mAttackSkillData*> GetWeaponQuickSlotSkills() const;
 	ERogue10mAttackInputSlot GetAttackInputSlot(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
 
 	void RecordAttackPressed(bool bPrimaryAttack, float PressedTime);

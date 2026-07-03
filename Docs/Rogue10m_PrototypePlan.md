@@ -2,7 +2,7 @@
 
 ## Current Base Setup
 
-- Engine association: UE 5.7 project installed under `D:\Program Files\UE_5.7`.
+- Engine association: UE 5.8 project installed under `D:\Program Files\UE_5.8`.
 - Default map: `/Game/FirstPerson/Lvl_FirstPerson`.
 - Default game mode: `/Script/Rogue10m.Rogue10mGameMode`.
 - C++ run state: `ARogue10mGameState`.

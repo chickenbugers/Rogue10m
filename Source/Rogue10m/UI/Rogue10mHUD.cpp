@@ -19,6 +19,7 @@
 #include "Rogue10mBasicMonster.h"
 #include "Rogue10mAttackSkillData.h"
 #include "Rogue10mCharacter.h"
+#include "Rogue10mCombatComponent.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mInventoryComponent.h"
 #include "Rogue10mPlayerState.h"
@@ -105,8 +106,6 @@ void ARogue10mHUD::DrawHUD()
 
 	if (!bDrawCanvasPrototypeHUD)
 	{
-		DrawPlayerDamageFeedback();
-		DrawDraggedItem();
 		return;
 	}
 
@@ -121,7 +120,6 @@ void ARogue10mHUD::DrawHUD()
 	DrawFloatingDamageNumbers();
 	DrawAttackCooldownSlot();
 	DrawQuickSlots();
-	DrawPanelShortcutHints();
 	DrawRunResult();
 	DrawInventory();
 	DrawItemWindow();
@@ -216,6 +214,32 @@ bool ARogue10mHUD::ActivateQuickSlot(int32 SlotNumber)
 	return true;
 }
 
+TArray<FRogue10mQuickSlotView> ARogue10mHUD::GetWeaponSkillQuickSlotsForWidget() const
+{
+	TArray<FRogue10mQuickSlotView> SkillSlots;
+	const ARogue10mCharacter* RogueCharacter = GetOwningPawn() ? Cast<ARogue10mCharacter>(GetOwningPawn()) : nullptr;
+	const URogue10mCombatComponent* CombatComponent = RogueCharacter ? RogueCharacter->GetCombatComponent() : nullptr;
+	if (!CombatComponent)
+	{
+		return SkillSlots;
+	}
+
+	const TArray<const URogue10mAttackSkillData*> BoundSkills = CombatComponent->GetWeaponQuickSlotSkills();
+	int32 SlotNumber = 1;
+	for (const URogue10mAttackSkillData* SkillData : BoundSkills)
+	{
+		if (!SkillData || !IsAttackSkillUnlockedForUse(SkillData))
+		{
+			continue;
+		}
+
+		SkillSlots.Add(MakeQuickSlotViewFromAttackSkill(*SkillData, SlotNumber));
+		++SlotNumber;
+	}
+
+	return SkillSlots;
+}
+
 void ARogue10mHUD::AddCombatLogMessage(const FString& Message, const FLinearColor& Color, float Duration)
 {
 	if (!bShowCombatLog || !GetWorld())
@@ -280,6 +304,18 @@ void ARogue10mHUD::SetAllCombatDebugVisible(bool bNewVisible)
 	SetCombatLogVisible(bNewVisible);
 	SetFloatingDamageNumbersVisible(bNewVisible);
 	SetPlayerDamageFeedbackVisible(bNewVisible);
+}
+
+float ARogue10mHUD::GetPlayerDamageFeedbackAlphaForWidget() const
+{
+	const UWorld* World = GetWorld();
+	if (!bShowPlayerDamageFeedback || !World || PlayerDamageFeedbackEndTime <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	const float RemainingTime = PlayerDamageFeedbackEndTime - World->GetTimeSeconds();
+	return RemainingTime > 0.0f ? FMath::Clamp(RemainingTime / 0.35f, 0.0f, 1.0f) * PlayerDamageFeedbackStrength : 0.0f;
 }
 
 void ARogue10mHUD::NotifyPlayerDamaged(float DamageAmount)
@@ -652,57 +688,17 @@ void ARogue10mHUD::DrawAimCrossLine()
 	DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.55f), CenterX - 1.0f, CenterY - 1.0f, 2.0f, 2.0f);
 }
 
-void ARogue10mHUD::DrawPanelShortcutHints()
+void ARogue10mHUD::DrawQuickSlots()
 {
 	if (!Canvas)
 	{
 		return;
 	}
 
-	struct FMainHudButton
-	{
-		const TCHAR* Key;
-		const TCHAR* Label;
-		FLinearColor Color;
-		bool bActive;
-	};
-
-	const FVector2D ButtonSize(FMath::Clamp(Canvas->SizeX * 0.042f, 54.0f, 74.0f), FMath::Clamp(Canvas->SizeY * 0.052f, 38.0f, 52.0f));
-	const float ButtonGap = FMath::Clamp(Canvas->SizeX * 0.008f, 8.0f, 18.0f);
-	const float ButtonY = Canvas->SizeY - ButtonSize.Y - 22.0f;
-	const FMainHudButton Buttons[] =
-	{
-		{ TEXT("I"), TEXT("장비"), FLinearColor(0.92f, 0.72f, 0.35f, 1.0f), bInventoryVisible },
-		{ TEXT("B"), TEXT("인벤"), FLinearColor(0.35f, 0.92f, 0.72f, 1.0f), bItemWindowVisible },
-		{ TEXT("K"), TEXT("스킬"), FLinearColor(0.58f, 0.72f, 1.0f, 1.0f), bSkillTreeVisible },
-		{ TEXT("O"), TEXT("설정"), FLinearColor(0.72f, 0.58f, 1.0f, 1.0f), bSettingsVisible }
-	};
-	const float TotalWidth = UE_ARRAY_COUNT(Buttons) * ButtonSize.X + (UE_ARRAY_COUNT(Buttons) - 1) * ButtonGap;
-	const float StartX = Canvas->SizeX - TotalWidth - FMath::Clamp(Canvas->SizeX * 0.018f, 18.0f, 38.0f);
-
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Buttons); ++Index)
-	{
-		const FMainHudButton& Button = Buttons[Index];
-		const float ButtonX = StartX + Index * (ButtonSize.X + ButtonGap);
-		const FLinearColor FillColor = Button.bActive ? FLinearColor(0.12f, 0.18f, 0.26f, 0.94f) : FLinearColor(0.025f, 0.03f, 0.04f, 0.82f);
-
-		DrawRect(Button.Color, ButtonX - 2.0f, ButtonY - 2.0f, ButtonSize.X + 4.0f, ButtonSize.Y + 4.0f);
-		DrawRect(FillColor, ButtonX, ButtonY, ButtonSize.X, ButtonSize.Y);
-		DrawText(Button.Key, Button.Color, ButtonX + 8.0f, ButtonY + 6.0f, nullptr, 0.62f, false);
-		DrawText(Button.Label, InventoryTextColor, ButtonX + 8.0f, ButtonY + ButtonSize.Y - 20.0f, nullptr, 0.56f, false);
-	}
-}
-
-void ARogue10mHUD::DrawQuickSlots()
-{
-	if (!Canvas || QuickSlots.Num() <= 0)
-	{
-		return;
-	}
-
+	const TArray<FRogue10mQuickSlotView> SkillSlots = GetWeaponSkillQuickSlotsForWidget();
 	const float SlotSize = FMath::Clamp(Canvas->SizeY * 0.052f, 42.0f, 56.0f);
 	const float SlotGap = FMath::Max(6.0f, Canvas->SizeX * 0.004f);
-	const int32 SkillSlotCount = GetVisibleSkillSlotCount();
+	const int32 SkillSlotCount = FMath::Max(1, SkillSlots.Num());
 	const int32 ItemSlotCount = 4;
 	const float SkillGroupWidth = SkillSlotCount * SlotSize + FMath::Max(0, SkillSlotCount - 1) * SlotGap;
 	const float ItemGroupWidth = ItemSlotCount * SlotSize + FMath::Max(0, ItemSlotCount - 1) * SlotGap;
@@ -715,9 +711,9 @@ void ARogue10mHUD::DrawQuickSlots()
 	for (int32 Index = 0; Index < SkillSlotCount; ++Index)
 	{
 		const FVector2D SlotPosition(StartX + Index * (SlotSize + SlotGap), StartY);
-		if (QuickSlots.IsValidIndex(Index))
+		if (SkillSlots.IsValidIndex(Index))
 		{
-			DrawQuickSlot(QuickSlots[Index], SlotPosition, SlotSize, FString::FromInt(Index + 1));
+			DrawQuickSlot(SkillSlots[Index], SlotPosition, SlotSize, FString::FromInt(Index + 1));
 		}
 		else
 		{
@@ -780,6 +776,17 @@ float ARogue10mHUD::GetQuickSlotCooldownRemaining(const FRogue10mQuickSlotView& 
 {
 	const UWorld* World = GetWorld();
 	return World ? FMath::Max(0.0f, QuickSlot.CooldownEndTime - World->GetTimeSeconds()) : 0.0f;
+}
+
+FRogue10mQuickSlotView ARogue10mHUD::MakeQuickSlotViewFromAttackSkill(const URogue10mAttackSkillData& SkillData, int32 SlotNumber) const
+{
+	FRogue10mQuickSlotView QuickSlot;
+	QuickSlot.SlotNumber = SlotNumber;
+	QuickSlot.DisplayName = SkillData.SkillName;
+	QuickSlot.IconColor = SkillData.IconTint;
+	QuickSlot.CooldownDuration = SkillData.AttackCooldown;
+	QuickSlot.CooldownEndTime = 0.0f;
+	return QuickSlot;
 }
 
 void ARogue10mHUD::DrawAttackCooldownSlot()
@@ -2112,11 +2119,7 @@ int32 ARogue10mHUD::GetWeaponProficiencyLevel(ERogue10mWeaponType WeaponType) co
 
 int32 ARogue10mHUD::GetVisibleSkillSlotCount() const
 {
-	const ARogue10mCharacter* RogueCharacter = GetOwningPawn() ? Cast<ARogue10mCharacter>(GetOwningPawn()) : nullptr;
-	const ERogue10mWeaponType WeaponType = RogueCharacter ? RogueCharacter->GetEquippedWeaponType() : ERogue10mWeaponType::Knuckle;
-	const int32 ProficiencyLevel = GetWeaponProficiencyLevel(WeaponType);
-	const int32 BaseSlotCount = FMath::Max(3, QuickSlots.Num() - 1);
-	return FMath::Clamp(BaseSlotCount + FMath::Max(0, ProficiencyLevel - 1), 3, 8);
+	return FMath::Max(1, GetWeaponSkillQuickSlotsForWidget().Num());
 }
 
 bool ARogue10mHUD::IsAttackSkillUnlockedForUse(const URogue10mAttackSkillData* SkillData) const

@@ -26,7 +26,7 @@ public:
 protected:
 	/** Designer가 비어 있을 때 CanvasPanel 기반의 간단한 파트 미리보기 구조를 만든다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|HUD|Design")
-	bool bCreatePrototypeDesignScaffold = true;
+	bool bCreatePrototypeDesignScaffold = false;
 
 	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|HUD", meta=(DisplayName="Owning Main HUD Changed"))
 	void BP_OnOwningMainHUDChanged();

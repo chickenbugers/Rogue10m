@@ -143,7 +143,7 @@ FText URogue10mVitalBarWidget::GetPrototypeDesignTitle() const
 
 FText URogue10mVitalBarWidget::GetPrototypeDesignDescription() const
 {
-	return FText::FromString(TEXT("ProgressBar와 수치 텍스트를 배치합니다. 메인 위젯에서는 HealthBarWidget, StaminaBarWidget, ManaBarWidget 이름으로 사용합니다."));
+	return FText::FromString(TEXT("ProgressBar와 수치 텍스트를 배치합니다. 메인 위젯에서는 HealthBarWidget, StaminaBarWidget, IdentityBarWidget 이름으로 사용합니다."));
 }
 
 FVector2D URogue10mVitalBarWidget::GetPrototypeDesignSize() const
@@ -190,7 +190,7 @@ FText URogue10mIdentityWidget::GetPrototypeDesignDescription() const
 
 FVector2D URogue10mIdentityWidget::GetPrototypeDesignSize() const
 {
-	return FVector2D(260.0f, 72.0f);
+	return FVector2D(116.0f, 136.0f);
 }
 
 void URogue10mMonsterInfoWidget::SetMonsterInfoView(const FRogue10mHudMonsterInfoView& InMonsterInfoView)

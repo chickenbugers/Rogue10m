@@ -75,6 +75,34 @@ const URogue10mAttackSkillData* URogue10mCombatComponent::ResolveComboAttackSkil
 	return SourceSkill->NextComboSkill;
 }
 
+TArray<const URogue10mAttackSkillData*> URogue10mCombatComponent::GetWeaponQuickSlotSkills() const
+{
+	TArray<const URogue10mAttackSkillData*> Skills;
+
+	// 스킬 슬롯 UI는 무기에 직접 바인딩된 기본 액티브 스킬부터 보여준다.
+	if (PrimaryAttackSkill)
+	{
+		Skills.Add(PrimaryAttackSkill);
+	}
+
+	const URogue10mAttackSkillData* OptionalSkills[] =
+	{
+		SpecialAttackSkill,
+		ChargedPrimaryAttackSkill,
+		ChargedSpecialAttackSkill
+	};
+
+	for (const URogue10mAttackSkillData* SkillData : OptionalSkills)
+	{
+		if (SkillData)
+		{
+			Skills.AddUnique(SkillData);
+		}
+	}
+
+	return Skills;
+}
+
 ERogue10mAttackInputSlot URogue10mCombatComponent::GetAttackInputSlot(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
 {
 	if (bChargedAttack)

@@ -1,9 +1,10 @@
 param(
-    [string]$EngineRoot = "D:\Program Files\UE_5.7",
+    [string]$EngineRoot = "D:\Program Files\UE_5.8",
     [string]$ProjectRoot = "D:\Project\Rogue10m",
     [string]$Target = "Rogue10mEditor",
     [string]$Platform = "Win64",
     [string]$Configuration = "Development",
+    [switch]$AllowLiveCoding,
     [switch]$NoHotReload
 )
 
@@ -27,6 +28,10 @@ $Arguments = @(
     "-Project=$ProjectFile",
     "-WaitMutex"
 )
+
+if (-not $AllowLiveCoding) {
+    $Arguments += "-NoLiveCoding"
+}
 
 if ($NoHotReload) {
     $Arguments += "-NoHotReload"

@@ -1,13 +1,13 @@
 # Rogue10m Codex Harness
 
-This file defines the working rules for Codex in this Unreal Engine 5.7 project.
+This file defines the working rules for Codex in this Unreal Engine 5.8 project.
 It adapts the harness engineering ideas from `BaeJongHo/Unreal_Harness` to this repository.
 
 ## Project Facts
 
 - Project name: `Rogue10m`
-- Unreal version: UE 5.7
-- Engine root: `D:\Program Files\UE_5.7`
+- Unreal version: UE 5.8
+- Engine root: `D:\Program Files\UE_5.8`
 - Project root: `D:\Project\Rogue10m`
 - Project file: `D:\Project\Rogue10m\Rogue10m.uproject`
 - Runtime module: `Source/Rogue10m`
@@ -36,6 +36,18 @@ Codex feature work maps onto that production flow:
 
 Small typo fixes and tiny mechanical edits can skip the full pipeline, but still follow the Unreal rules below.
 
+## Lazy Codex Overlay
+
+Use the Lazy Codex overlay in `Docs/LazyCodexHarness.md` for large, vague, or multi-system work.
+In this repository, Lazy Codex means a local harness behavior, not a required external tool install.
+
+- Break large requests into Ultrawork Packets before implementation.
+- Give each packet a goal, touched area, completion condition, validation command, and rollback boundary.
+- Run the ULW loop: Scope Gate -> Breakdown -> Architect -> Implementer -> Builder -> Reviewer -> Doc Writer -> Exit Gate.
+- Route work by role instead of blending design, implementation, build fixes, review, and documentation in one pass.
+- If the same failure repeats twice, stop repeating the same implementation and return to Architect or Reviewer mode.
+- Use cost guards: inspect narrowly first, build only when relevant, and avoid binary asset churn.
+
 ## Required Per-Command Checklist
 
 Check this list on every user command before finishing:
@@ -50,6 +62,7 @@ Check this list on every user command before finishing:
 - Do not commit unless the user explicitly confirms.
 - Write every new DevLog entry in Korean.
 - Always switch to an appropriate work branch before feature development.
+- For large or unclear work, apply `Docs/LazyCodexHarness.md` and record the selected Ultrawork Packets.
 
 ## Unreal Engineering Rules
 
@@ -80,7 +93,7 @@ Editor target build:
 Project file generation after module or `.Build.cs` changes:
 
 ```powershell
-& "D:\Program Files\UE_5.7\Engine\Build\BatchFiles\Build.bat" -projectfiles -project="D:\Project\Rogue10m\Rogue10m.uproject" -game -engine
+& "D:\Program Files\UE_5.8\Engine\Build\BatchFiles\Build.bat" -projectfiles -project="D:\Project\Rogue10m\Rogue10m.uproject" -game -engine
 ```
 
 Before committing, run:
@@ -93,7 +106,7 @@ Before committing, run:
 
 - Architecture plans: `Feature/architect/YYYY-MM-DD_feature-name.md`
 - Development summaries: `Feature/doc/YYYY-MM-DD_feature-name.md`
-- Harness documentation: `Docs/HarnessPipeline.md`, `Docs/UnrealEngineeringRules.md`
+- Harness documentation: `Docs/HarnessPipeline.md`, `Docs/UnrealEngineeringRules.md`, `Docs/LazyCodexHarness.md`
 
 Create a paired feature document set:
 

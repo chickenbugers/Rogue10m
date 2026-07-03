@@ -6,10 +6,12 @@
 #include "Blueprint/UserWidget.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mInventoryComponent.h"
+#include "Rogue10mIdentityTypes.h"
 #include "Rogue10mWeaponTypes.h"
 #include "Rogue10mRunHUD.generated.h"
 
 class ARogue10mHUD;
+class UTexture2D;
 
 USTRUCT(BlueprintType)
 struct FRogue10mHudVitalView
@@ -24,6 +26,18 @@ struct FRogue10mHudVitalView
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
 	float Normalized = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float Percent = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FText ValueText;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FText PercentText;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FLinearColor FillColor = FLinearColor::White;
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
 	bool bVisible = false;
@@ -56,6 +70,30 @@ struct FRogue10mHudIdentityView
 	FText Label;
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	ERogue10mWeaponType WeaponType = ERogue10mWeaponType::Unarmed;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	ERogue10mIdentityType IdentityType = ERogue10mIdentityType::None;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	int32 MasteryLevel = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float MasteryNormalized = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FLinearColor OutlineColor = FLinearColor(0.42f, 0.42f, 0.42f, 1.0f);
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float OutlineThickness = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FText ResourceLabel;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	TSoftObjectPtr<UTexture2D> IconTexture;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
 	float Current = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
@@ -63,6 +101,9 @@ struct FRogue10mHudIdentityView
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
 	float Normalized = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	bool bHasIdentityResource = false;
 };
 
 USTRUCT(BlueprintType)
@@ -164,6 +205,117 @@ struct FRogue10mHudPanelStateView
 	bool bSettingsVisible = false;
 };
 
+USTRUCT(BlueprintType)
+struct FRogue10mHudRunTimerView
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	bool bVisible = false;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float RemainingSeconds = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float TotalSeconds = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float ProgressAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FText RemainingText;
+};
+
+USTRUCT(BlueprintType)
+struct FRogue10mHudRunResultView
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	bool bVisible = false;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	ERogue10mRunPhase RunPhase = ERogue10mRunPhase::WaitingToStart;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FText ResultText;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FText DescriptionText;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FLinearColor ResultColor = FLinearColor::White;
+};
+
+USTRUCT(BlueprintType)
+struct FRogue10mHudAimCrossLineView
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	bool bVisible = true;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FLinearColor Color = FLinearColor(0.72f, 0.92f, 1.0f, 0.86f);
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float LineLength = 16.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float Gap = 7.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float Thickness = 2.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FRogue10mHudDamageFeedbackView
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	bool bVisible = false;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float Alpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float Strength = 0.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FRogue10mHudAttackCooldownView
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	bool bVisible = false;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FText SkillName;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FText IconLabel;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	FLinearColor IconTint = FLinearColor::White;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	TObjectPtr<UTexture2D> SkillIcon = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float CooldownRemaining = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float CooldownDuration = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	float CooldownNormalized = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	bool bOnCooldown = false;
+};
+
 /**
  * Widget Blueprint용 HUD 베이스입니다.
  * 화면 배치는 Widget Blueprint에서 만들고, 이 클래스의 Getter로 C++ 게임 데이터를 읽습니다.
@@ -224,6 +376,21 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Minimap")
 	TArray<FRogue10mHudMinimapMarkerView> GetPrototypeMinimapMarkers() const;
 
+	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Run")
+	FRogue10mHudRunTimerView GetRunTimerView() const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Run")
+	FRogue10mHudRunResultView GetRunResultView() const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Aim")
+	FRogue10mHudAimCrossLineView GetAimCrossLineView() const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Combat")
+	FRogue10mHudDamageFeedbackView GetDamageFeedbackView() const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Combat")
+	FRogue10mHudAttackCooldownView GetAttackCooldownView() const;
+
 	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Shortcut")
 	FText GetEquipmentShortcutText() const { return FText::FromString(TEXT("I")); }
 
@@ -241,5 +408,5 @@ protected:
 	bool bBroadcastHudDataUpdatedEveryTick = true;
 
 private:
-	FRogue10mHudVitalView MakeVitalView(const struct FRogue10mVitalValue& Vital, bool bVisible) const;
+	FRogue10mHudVitalView MakeVitalView(const struct FRogue10mVitalValue& Vital, bool bVisible, const FLinearColor& FillColor) const;
 };

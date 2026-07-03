@@ -9,7 +9,7 @@ function Convert-ToSlug {
     param([string]$Value)
 
     $Slug = $Value.Trim().ToLowerInvariant()
-    $Slug = $Slug -replace '[^a-z0-9가-힣]+', '-'
+    $Slug = $Slug -replace '[^\p{L}\p{Nd}]+', '-'
     $Slug = $Slug.Trim('-')
 
     if ([string]::IsNullOrWhiteSpace($Slug)) {
@@ -41,6 +41,12 @@ if (-not (Test-Path $ArchitectPath)) {
 
 ## Technical Approach
 
+## Lazy Codex Ultrawork Packets
+
+| Packet | Goal | Touched Area | Completion Condition | Validation |
+| --- | --- | --- | --- | --- |
+| 1 |  |  |  |  |
+
 ## Affected Files
 
 ## C++ / Blueprint Boundary
@@ -48,6 +54,14 @@ if (-not (Test-Path $ArchitectPath)) {
 ## Implementation Steps
 
 ## Build And Validation Plan
+
+## ULW Loop Exit Gate
+
+- [ ] Scope is clear.
+- [ ] Packets are small enough to validate.
+- [ ] Build/check command is selected.
+- [ ] Review risks are listed.
+- [ ] DevLog update is planned.
 
 ## Risks And Questions
 "@ | Set-Content -Path $ArchitectPath -Encoding UTF8
@@ -59,6 +73,12 @@ if (-not (Test-Path $DocPath)) {
 
 ## Summary
 
+## Completed Ultrawork Packets
+
+| Packet | Result | Validation |
+| --- | --- | --- |
+| 1 |  |  |
+
 ## Changed Files
 
 ## Build Result
@@ -68,6 +88,14 @@ if (-not (Test-Path $DocPath)) {
 ## Editor Or Blueprint Setup
 
 ## Playtest Notes
+
+## ULW Loop Exit Gate
+
+- [ ] Requested work is implemented or documented.
+- [ ] Validation result is recorded.
+- [ ] Review result is recorded.
+- [ ] DevLog is updated in Korean.
+- [ ] Remaining risks are listed.
 "@ | Set-Content -Path $DocPath -Encoding UTF8
 }
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystemInterface.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "Rogue10mAttackSkillData.h"
@@ -13,6 +14,8 @@ class UInputComponent;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
+class UAbilitySystemComponent;
+class UGameplayAbility;
 class URogue10mCombatComponent;
 class URogue10mInventoryComponent;
 class URogue10mVitalsComponent;
@@ -24,7 +27,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
  *  A basic first person character
  */
 UCLASS(abstract)
-class ARogue10mCharacter : public ACharacter
+class ARogue10mCharacter : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
@@ -88,10 +91,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Debug")
 	bool bDrawAttackDebug = true;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|GAS")
+	TSubclassOf<UGameplayAbility> DefaultAttackGameplayAbilityClass;
+
 	float LastAttackTime = -1000.0f;
 	
 public:
 	ARogue10mCharacter();
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
@@ -224,6 +233,7 @@ public:
 	const URogue10mAttackSkillData* GetDisplayedAttackSkillForHUD() const;
 	float GetAttackCooldownRemaining() const;
 	float GetAttackCooldownDuration() const;
+	bool ExecutePendingAttackSkillFromAbility();
 
 private:
 	// 인벤토리/아이템 창이 열려 있어 캐릭터 이동을 막아야 하는지 확인합니다.
@@ -252,5 +262,12 @@ private:
 	// 숫자 키 입력을 HUD 퀵 슬롯 활성화로 전달합니다.
 	bool ActivateQuickSlot(int32 SlotNumber);
 
+	void InitializeAbilityActorInfo();
+	void GrantDefaultCombatAbilities();
+	bool TryActivateAttackAbility(const URogue10mAttackSkillData& SkillData, bool bComboAttack);
+
+	TWeakObjectPtr<const URogue10mAttackSkillData> PendingAbilityAttackSkill;
+	bool bPendingAbilityComboAttack = false;
+	bool bExecutingAttackFromAbility = false;
 };
 
