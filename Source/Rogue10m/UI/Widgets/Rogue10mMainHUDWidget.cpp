@@ -6,6 +6,7 @@
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -137,6 +138,12 @@ void URogue10mMainHUDWidget::RefreshBoundWidgetData()
 		MonsterInfoWidget->SetMonsterInfoView(GetLookedAtMonsterInfoView());
 	}
 
+	RefreshQuickSlotContainer(SkillSlotContainer, GetSkillQuickSlotViews());
+	RefreshQuickSlotContainer(ItemSlotContainer, GetItemQuickSlotViews());
+	RefreshLogContainer(SystemLogContainer, GetSystemLogEntries());
+	RefreshLogContainer(ItemAcquisitionContainer, GetItemAcquisitionEntries());
+	RefreshMinimapMarkerContainer();
+
 	if (EquipmentShortcutWidget)
 	{
 		EquipmentShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
@@ -213,6 +220,108 @@ void URogue10mMainHUDWidget::AssignOwningMainHUDToBoundWidgets()
 	}
 }
 
+void URogue10mMainHUDWidget::RefreshQuickSlotContainer(UPanelWidget* Container, const TArray<FRogue10mHudQuickSlotView>& Views)
+{
+	if (!Container || !QuickSlotWidgetClass)
+	{
+		return;
+	}
+
+	if (Container->GetChildrenCount() != Views.Num())
+	{
+		Container->ClearChildren();
+		for (const FRogue10mHudQuickSlotView& View : Views)
+		{
+			URogue10mQuickSlotWidget* SlotWidget = CreateWidget<URogue10mQuickSlotWidget>(GetOwningPlayer(), QuickSlotWidgetClass);
+			if (!SlotWidget)
+			{
+				continue;
+			}
+
+			SlotWidget->SetOwningMainHUD(this);
+			SlotWidget->SetQuickSlotView(View);
+			Container->AddChild(SlotWidget);
+		}
+		return;
+	}
+
+	for (int32 Index = 0; Index < Views.Num(); ++Index)
+	{
+		if (URogue10mQuickSlotWidget* SlotWidget = Cast<URogue10mQuickSlotWidget>(Container->GetChildAt(Index)))
+		{
+			SlotWidget->SetQuickSlotView(Views[Index]);
+		}
+	}
+}
+
+void URogue10mMainHUDWidget::RefreshLogContainer(UPanelWidget* Container, const TArray<FRogue10mHudLogEntryView>& Views)
+{
+	if (!Container || !LogLineWidgetClass)
+	{
+		return;
+	}
+
+	if (Container->GetChildrenCount() != Views.Num())
+	{
+		Container->ClearChildren();
+		for (const FRogue10mHudLogEntryView& View : Views)
+		{
+			URogue10mLogLineWidget* LogWidget = CreateWidget<URogue10mLogLineWidget>(GetOwningPlayer(), LogLineWidgetClass);
+			if (!LogWidget)
+			{
+				continue;
+			}
+
+			LogWidget->SetOwningMainHUD(this);
+			LogWidget->SetLogEntryView(View);
+			Container->AddChild(LogWidget);
+		}
+		return;
+	}
+
+	for (int32 Index = 0; Index < Views.Num(); ++Index)
+	{
+		if (URogue10mLogLineWidget* LogWidget = Cast<URogue10mLogLineWidget>(Container->GetChildAt(Index)))
+		{
+			LogWidget->SetLogEntryView(Views[Index]);
+		}
+	}
+}
+
+void URogue10mMainHUDWidget::RefreshMinimapMarkerContainer()
+{
+	if (!MinimapMarkerContainer || !MinimapMarkerWidgetClass)
+	{
+		return;
+	}
+
+	const TArray<FRogue10mHudMinimapMarkerView> Views = GetPrototypeMinimapMarkers();
+	if (MinimapMarkerContainer->GetChildrenCount() != Views.Num())
+	{
+		MinimapMarkerContainer->ClearChildren();
+		for (const FRogue10mHudMinimapMarkerView& View : Views)
+		{
+			URogue10mMinimapMarkerWidget* MarkerWidget = CreateWidget<URogue10mMinimapMarkerWidget>(GetOwningPlayer(), MinimapMarkerWidgetClass);
+			if (!MarkerWidget)
+			{
+				continue;
+			}
+
+			MarkerWidget->SetOwningMainHUD(this);
+			MarkerWidget->SetMinimapMarkerView(View);
+			MinimapMarkerContainer->AddChild(MarkerWidget);
+		}
+		return;
+	}
+
+	for (int32 Index = 0; Index < Views.Num(); ++Index)
+	{
+		if (URogue10mMinimapMarkerWidget* MarkerWidget = Cast<URogue10mMinimapMarkerWidget>(MinimapMarkerContainer->GetChildAt(Index)))
+		{
+			MarkerWidget->SetMinimapMarkerView(Views[Index]);
+		}
+	}
+}
 void URogue10mMainHUDWidget::EnsurePrototypeLayout()
 {
 	if (!bCreatePrototypeLayoutWhenEmpty || !WidgetTree)

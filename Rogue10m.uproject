@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{7B57823C-488F-907E-0534-AE9749478157}",
+	"EngineAssociation": "5.8",
 	"Category": "",
 	"Description": "First-person single-player roguelike prototype with a 20-minute run timer.",
 	"Modules": [

@@ -1,7 +1,7 @@
 import unreal
 
 
-ASSET_PATH = "/Game/DataAsset"
+ASSET_PATH = "/Game/DataAsset/AttackSkill/Unarmed"
 SOURCE_PRIMARY = f"{ASSET_PATH}/DA_Attack_Unarmed_Primary"
 
 
