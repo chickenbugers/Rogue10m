@@ -755,7 +755,14 @@ void ARogue10mHUD::DrawQuickSlot(const FRogue10mQuickSlotView& QuickSlot, const 
 
 	DrawRect(FLinearColor(0.42f, 0.46f, 0.52f, 0.88f), Position.X - 2.0f, Position.Y - 2.0f, SlotSize + 4.0f, SlotSize + 4.0f);
 	DrawRect(FLinearColor(0.025f, 0.03f, 0.04f, 0.94f), Position.X, Position.Y, SlotSize, SlotSize);
-	DrawRect(QuickSlot.IconColor, Position.X + InnerPadding, Position.Y + InnerPadding, SlotSize - InnerPadding * 2.0f, SlotSize - InnerPadding * 2.0f);
+	if (QuickSlot.SkillIcon)
+	{
+		DrawTexture(QuickSlot.SkillIcon, Position.X + InnerPadding, Position.Y + InnerPadding, SlotSize - InnerPadding * 2.0f, SlotSize - InnerPadding * 2.0f, 0.0f, 0.0f, 1.0f, 1.0f, QuickSlot.IconColor, BLEND_Translucent);
+	}
+	else
+	{
+		DrawRect(QuickSlot.IconColor, Position.X + InnerPadding, Position.Y + InnerPadding, SlotSize - InnerPadding * 2.0f, SlotSize - InnerPadding * 2.0f);
+	}
 	DrawRect(FLinearColor(1.0f, 1.0f, 1.0f, 0.14f), Position.X + InnerPadding, Position.Y + InnerPadding, SlotSize - InnerPadding * 2.0f, 3.0f);
 
 	DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.72f), Position.X + 3.0f, Position.Y + 3.0f, KeyBoxSize, KeyBoxSize);
@@ -786,6 +793,7 @@ FRogue10mQuickSlotView ARogue10mHUD::MakeQuickSlotViewFromAttackSkill(const URog
 	QuickSlot.IconColor = SkillData.IconTint;
 	QuickSlot.CooldownDuration = SkillData.AttackCooldown;
 	QuickSlot.CooldownEndTime = 0.0f;
+	QuickSlot.SkillIcon = SkillData.SkillIcon;
 	return QuickSlot;
 }
 

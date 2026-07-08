@@ -1,0 +1,32 @@
+# 2026-07-07 개발 로그
+
+## 작업: Unarmed 공격 DataAsset 폴더 이동 준비
+
+### 작업 배경
+
+- `Content/DataAsset` 루트에 있는 기본 주먹 공격 DataAsset을 무기별 공격 스킬 폴더 구조에 맞춰 `AttackSkill/Unarmed` 하위로 정리해야 한다.
+
+### 작업 내용
+
+- `Scripts/Editor/MoveUnarmedAttackDataAssets.py`를 추가했다.
+- 이동 대상은 `DA_Attack_Unarmed_*` 공격 DataAsset 8개로 정리했다.
+- 기본 공격 DataAsset 로드 경로를 새 위치 기준으로 바꾸도록 `Rogue10mCombatComponent.cpp`를 수정했다.
+- 기본 공격 연결 보조 스크립트 `AssignDefaultAttackSkillDataAssets.py`의 DataAsset 경로도 `AttackSkill/Unarmed`로 변경했다.
+
+### 진행 중 발생한 문제
+
+- Unreal Editor가 실행 중인 상태에서 에셋 이동을 시도해 원본 `.uasset` 삭제 단계가 Windows 파일 잠금으로 실패했다.
+- 현재 에디터 프로세스가 파일을 잡고 있어 에셋 이동을 완료하려면 에디터에서 `Save All` 후 종료가 필요하다.
+- 강제 종료는 저장되지 않은 작업 손실 위험이 있어 진행하지 않았다.
+
+### 다음 작업
+
+- Unreal Editor를 저장 후 종료한다.
+- `MoveUnarmedAttackDataAssets.py`를 다시 실행해 DataAsset 이동을 완료한다.
+- 이동 완료 후 원본 `Content/DataAsset/DA_Attack_Unarmed_*.uasset`가 남아 있지 않은지 확인한다.
+- 기본 공격 DataAsset 로드와 콤보 참조가 정상인지 에디터에서 확인한다.
+
+### Notion 정리 후보
+
+- 주먹 공격 DataAsset은 `Content/DataAsset/AttackSkill/Unarmed` 경로로 관리한다.
+- 향후 무기별 공격 스킬 DataAsset은 `AttackSkill/<WeaponType>` 하위 폴더에 배치한다.

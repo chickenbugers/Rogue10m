@@ -121,6 +121,9 @@ struct FRogue10mHudQuickSlotView
 	FLinearColor IconColor = FLinearColor::White;
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
+	TObjectPtr<UTexture2D> SkillIcon = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")
 	float CooldownRemaining = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD")

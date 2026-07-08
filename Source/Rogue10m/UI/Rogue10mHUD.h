@@ -46,6 +46,7 @@ class ARogue10mBasicMonster;
 struct FCompositeFont;
 class USceneCaptureComponent2D;
 class USkeletalMeshComponent;
+class UTexture2D;
 class UTextureRenderTarget2D;
 
 struct FRogue10mEquipmentSlotHitArea
@@ -80,6 +81,9 @@ struct FRogue10mQuickSlotView
 
 	// 월드 시간 기준 쿨타임 종료 시각입니다.
 	float CooldownEndTime = 0.0f;
+
+	// Data Asset에 지정한 스킬 아이콘입니다. 비어 있으면 색상 사각형으로 표시합니다.
+	UTexture2D* SkillIcon = nullptr;
 };
 
 struct FRogue10mSkillWeaponHitArea

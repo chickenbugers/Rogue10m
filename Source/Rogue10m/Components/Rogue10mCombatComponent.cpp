@@ -8,13 +8,13 @@ URogue10mCombatComponent::URogue10mCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
-	static ConstructorHelpers::FObjectFinder<URogue10mAttackSkillData> PrimaryAttackAsset(TEXT("/Game/DataAsset/DA_Attack_Unarmed_Primary"));
+	static ConstructorHelpers::FObjectFinder<URogue10mAttackSkillData> PrimaryAttackAsset(TEXT("/Game/DataAsset/AttackSkill/Unarmed/DA_Attack_Unarmed_Primary"));
 	if (PrimaryAttackAsset.Succeeded())
 	{
 		PrimaryAttackSkill = PrimaryAttackAsset.Object;
 	}
 
-	static ConstructorHelpers::FObjectFinder<URogue10mAttackSkillData> JumpPrimaryAttackAsset(TEXT("/Game/DataAsset/DA_Attack_Unarmed_JumpPrimary"));
+	static ConstructorHelpers::FObjectFinder<URogue10mAttackSkillData> JumpPrimaryAttackAsset(TEXT("/Game/DataAsset/AttackSkill/Unarmed/DA_Attack_Unarmed_JumpPrimary"));
 	if (JumpPrimaryAttackAsset.Succeeded())
 	{
 		JumpPrimaryAttackSkill = JumpPrimaryAttackAsset.Object;

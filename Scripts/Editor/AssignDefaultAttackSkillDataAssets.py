@@ -2,7 +2,7 @@ import unreal
 
 
 CHARACTER_BLUEPRINT_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
-DATA_ASSET_PATH = "/Game/DataAsset"
+DATA_ASSET_PATH = "/Game/DataAsset/AttackSkill/Unarmed"
 
 
 ATTACK_SKILL_ASSIGNMENTS = {

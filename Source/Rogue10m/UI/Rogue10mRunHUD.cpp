@@ -191,6 +191,7 @@ TArray<FRogue10mHudQuickSlotView> URogue10mRunHUD::GetSkillQuickSlotViews() cons
 		View.bUnlocked = true;
 		View.DisplayName = QuickSlot.DisplayName;
 		View.IconColor = QuickSlot.IconColor;
+		View.SkillIcon = QuickSlot.SkillIcon;
 		View.CooldownDuration = QuickSlot.CooldownDuration;
 		View.CooldownRemaining = RogueHUD->GetQuickSlotCooldownRemainingForWidget(QuickSlot);
 		View.CooldownNormalized = View.CooldownDuration > 0.0f ? FMath::Clamp(View.CooldownRemaining / View.CooldownDuration, 0.0f, 1.0f) : 0.0f;
@@ -225,6 +226,7 @@ TArray<FRogue10mHudQuickSlotView> URogue10mRunHUD::GetItemQuickSlotViews() const
 			View.SlotNumber = QuickSlot.SlotNumber;
 			View.DisplayName = QuickSlot.DisplayName;
 			View.IconColor = QuickSlot.IconColor;
+			View.SkillIcon = QuickSlot.SkillIcon;
 			View.CooldownDuration = QuickSlot.CooldownDuration;
 			View.CooldownRemaining = RogueHUD->GetQuickSlotCooldownRemainingForWidget(QuickSlot);
 			View.CooldownNormalized = View.CooldownDuration > 0.0f ? FMath::Clamp(View.CooldownRemaining / View.CooldownDuration, 0.0f, 1.0f) : 0.0f;
