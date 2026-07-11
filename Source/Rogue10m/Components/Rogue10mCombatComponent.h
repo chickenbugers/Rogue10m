@@ -14,7 +14,9 @@ struct FRogue10mActiveAttackExecution
 {
 	TWeakObjectPtr<const URogue10mAttackSkillData> SkillData;
 	TMap<TWeakObjectPtr<AActor>, int32> TargetHitCounts;
+	TArray<TWeakObjectPtr<AActor>> LockedTargets;
 	FTimerHandle TimerHandle;
+	float ProjectileTravelDistance = 0.0f;
 	int32 CompletedPulses = 0;
 };
 
@@ -69,6 +71,10 @@ private:
 	bool TryActivateAttackAbility(const URogue10mAttackSkillData& SkillData, bool bComboAttack);
 	void StartAttackHitSequence(const URogue10mAttackSkillData& SkillData);
 	void ExecuteAttackHitPulse(uint32 ExecutionId);
+	void GatherAttackTargets(const URogue10mAttackSkillData& SkillData, FRogue10mActiveAttackExecution& Execution,
+		const FVector& Origin, const FVector& Forward, const FQuat& Rotation, TArray<AActor*>& OutTargets) const;
+	bool ApplyAttackDamage(const URogue10mAttackSkillData& SkillData, FRogue10mActiveAttackExecution& Execution,
+		AActor& TargetActor, const FVector& DamageDirection, int32 PulseIndex);
 	void FinishAttackHitSequence(uint32 ExecutionId);
 	bool CanPayResourceCosts(const URogue10mAttackSkillData& SkillData) const;
 	void ConsumeResourceCosts(const URogue10mAttackSkillData& SkillData);

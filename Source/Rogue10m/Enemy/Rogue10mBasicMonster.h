@@ -12,6 +12,7 @@ class ARogue10mCharacter;
 class UAbilitySystemComponent;
 class URogue10mAbilitySystemComponent;
 class URogue10mAttributeSet;
+class URogue10mAttackSkillData;
 
 UCLASS(Blueprintable)
 class ROGUE10M_API ARogue10mBasicMonster : public ACharacter, public IAbilitySystemInterface, public IRogue10mAttackTargetInterface
@@ -69,6 +70,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Movement", meta=(ClampMin="0.0"))
 	float StopDistance = 140.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Combat")
+	TObjectPtr<URogue10mAttackSkillData> AttackSkillData;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Combat", meta=(ClampMin="0.0"))
 	float AttackRange = 170.0f;
 
@@ -85,9 +89,15 @@ private:
 	void UpdateTarget();
 	void MoveTowardTarget(float DistanceToTarget);
 	void TryAttackTarget(float DistanceToTarget);
+	void StartMonsterAttackSequence();
+	void ExecuteMonsterAttackPulse();
+	bool IsTargetInsideAttackShape(const ARogue10mCharacter& Target, const URogue10mAttackSkillData& SkillData) const;
 	void Die();
 
 	TWeakObjectPtr<ARogue10mCharacter> TargetCharacter;
 	float LastAttackTime = -1000.0f;
+	FTimerHandle AttackSequenceTimer;
+	TWeakObjectPtr<ARogue10mCharacter> LockedAttackTarget;
+	int32 CompletedAttackPulses = 0;
 	bool bIsDead = false;
 };

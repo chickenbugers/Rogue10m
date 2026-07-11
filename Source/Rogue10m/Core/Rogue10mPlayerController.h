@@ -89,7 +89,7 @@ public:
 	void AddItemAcquisitionMessage(const FString& Message, const FLinearColor& Color = FLinearColor::White, float Duration = 3.0f);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
-	void AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount);
+	void AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount, bool bCriticalHit = false);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
 	void NotifyPlayerDamaged(float DamageAmount);
@@ -180,10 +180,10 @@ private:
 	void HandleToggleCombatLog();
 	void InitializeDamageIndicatorPool();
 	URogue10mDamageIndicatorWidget* AcquireDamageIndicator();
-	void ShowDamageIndicatorAtLocation(const FVector& WorldLocation, float DamageAmount);
+	void ShowDamageIndicatorAtLocation(const FVector& WorldLocation, float DamageAmount, bool bCriticalHit);
 
 	UFUNCTION(Client, Reliable)
-	void ClientShowDamageIndicator(FVector WorldLocation, float DamageAmount);
+	void ClientShowDamageIndicator(FVector WorldLocation, float DamageAmount, bool bCriticalHit);
 
 	bool bInventoryVisible = false;
 	bool bItemWindowVisible = false;

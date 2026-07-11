@@ -16,10 +16,13 @@ class ROGUE10M_API URogue10mDamageIndicatorWidget : public UUserWidget
 
 public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|HUD|Damage Indicator")
-	void InitializeIndicator(float DamageAmount, FVector InWorldLocation, float InDuration = 1.2f);
+	void InitializeIndicator(float DamageAmount, FVector InWorldLocation, float InDuration = 1.2f, bool bIsCriticalHit = false);
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Damage Indicator")
 	float GetDisplayedDamageAmount() const { return DisplayedDamageAmount; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Damage Indicator")
+	bool IsCriticalHit() const { return bCriticalHit; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Damage Indicator")
 	bool IsAvailableForReuse() const { return !bIndicatorActive; }
@@ -36,7 +39,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional))
 	TObjectPtr<UTextBlock> DamageText;
 
-	/** false?대㈃ Widget Blueprint ?좊땲硫붿씠?섏씠 ?대룞/?ш린/?щ챸?꾨? ?꾨? ?쒖뼱?⑸땲?? */
+	/** false이면 Widget Blueprint 애니메이션이 이동, 크기, 투명도를 직접 제어합니다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator")
 	bool bUseNativeAnimation = true;
 
@@ -51,6 +54,23 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator")
 	FLinearColor HighDamageColor = FLinearColor(1.0f, 0.2f, 0.08f, 1.0f);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator|Style")
+	FLinearColor NormalDamageColor = FLinearColor::White;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator|Style")
+	FLinearColor NormalOutlineColor = FLinearColor::Black;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator|Style")
+	FLinearColor CriticalDamageColor = FLinearColor(1.0f, 0.85f, 0.05f, 1.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator|Style")
+	FLinearColor CriticalOutlineColor = FLinearColor(1.0f, 0.28f, 0.02f, 1.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator|Style", meta=(ClampMin="0", ClampMax="8"))
+	int32 NormalOutlineSize = 2;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator|Style", meta=(ClampMin="0", ClampMax="12"))
+	int32 CriticalOutlineSize = 3;
 
 	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|HUD|Damage Indicator", meta=(DisplayName="Damage Indicator Initialized"))
 	void BP_OnDamageIndicatorInitialized(float DamageAmount, float IndicatorDuration);
@@ -68,4 +88,5 @@ private:
 	float DamageScale = 1.0f;
 	float DisplayedDamageAmount = 0.0f;
 	bool bIndicatorActive = false;
+	bool bCriticalHit = false;
 };

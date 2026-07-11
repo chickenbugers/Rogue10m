@@ -8,6 +8,8 @@
 #include "Rogue10mHudWidgetParts.generated.h"
 
 class URogue10mMainHUDWidget;
+class UProgressBar;
+class UTextBlock;
 
 UCLASS(Abstract, Blueprintable)
 class ROGUE10M_API URogue10mHudPartWidget : public UUserWidget
@@ -59,6 +61,15 @@ public:
 
 protected:
 	virtual FText GetPrototypeDesignTitle() const override;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Vitals")
+	TObjectPtr<UProgressBar> UI_ValueProgressBar;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Vitals")
+	TObjectPtr<UTextBlock> UI_ValueText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Vitals")
+	TObjectPtr<UTextBlock> LabelText;
 	virtual FText GetPrototypeDesignDescription() const override;
 	virtual FVector2D GetPrototypeDesignSize() const override;
 

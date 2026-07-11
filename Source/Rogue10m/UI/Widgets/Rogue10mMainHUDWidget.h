@@ -91,4 +91,15 @@ private:
 	void RefreshQuickSlotContainer(UPanelWidget* Container, const TArray<FRogue10mHudQuickSlotView>& Views);
 	void RefreshLogContainer(UPanelWidget* Container, const TArray<FRogue10mHudLogEntryView>& Views);
 	void RefreshMinimapMarkerContainer();
+	void RefreshFrequentWidgetData();
+	void RefreshSlowWidgetData();
+
+	UPROPERTY(EditDefaultsOnly, Category="Rogue10m|HUD|Performance", meta=(ClampMin="0.02", Units="s"))
+	float FrequentRefreshInterval = 0.1f;
+
+	UPROPERTY(EditDefaultsOnly, Category="Rogue10m|HUD|Performance", meta=(ClampMin="0.05", Units="s"))
+	float SlowRefreshInterval = 0.25f;
+
+	float FrequentRefreshElapsed = 0.0f;
+	float SlowRefreshElapsed = 0.0f;
 };

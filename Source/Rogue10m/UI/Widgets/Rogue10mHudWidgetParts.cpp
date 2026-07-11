@@ -6,6 +6,7 @@
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -131,8 +132,33 @@ void URogue10mHudPartWidget::EnsurePrototypeDesignScaffold()
 
 void URogue10mVitalBarWidget::SetVitalView(FText InLabel, const FRogue10mHudVitalView& InVitalView)
 {
+	const bool bUnchanged = VitalLabel.EqualTo(InLabel)
+		&& FMath::IsNearlyEqual(VitalView.Current, InVitalView.Current)
+		&& FMath::IsNearlyEqual(VitalView.Max, InVitalView.Max)
+		&& FMath::IsNearlyEqual(VitalView.Normalized, InVitalView.Normalized)
+		&& VitalView.FillColor.Equals(InVitalView.FillColor)
+		&& VitalView.bVisible == InVitalView.bVisible;
+	if (bUnchanged)
+	{
+		return;
+	}
+
 	VitalLabel = MoveTemp(InLabel);
 	VitalView = InVitalView;
+	if (UI_ValueProgressBar)
+	{
+		UI_ValueProgressBar->SetPercent(VitalView.Normalized);
+		UI_ValueProgressBar->SetFillColorAndOpacity(VitalView.FillColor);
+	}
+	if (UI_ValueText)
+	{
+		UI_ValueText->SetText(FText::FromString(FString::Printf(
+			TEXT("%d / %d"), FMath::RoundToInt(VitalView.Current), FMath::RoundToInt(VitalView.Max))));
+	}
+	if (LabelText)
+	{
+		LabelText->SetText(VitalLabel);
+	}
 	BP_OnVitalViewChanged();
 }
 

@@ -7,6 +7,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/OverlapResult.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/DamageType.h"
 #include "Kismet/GameplayStatics.h"
@@ -397,7 +398,9 @@ void URogue10mCombatComponent::StartAttackHitSequence(const URogue10mAttackSkill
 	Execution.SkillData = &SkillData;
 	ExecuteAttackHitPulse(ExecutionId);
 
-	if (SkillData.HitCount > 1 && ActiveAttackExecutions.Contains(ExecutionId))
+	const int32 PulseCount = SkillData.HitMode == ERogue10mAttackHitMode::Single
+		? 1 : FMath::Clamp(SkillData.HitCount, 1, 64);
+	if (PulseCount > 1 && ActiveAttackExecutions.Contains(ExecutionId))
 	{
 		FTimerDelegate PulseDelegate;
 		PulseDelegate.BindUObject(this, &URogue10mCombatComponent::ExecuteAttackHitPulse, ExecutionId);
@@ -421,80 +424,200 @@ void URogue10mCombatComponent::ExecuteAttackHitPulse(uint32 ExecutionId)
 	}
 
 	++Execution->CompletedPulses;
-	const FVector TraceStart = Camera->GetComponentLocation();
-	const FVector TraceEnd = TraceStart + Camera->GetForwardVector() * SkillData->AttackRange;
+	const FVector Origin = Camera->GetComponentLocation();
+	const FVector Forward = Camera->GetForwardVector();
+	TArray<AActor*> Targets;
+
+	if (SkillData->HitMode == ERogue10mAttackHitMode::MultiHit && Execution->CompletedPulses > 1)
+	{
+		for (const TWeakObjectPtr<AActor>& LockedTarget : Execution->LockedTargets)
+		{
+			if (AActor* Target = LockedTarget.Get())
+			{
+				Targets.Add(Target);
+			}
+		}
+	}
+	else
+	{
+		GatherAttackTargets(*SkillData, *Execution, Origin, Forward, Camera->GetComponentQuat(), Targets);
+		if (SkillData->HitMode == ERogue10mAttackHitMode::MultiHit)
+		{
+			Execution->LockedTargets.Reserve(Targets.Num());
+			for (AActor* Target : Targets)
+			{
+				Execution->LockedTargets.Add(Target);
+			}
+		}
+	}
+
+	const int32 MaxTargets = FMath::Clamp(SkillData->MaxTargetsPerHit, 1, 64);
+	int32 AppliedTargetCount = 0;
+	for (AActor* Target : Targets)
+	{
+		if (Target && ApplyAttackDamage(*SkillData, *Execution, *Target, Forward, Execution->CompletedPulses))
+		{
+			if (++AppliedTargetCount >= MaxTargets)
+			{
+				break;
+			}
+		}
+	}
+
+	const int32 PulseCount = SkillData->HitMode == ERogue10mAttackHitMode::Single
+		? 1 : FMath::Clamp(SkillData->HitCount, 1, 64);
+	if (Execution->CompletedPulses >= PulseCount
+		|| (SkillData->HitMode == ERogue10mAttackHitMode::MultiHit && Execution->LockedTargets.IsEmpty()))
+	{
+		FinishAttackHitSequence(ExecutionId);
+	}
+}
+
+void URogue10mCombatComponent::GatherAttackTargets(
+	const URogue10mAttackSkillData& SkillData, FRogue10mActiveAttackExecution& Execution,
+	const FVector& Origin, const FVector& Forward, const FQuat& Rotation, TArray<AActor*>& OutTargets) const
+{
+	ARogue10mCharacter* Character = GetOwnerCharacter();
+	if (!Character || !GetWorld())
+	{
+		return;
+	}
+
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(Rogue10mAttackSkill), false, Character);
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_PhysicsBody);
 
-	TArray<FHitResult> Hits;
-	const bool bAnyHit = GetWorld()->SweepMultiByObjectType(
-		Hits, TraceStart, TraceEnd, FQuat::Identity, ObjectQueryParams,
-		FCollisionShape::MakeSphere(SkillData->AttackTraceRadius), QueryParams);
-	Hits.Sort([TraceStart](const FHitResult& Left, const FHitResult& Right)
+	TArray<FOverlapResult> Overlaps;
+	FVector QueryCenter = Origin;
+	FCollisionShape QueryShape;
+	FQuat QueryRotation = FQuat::Identity;
+
+	switch (SkillData.AttackShape)
 	{
-		return FVector::DistSquared(TraceStart, Left.ImpactPoint) < FVector::DistSquared(TraceStart, Right.ImpactPoint);
+	case ERogue10mAttackShape::LinearBox:
+		QueryCenter = Origin + Forward * (SkillData.AttackRange * 0.5f);
+		QueryShape = FCollisionShape::MakeBox(FVector(
+			SkillData.AttackRange * 0.5f, SkillData.BoxHalfWidth, SkillData.BoxHalfHeight));
+		QueryRotation = Rotation;
+		break;
+	case ERogue10mAttackShape::Projectile:
+	{
+		const int32 PulseCount = SkillData.HitMode == ERogue10mAttackHitMode::Single
+			? 1 : FMath::Clamp(SkillData.HitCount, 1, 64);
+		const float SegmentLength = SkillData.AttackRange / PulseCount;
+		QueryCenter = Origin + Forward * (Execution.ProjectileTravelDistance + SegmentLength * 0.5f);
+		Execution.ProjectileTravelDistance += SegmentLength;
+		QueryShape = FCollisionShape::MakeBox(FVector(
+			SegmentLength * 0.5f, SkillData.AttackTraceRadius, SkillData.AttackTraceRadius));
+		QueryRotation = Rotation;
+		break;
+	}
+	case ERogue10mAttackShape::Arc:
+		QueryCenter = Origin;
+		QueryShape = FCollisionShape::MakeSphere(SkillData.AttackRange);
+		break;
+	case ERogue10mAttackShape::Circle:
+		QueryCenter = Origin + Forward * SkillData.CircleForwardOffset;
+		QueryShape = FCollisionShape::MakeSphere(SkillData.AttackRange);
+		break;
+	default:
+		return;
+	}
+
+	GetWorld()->OverlapMultiByObjectType(
+		Overlaps, QueryCenter, QueryRotation, ObjectQueryParams, QueryShape, QueryParams);
+
+	TSet<TWeakObjectPtr<AActor>> UniqueActors;
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* Target = Overlap.GetActor();
+		if (!Target || Target == Character || UniqueActors.Contains(Target)
+			|| !Target->GetClass()->ImplementsInterface(URogue10mAttackTargetInterface::StaticClass())
+			|| !IRogue10mAttackTargetInterface::Execute_CanReceiveRogue10mAttack(Target, Character))
+		{
+			continue;
+		}
+
+		if (SkillData.AttackShape == ERogue10mAttackShape::Arc)
+		{
+			const FVector Direction = (Target->GetActorLocation() - Origin).GetSafeNormal();
+			const float MinimumDot = FMath::Cos(FMath::DegreesToRadians(
+				FMath::Clamp(SkillData.ArcAngleDegrees, 1.0f, 180.0f) * 0.5f));
+			if (FVector::DotProduct(Forward, Direction) < MinimumDot)
+			{
+				continue;
+			}
+		}
+
+		UniqueActors.Add(Target);
+		OutTargets.Add(Target);
+	}
+
+	OutTargets.Sort([Origin](const AActor& Left, const AActor& Right)
+	{
+		return FVector::DistSquared(Origin, Left.GetActorLocation())
+			< FVector::DistSquared(Origin, Right.GetActorLocation());
 	});
 
-	if (SkillData->bDrawDebugAttack)
+	if (SkillData.bDrawDebugAttack)
 	{
-		DrawAttackDebug(
-			TraceStart, TraceEnd, SkillData->AttackTraceRadius, SkillData->DebugColor,
-			bAnyHit, Hits.IsEmpty() ? FHitResult() : Hits[0]);
-	}
-
-	TSet<TWeakObjectPtr<AActor>> ActorsHitThisPulse;
-	const int32 MaxTargets = FMath::Clamp(SkillData->MaxTargetsPerHit, 1, 64);
-	const int32 MaxHitsPerTarget = FMath::Clamp(SkillData->MaxHitsPerTarget, 1, FMath::Max(1, SkillData->HitCount));
-	int32 AppliedTargetCount = 0;
-	for (const FHitResult& Hit : Hits)
-	{
-		AActor* HitActor = Hit.GetActor();
-		if (!HitActor || HitActor == Character || ActorsHitThisPulse.Contains(HitActor)
-			|| !HitActor->GetClass()->ImplementsInterface(URogue10mAttackTargetInterface::StaticClass()))
+		const FColor Color = SkillData.DebugColor.ToFColor(true);
+		if (SkillData.AttackShape == ERogue10mAttackShape::Arc)
 		{
-			continue;
+			DrawDebugCone(GetWorld(), Origin, Forward, SkillData.AttackRange,
+				FMath::DegreesToRadians(SkillData.ArcAngleDegrees * 0.5f),
+				FMath::DegreesToRadians(SkillData.ArcAngleDegrees * 0.5f), 24, Color, false, 1.2f);
 		}
-		ActorsHitThisPulse.Add(HitActor);
-
-		if (!IRogue10mAttackTargetInterface::Execute_CanReceiveRogue10mAttack(HitActor, Character)
-			|| Execution->TargetHitCounts.FindRef(HitActor) >= MaxHitsPerTarget)
+		else if (SkillData.AttackShape == ERogue10mAttackShape::Circle)
 		{
-			continue;
+			DrawDebugSphere(GetWorld(), QueryCenter, SkillData.AttackRange, 24, Color, false, 1.2f);
 		}
-
-		const float AppliedDamage = UGameplayStatics::ApplyPointDamage(
-			HitActor, SkillData->Damage, Camera->GetForwardVector(), Hit,
-			Character->GetController(), Character, UDamageType::StaticClass());
-		if (AppliedDamage <= 0.0f)
+		else
 		{
-			continue;
+			DrawDebugBox(GetWorld(), QueryCenter, QueryShape.GetExtent(), QueryRotation, Color, false, 1.2f);
 		}
-
-		Execution->TargetHitCounts.FindOrAdd(HitActor) += 1;
-		++AppliedTargetCount;
-		if (ARogue10mPlayerController* PlayerController = Cast<ARogue10mPlayerController>(Character->GetController()))
-		{
-			PlayerController->AddFloatingDamageNumber(HitActor, AppliedDamage);
-		}
-		UE_LOG(LogRogue10m, Verbose, TEXT("%s ?ㅻ떒?덊듃 %d/%d: %s ?쇳빐 %.1f"),
-			*SkillData->SkillName.ToString(), Execution->CompletedPulses, SkillData->HitCount,
-			*GetNameSafe(HitActor), AppliedDamage);
-
-		if (AppliedTargetCount >= MaxTargets)
-		{
-			break;
-		}
-	}
-
-	if (Execution->CompletedPulses >= FMath::Max(1, SkillData->HitCount))
-	{
-		FinishAttackHitSequence(ExecutionId);
 	}
 }
 
+bool URogue10mCombatComponent::ApplyAttackDamage(
+	const URogue10mAttackSkillData& SkillData, FRogue10mActiveAttackExecution& Execution,
+	AActor& TargetActor, const FVector& DamageDirection, int32 PulseIndex)
+{
+	ARogue10mCharacter* Character = GetOwnerCharacter();
+	if (!Character || !TargetActor.GetClass()->ImplementsInterface(URogue10mAttackTargetInterface::StaticClass())
+		|| !IRogue10mAttackTargetInterface::Execute_CanReceiveRogue10mAttack(&TargetActor, Character))
+	{
+		return false;
+	}
+
+	const int32 AllowedHits = SkillData.HitMode == ERogue10mAttackHitMode::Single
+		? 1 : FMath::Clamp(SkillData.HitCount, 1, 64);
+	if (Execution.TargetHitCounts.FindRef(&TargetActor) >= AllowedHits)
+	{
+		return false;
+	}
+
+	bool bCriticalHit = false;
+	const float RolledDamage = SkillData.RollDamage(GetOwnerAttributes(), bCriticalHit);
+	const float AppliedDamage = UGameplayStatics::ApplyDamage(
+		&TargetActor, RolledDamage, Character->GetController(), Character, UDamageType::StaticClass());
+	if (AppliedDamage <= 0.0f)
+	{
+		return false;
+	}
+
+	Execution.TargetHitCounts.FindOrAdd(&TargetActor) += 1;
+	if (ARogue10mPlayerController* PlayerController = Cast<ARogue10mPlayerController>(Character->GetController()))
+	{
+		PlayerController->AddFloatingDamageNumber(&TargetActor, AppliedDamage, bCriticalHit);
+	}
+	UE_LOG(LogRogue10m, Verbose, TEXT("%s %d타: %s 피해 %.1f%s"),
+		*SkillData.SkillName.ToString(), PulseIndex, *GetNameSafe(&TargetActor), AppliedDamage,
+		bCriticalHit ? TEXT(" (치명타)") : TEXT(""));
+	return true;
+}
 void URogue10mCombatComponent::FinishAttackHitSequence(uint32 ExecutionId)
 {
 	if (FRogue10mActiveAttackExecution* Execution = ActiveAttackExecutions.Find(ExecutionId))

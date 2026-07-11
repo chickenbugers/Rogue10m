@@ -16,7 +16,7 @@ void URogue10mDamageIndicatorWidget::NativeConstruct()
 }
 
 void URogue10mDamageIndicatorWidget::InitializeIndicator(
-	float DamageAmount, FVector InWorldLocation, float InDuration)
+	float DamageAmount, FVector InWorldLocation, float InDuration, bool bIsCriticalHit)
 {
 	EnsureNativeWidget();
 	IndicatorWorldLocation = InWorldLocation;
@@ -24,6 +24,7 @@ void URogue10mDamageIndicatorWidget::InitializeIndicator(
 	StartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	DamageScale = FMath::Clamp(FMath::Sqrt(FMath::Max(1.0f, DamageAmount) / 20.0f), 0.9f, 1.45f);
 	DisplayedDamageAmount = DamageAmount;
+	bCriticalHit = bIsCriticalHit;
 	bIndicatorActive = true;
 	SetRenderTranslation(FVector2D::ZeroVector);
 	SetRenderScale(FVector2D(1.0f, 1.0f));
@@ -33,9 +34,12 @@ void URogue10mDamageIndicatorWidget::InitializeIndicator(
 	if (DamageText)
 	{
 		DamageText->SetText(FText::AsNumber(FMath::RoundToInt(DamageAmount)));
-		const float ColorAlpha = FMath::Clamp(DamageAmount / 100.0f, 0.0f, 1.0f);
-		DamageText->SetColorAndOpacity(FSlateColor(FLinearColor::LerpUsingHSV(
-			LowDamageColor, HighDamageColor, ColorAlpha)));
+		DamageText->SetColorAndOpacity(FSlateColor(
+			bCriticalHit ? CriticalDamageColor : NormalDamageColor));
+		FSlateFontInfo Font = DamageText->GetFont();
+		Font.OutlineSettings.OutlineSize = bCriticalHit ? CriticalOutlineSize : NormalOutlineSize;
+		Font.OutlineSettings.OutlineColor = bCriticalHit ? CriticalOutlineColor : NormalOutlineColor;
+		DamageText->SetFont(Font);
 	}
 	BP_OnDamageIndicatorInitialized(DamageAmount, Duration);
 }

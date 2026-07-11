@@ -86,7 +86,7 @@ FRogue10mHudVitalView URogue10mRunHUD::GetStaminaView() const
 	const ARogue10mPlayerState* State = GetOwningPlayer() ? GetOwningPlayer()->GetPlayerState<ARogue10mPlayerState>() : nullptr;
 	const URogue10mAttributeSet* Attributes = State ? State->GetRogueAttributeSet() : nullptr;
 	return Attributes
-		? MakeVitalView(Attributes->GetStamina(), Attributes->GetMaxStamina(), true, FLinearColor(0.15f, 0.42f, 1.0f, 1.0f))
+		? MakeVitalView(Attributes->GetStamina(), Attributes->GetMaxStamina(), true, FLinearColor(1.0f, 0.82f, 0.08f, 1.0f))
 		: FRogue10mHudVitalView();
 }
 

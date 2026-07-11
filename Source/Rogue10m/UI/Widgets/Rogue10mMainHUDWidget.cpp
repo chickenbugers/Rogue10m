@@ -93,80 +93,93 @@ void URogue10mMainHUDWidget::NativeOnInitialized()
 void URogue10mMainHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
 	EnsurePrototypeLayout();
+
+	const TArray<URogue10mShortcutHintWidget*> HiddenShortcuts =
+	{
+		EquipmentShortcutWidget, ItemWindowShortcutWidget, SkillTreeShortcutWidget, SettingsShortcutWidget
+	};
+	for (URogue10mShortcutHintWidget* ShortcutWidget : HiddenShortcuts)
+	{
+		if (ShortcutWidget)
+		{
+			ShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
 }
 
 void URogue10mMainHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
-	RefreshBoundWidgetData();
-
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	FrequentRefreshElapsed += InDeltaTime;
+	SlowRefreshElapsed += InDeltaTime;
+	if (FrequentRefreshElapsed >= FrequentRefreshInterval)
+	{
+		FrequentRefreshElapsed = FMath::Fmod(FrequentRefreshElapsed, FrequentRefreshInterval);
+		RefreshFrequentWidgetData();
+	}
+	if (SlowRefreshElapsed >= SlowRefreshInterval)
+	{
+		SlowRefreshElapsed = FMath::Fmod(SlowRefreshElapsed, SlowRefreshInterval);
+		RefreshSlowWidgetData();
+	}
 }
 
 void URogue10mMainHUDWidget::RefreshBoundWidgetData()
 {
+	RefreshFrequentWidgetData();
+	RefreshSlowWidgetData();
+}
+
+void URogue10mMainHUDWidget::RefreshFrequentWidgetData()
+{
+	static const FText HealthLabel = NSLOCTEXT("Rogue10mHUD", "HealthLabel", "체력");
+	static const FText StaminaLabel = NSLOCTEXT("Rogue10mHUD", "StaminaLabel", "스테미나");
+	static const FText IdentityLabel = NSLOCTEXT("Rogue10mHUD", "IdentityLabel", "아이덴티티");
+
 	if (HealthBarWidget)
 	{
-		HealthBarWidget->SetVitalView(FText::FromString(TEXT("체력")), GetHealthView());
+		HealthBarWidget->SetVitalView(HealthLabel, GetHealthView());
 	}
-
 	if (StaminaBarWidget)
 	{
-		StaminaBarWidget->SetVitalView(FText::FromString(TEXT("스테미나")), GetStaminaView());
+		StaminaBarWidget->SetVitalView(StaminaLabel, GetStaminaView());
 	}
-
 	if (IdentityBarWidget)
 	{
 		const FRogue10mHudIdentityView IdentityView = GetIdentityView();
-		IdentityBarWidget->SetVisibility(IdentityView.bHasIdentityResource ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-		IdentityBarWidget->SetVitalView(FText::FromString(TEXT("아이덴티티")), MakeIdentityResourceVitalView(IdentityView));
+		const ESlateVisibility DesiredVisibility = IdentityView.bHasIdentityResource
+			? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+		if (IdentityBarWidget->GetVisibility() != DesiredVisibility)
+		{
+			IdentityBarWidget->SetVisibility(DesiredVisibility);
+		}
+		IdentityBarWidget->SetVitalView(IdentityLabel, MakeIdentityResourceVitalView(IdentityView));
 	}
-
 	if (ProgressionWidget)
 	{
 		ProgressionWidget->SetProgressionView(GetProgressionView());
 	}
-
 	if (IdentityWidget)
 	{
 		IdentityWidget->SetIdentityView(GetIdentityView());
 	}
-
 	if (MonsterInfoWidget)
 	{
 		MonsterInfoWidget->SetMonsterInfoView(GetLookedAtMonsterInfoView());
 	}
+	RefreshMinimapMarkerContainer();
+	BP_OnBoundWidgetDataRefreshed();
+}
 
+void URogue10mMainHUDWidget::RefreshSlowWidgetData()
+{
 	RefreshQuickSlotContainer(SkillSlotContainer, GetSkillQuickSlotViews());
 	RefreshQuickSlotContainer(ItemSlotContainer, GetItemQuickSlotViews());
 	RefreshLogContainer(SystemLogContainer, GetSystemLogEntries());
 	RefreshLogContainer(ItemAcquisitionContainer, GetItemAcquisitionEntries());
-	RefreshMinimapMarkerContainer();
-
-	if (EquipmentShortcutWidget)
-	{
-		EquipmentShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	if (ItemWindowShortcutWidget)
-	{
-		ItemWindowShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	if (SkillTreeShortcutWidget)
-	{
-		SkillTreeShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	if (SettingsShortcutWidget)
-	{
-		SettingsShortcutWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	BP_OnBoundWidgetDataRefreshed();
 }
-
 void URogue10mMainHUDWidget::AssignOwningMainHUDToBoundWidgets()
 {
 	if (HealthBarWidget)
@@ -227,24 +240,20 @@ void URogue10mMainHUDWidget::RefreshQuickSlotContainer(UPanelWidget* Container, 
 		return;
 	}
 
-	if (Container->GetChildrenCount() != Views.Num())
+	while (Container->GetChildrenCount() > Views.Num())
 	{
-		Container->ClearChildren();
-		for (const FRogue10mHudQuickSlotView& View : Views)
-		{
-			URogue10mQuickSlotWidget* SlotWidget = CreateWidget<URogue10mQuickSlotWidget>(GetOwningPlayer(), QuickSlotWidgetClass);
-			if (!SlotWidget)
-			{
-				continue;
-			}
-
-			SlotWidget->SetOwningMainHUD(this);
-			SlotWidget->SetQuickSlotView(View);
-			Container->AddChild(SlotWidget);
-		}
-		return;
+		Container->RemoveChildAt(Container->GetChildrenCount() - 1);
 	}
-
+	while (Container->GetChildrenCount() < Views.Num())
+	{
+		URogue10mQuickSlotWidget* SlotWidget = CreateWidget<URogue10mQuickSlotWidget>(GetOwningPlayer(), QuickSlotWidgetClass);
+		if (!SlotWidget)
+		{
+			break;
+		}
+		SlotWidget->SetOwningMainHUD(this);
+		Container->AddChild(SlotWidget);
+	}
 	for (int32 Index = 0; Index < Views.Num(); ++Index)
 	{
 		if (URogue10mQuickSlotWidget* SlotWidget = Cast<URogue10mQuickSlotWidget>(Container->GetChildAt(Index)))
@@ -253,7 +262,6 @@ void URogue10mMainHUDWidget::RefreshQuickSlotContainer(UPanelWidget* Container, 
 		}
 	}
 }
-
 void URogue10mMainHUDWidget::RefreshLogContainer(UPanelWidget* Container, const TArray<FRogue10mHudLogEntryView>& Views)
 {
 	if (!Container || !LogLineWidgetClass)
@@ -261,24 +269,20 @@ void URogue10mMainHUDWidget::RefreshLogContainer(UPanelWidget* Container, const 
 		return;
 	}
 
-	if (Container->GetChildrenCount() != Views.Num())
+	while (Container->GetChildrenCount() > Views.Num())
 	{
-		Container->ClearChildren();
-		for (const FRogue10mHudLogEntryView& View : Views)
-		{
-			URogue10mLogLineWidget* LogWidget = CreateWidget<URogue10mLogLineWidget>(GetOwningPlayer(), LogLineWidgetClass);
-			if (!LogWidget)
-			{
-				continue;
-			}
-
-			LogWidget->SetOwningMainHUD(this);
-			LogWidget->SetLogEntryView(View);
-			Container->AddChild(LogWidget);
-		}
-		return;
+		Container->RemoveChildAt(Container->GetChildrenCount() - 1);
 	}
-
+	while (Container->GetChildrenCount() < Views.Num())
+	{
+		URogue10mLogLineWidget* LogWidget = CreateWidget<URogue10mLogLineWidget>(GetOwningPlayer(), LogLineWidgetClass);
+		if (!LogWidget)
+		{
+			break;
+		}
+		LogWidget->SetOwningMainHUD(this);
+		Container->AddChild(LogWidget);
+	}
 	for (int32 Index = 0; Index < Views.Num(); ++Index)
 	{
 		if (URogue10mLogLineWidget* LogWidget = Cast<URogue10mLogLineWidget>(Container->GetChildAt(Index)))
@@ -287,7 +291,6 @@ void URogue10mMainHUDWidget::RefreshLogContainer(UPanelWidget* Container, const 
 		}
 	}
 }
-
 void URogue10mMainHUDWidget::RefreshMinimapMarkerContainer()
 {
 	if (!MinimapMarkerContainer || !MinimapMarkerWidgetClass)

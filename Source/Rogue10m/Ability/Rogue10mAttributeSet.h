@@ -87,10 +87,28 @@ public:
 	FGameplayAttributeData ExperienceToNextLevel;
 	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, ExperienceToNextLevel);
 
-	/** 1.0??湲곕낯 ?ъ깮 ?띾룄?대ŉ 怨듦꺽 紐쏀?二? 肄ㅻ낫 李? 怨듦꺽 荑⑤떎?댁뿉 ?④퍡 ?곸슜?⑸땲?? */
+	/** 기본값은 1.0이며 공격 몽타주, 콤보 창, 공격 재사용 대기시간에 함께 적용됩니다. */
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_AttackSpeedMultiplier, Category="Rogue10m|Attributes|Combat")
 	FGameplayAttributeData AttackSpeedMultiplier;
 	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, AttackSpeedMultiplier);
+	/** 기본 최소 피해 비율입니다. 0.9는 기본 피해의 90%를 의미합니다. */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_MinDamageRatio, Category="Rogue10m|Attributes|Combat")
+	FGameplayAttributeData MinDamageRatio;
+	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, MinDamageRatio);
+
+	/** 기본 최대 피해 비율입니다. 1.1은 기본 피해의 110%를 의미합니다. */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_MaxDamageRatio, Category="Rogue10m|Attributes|Combat")
+	FGameplayAttributeData MaxDamageRatio;
+	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, MaxDamageRatio);
+	/** 0.0~1.0 범위의 치명타 확률입니다. 기본값은 0%입니다. */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_CriticalChance, Category="Rogue10m|Attributes|Combat")
+	FGameplayAttributeData CriticalChance;
+	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, CriticalChance);
+
+	/** 치명타 발생 시 최종 피해 배율입니다. 기본값은 1.5(150%)입니다. */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_CriticalDamageMultiplier, Category="Rogue10m|Attributes|Combat")
+	FGameplayAttributeData CriticalDamageMultiplier;
+	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, CriticalDamageMultiplier);
 
 protected:
 	UFUNCTION() void OnRep_Health(const FGameplayAttributeData& OldValue);
@@ -105,4 +123,8 @@ protected:
 	UFUNCTION() void OnRep_Experience(const FGameplayAttributeData& OldValue);
 	UFUNCTION() void OnRep_ExperienceToNextLevel(const FGameplayAttributeData& OldValue);
 	UFUNCTION() void OnRep_AttackSpeedMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_MinDamageRatio(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_MaxDamageRatio(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_CriticalChance(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_CriticalDamageMultiplier(const FGameplayAttributeData& OldValue);
 };

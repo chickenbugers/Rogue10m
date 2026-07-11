@@ -19,11 +19,18 @@
 #include "Rogue10mRunHUD.h"
 #include "Widgets/Rogue10mDamageIndicatorWidget.h"
 #include "Widgets/Input/SVirtualJoystick.h"
+#include "UObject/ConstructorHelpers.h"
 
 ARogue10mPlayerController::ARogue10mPlayerController()
 {
 	PlayerCameraManagerClass = ARogue10mCameraManager::StaticClass();
+	static ConstructorHelpers::FClassFinder<URogue10mDamageIndicatorWidget> DamageIndicatorWidgetFinder(
+		TEXT("/Game/Widget/Damage/WBP_DamageIndicator"));
 	DamageIndicatorWidgetClass = URogue10mDamageIndicatorWidget::StaticClass();
+	if (DamageIndicatorWidgetFinder.Succeeded())
+	{
+		DamageIndicatorWidgetClass = DamageIndicatorWidgetFinder.Class;
+	}
 	DefaultRunHUDClass = TSoftClassPtr<URogue10mRunHUD>(
 		FSoftClassPath(TEXT("/Game/Widget/UW_Rogue10mMainWidget.UW_Rogue10mMainWidget_C")));
 }
@@ -190,7 +197,7 @@ void ARogue10mPlayerController::AddItemAcquisitionMessage(const FString& Message
 	}
 }
 
-void ARogue10mPlayerController::AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount)
+void ARogue10mPlayerController::AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount, bool bCriticalHit)
 {
 	AActor* AttackSource = GetPawn();
 	if (!TargetActor || !AttackSource || TargetActor == AttackSource || !GetWorld() || DamageAmount <= 0.0f
@@ -209,7 +216,7 @@ void ARogue10mPlayerController::AddFloatingDamageNumber(AActor* TargetActor, flo
 
 	if (HasAuthority() && !IsLocalPlayerController())
 	{
-		ClientShowDamageIndicator(IndicatorLocation, DamageAmount);
+		ClientShowDamageIndicator(IndicatorLocation, DamageAmount, bCriticalHit);
 		return;
 	}
 	if (!IsLocalPlayerController())
@@ -233,13 +240,13 @@ void ARogue10mPlayerController::AddFloatingDamageNumber(AActor* TargetActor, flo
 	Entry.StartTime = CurrentTime;
 	Entry.ExpireTime = CurrentTime + DamageIndicatorDuration;
 	FloatingDamageEntries.Add(Entry);
-	ShowDamageIndicatorAtLocation(IndicatorLocation, DamageAmount);
+	ShowDamageIndicatorAtLocation(IndicatorLocation, DamageAmount, bCriticalHit);
 }
 
 void ARogue10mPlayerController::ClientShowDamageIndicator_Implementation(
-	FVector WorldLocation, float DamageAmount)
+	FVector WorldLocation, float DamageAmount, bool bCriticalHit)
 {
-	ShowDamageIndicatorAtLocation(WorldLocation, DamageAmount);
+	ShowDamageIndicatorAtLocation(WorldLocation, DamageAmount, bCriticalHit);
 }
 
 void ARogue10mPlayerController::InitializeDamageIndicatorPool()
@@ -305,7 +312,7 @@ URogue10mDamageIndicatorWidget* ARogue10mPlayerController::AcquireDamageIndicato
 }
 
 void ARogue10mPlayerController::ShowDamageIndicatorAtLocation(
-	const FVector& WorldLocation, float DamageAmount)
+	const FVector& WorldLocation, float DamageAmount, bool bCriticalHit)
 {
 	if (!IsLocalPlayerController() || !GetWorld() || !DamageIndicatorWidgetClass || DamageAmount <= 0.0f)
 	{
@@ -314,7 +321,7 @@ void ARogue10mPlayerController::ShowDamageIndicatorAtLocation(
 
 	if (URogue10mDamageIndicatorWidget* IndicatorWidget = AcquireDamageIndicator())
 	{
-		IndicatorWidget->InitializeIndicator(DamageAmount, WorldLocation, DamageIndicatorDuration);
+		IndicatorWidget->InitializeIndicator(DamageAmount, WorldLocation, DamageIndicatorDuration, bCriticalHit);
 	}
 }
 

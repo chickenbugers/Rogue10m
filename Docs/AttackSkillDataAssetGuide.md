@@ -173,3 +173,69 @@ HUD는 화면 6시 방향 퀵 슬롯 위에 현재 공격 정보를 표시한다
 - 실제 피해 타이밍은 이후 Animation Montage Notify로 옮기는 것이 좋다.
 - 무기 타입별로 Data Asset을 나눠 장비 무기와 연결한다.
 - `Attack Effect`는 추후 Niagara 모듈 연결 후 공격 위치 또는 명중 위치에 스폰한다.
+
+## 공격 형태와 피해 방식 설정
+
+`Attack Shape`과 `Hit Mode`는 독립적으로 선택한다.
+
+- 직선 박스: `Attack Range`, `Box Half Width`, `Box Half Height`
+- 투사체 경로: `Attack Range`, `Attack Trace Radius`, `Hit Count`
+- 부채꼴: `Attack Range`, `Arc Angle Degrees`
+- 원형: `Attack Range`, `Circle Forward Offset`
+
+피해 방식별 `Hit Count` 의미:
+
+- 단타: 항상 1회이며 `Hit Count`를 사용하지 않는다.
+- 연속 공격: 공간을 다시 검사할 횟수
+- 적중 후 다단히트: 최초 적중 대상에게 피해를 적용할 횟수
+
+`Hit Interval`은 연속 공격과 다단히트의 피해 간격이다. 플레이어 공격에서는 공격속도 배율에 따라 짧아진다.
+
+몬스터는 `BP_BaseMonster`의 `Attack Skill Data`에 같은 Data Asset을 지정한다. 비워 두면 기존 몬스터 단타 설정을 사용한다.
+
+## 최소·최대 피해 범위
+
+모든 공격자는 AttributeSet에서 다음 비율을 가진다.
+
+- `MinDamageRatio`: 기본값 `0.9`
+- `MaxDamageRatio`: 기본값 `1.1`
+
+스킬은 캐릭터 비율을 기본으로 사용하며 다음 값으로 추가 보정한다.
+
+- `MinDamageRatioMultiplier`: 기본값 `1.0`
+- `MaxDamageRatioMultiplier`: 기본값 `1.0`
+
+최종 계산식:
+
+```text
+최종 최소 비율 = 캐릭터 최소 비율 × 스킬 최소 보정
+최종 최대 비율 = 캐릭터 최대 비율 × 스킬 최대 보정
+최종 피해 = 스킬 기본 피해 × Random(최종 최소 비율, 최종 최대 비율)
+```
+
+최소·최대 결과가 역전되면 자동으로 정렬하며 음수 비율은 0으로 제한한다. 연속 공격과 다단히트는 각 타수마다 피해량을 독립적으로 계산한다.
+
+예시: 기본 피해가 100이고 캐릭터 범위가 90~110%, 스킬 보정이 80~120%이면 최종 피해 범위는 72~132이다.
+
+## 치명타
+
+캐릭터 Attribute 기본값:
+
+- `CriticalChance`: `0.0` — 기본 치명타 확률 0%
+- `CriticalDamageMultiplier`: `1.5` — 치명타 피해 150%
+
+스킬 Data Asset 보정:
+
+- `CriticalChanceBonus`: 캐릭터 치명타 확률에 더하는 값. `0.1`은 10%p 증가
+- `CriticalDamageMultiplierBonus`: 캐릭터 치명타 피해 배율에 더하는 값. `0.2`는 150%를 170%로 변경
+
+피해 범위 랜덤 계산 후 치명타를 판정하며, 치명타가 발생하면 계산된 피해에 최종 치명타 배율을 곱한다. 연속 공격과 다단히트는 각 타수마다 독립적으로 치명타를 판정한다.
+
+### 장비·패시브·액티브 연결
+
+- 장비: 장착 중 Infinite Gameplay Effect로 치명타 Attribute 변경
+- 패시브: 패시브 습득 시 Infinite Gameplay Effect 적용, 스킬 제거 시 Effect 해제
+- 액티브 버프·디버프: Duration Gameplay Effect로 일시 증가 또는 감소
+- 개별 공격 스킬: Data Asset의 치명타 보너스 필드 사용
+
+치명타 확률은 최종적으로 0~100%로 제한한다. 치명타 피해 배율은 음수가 되지 않도록 제한한다.

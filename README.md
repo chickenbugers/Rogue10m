@@ -1,151 +1,141 @@
 # Rogue10m
 
-Unreal Engine 5.7 기반 1인칭 싱글 플레이 로그라이크 프로토타입입니다.
-
-플레이어는 시작맵에서 NPC를 통해 아이템, 특성, 난이도, 스토리 정보를 확인한 뒤 포탈을 통해 플레이맵으로 진입합니다. 플레이맵에 들어가면 20분 런 타이머가 시작되고, 제한 시간 안에 보스를 처치하는 것을 목표로 합니다.
+`Rogue10m`은 Unreal Engine 5.8로 개발 중인 1인칭 싱글 플레이 로그라이크 액션 프로토타입입니다. 플레이어는 준비 허브에서 아이템·특성·난이도·스토리 정보를 확인한 뒤 전투 맵에 진입하고, 제한 시간 20분 안에 보스를 처치하는 것을 목표로 합니다.
 
 ## 프로젝트 개요
 
-- 엔진: Unreal Engine 5.7
-- 장르: 1인칭 싱글 플레이 로그라이크
-- 핵심 목표: 20분 안에 보스 처치
-- 기본 상태: 무기 없이 시작하며 맨손 공격 가능
-- 무기 타입: 권, 단검, 대검, 쌍검, 활, 지팡이
-- 성장 방향: 무기 타입별 숙련도, 스킬, 아이템, 보스 보상
-- 커스터마이징: 외형 전용, 스탯 영향 없음
+| 항목 | 내용 |
+|---|---|
+| 엔진 | Unreal Engine 5.8 |
+| 장르 | 1인칭 싱글 플레이 로그라이크 액션 |
+| 런타임 모듈 | `Source/Rogue10m` |
+| 핵심 목표 | 20분 안에 보스 처치 |
+| 기본 전투 | 무기 없이 시작하는 맨손 공격 |
+| 데이터 설계 | 공격·스킬·밸런스 값을 Data Asset으로 구성 |
+| 상태 시스템 | Gameplay Ability System 기반 Attribute 관리 |
+
+## 게임 흐름
+
+1. 시작 허브에서 NPC를 통해 아이템, 특성, 난이도, 스토리를 확인합니다.
+2. `ARogue10mRunPortal`을 통해 전투 맵으로 이동합니다.
+3. 전투 맵 진입 시 20분 런 타이머가 시작됩니다.
+4. 적을 처치하고 장비와 스킬을 성장시키며 보스를 준비합니다.
+5. 제한 시간 안에 보스를 처치하면 런에 성공합니다.
+
+권장 맵 에셋:
+
+- 시작 허브: `Content/Rogue10m/Maps/StartHub.umap`
+- 전투 맵: `Content/Rogue10m/Maps/OpenRunMap.umap`
 
 ## 현재 구현된 주요 기능
 
-### 캐릭터와 전투
+### 플레이어 전투
 
-- `BP_FirstPersonCharacter` 기반 1인칭 캐릭터
-- WASD 이동, 점프, 마우스 시점 조작
-- 좌클릭/우클릭 공격 입력
-- 점프 공격, 차징 공격 입력 구분
-- 공격 판정 디버그 표시
-  - 공격 방향 선
-  - 공격 범위 구체
-  - 명중 지점 표시
-- 플레이어 피격 시 화면 피드백
-- 몬스터 피격 시 피해 숫자 표시
+- 좌클릭·우클릭, 점프 공격, 차징 공격 입력 구분
+- Data Asset 기반 공격 정의와 콤보 연결
+- 공격 범위와 명중 결과 디버그 표시
+- 플레이어와 몬스터가 공통 공격 데이터 구조 사용
+- 별도 Projectile Actor나 매 프레임 Tick을 추가하지 않는 타이머 기반 처리
 
-### 공격 스킬 Data Asset
+### 공격 형태와 히트 모드
 
-공격 설정은 `URogue10mAttackSkillData` Data Asset으로 관리합니다.
+`URogue10mAttackSkillData`에서 공격 공간 형태와 피해 적용 방식을 독립적으로 조합합니다.
 
-설정 가능한 값:
+- 공격 형태: `LinearBox`, `Projectile`, `Arc`, `Circle`
+- 히트 모드: `Single`, `Continuous`, `MultiHit`
 
-- 스킬 이름과 설명
-- 입력 슬롯
-- 데미지
-- 공격 범위
-- 공격 판정 반지름
-- 쿨타임
-- 차징 시간
-- 공격 Montage
-- 공격 이펙트
-- 디버그 색상
+### 피해 범위와 치명타
 
-Data Asset이 지정되지 않은 공격 입력은 잠긴 것으로 처리됩니다.
+- 기본 피해 변동 범위: 90~110%
+- 공격 Data Asset에서 최소·최대 피해 비율 추가 보정
+- 기본 치명타 확률 0%, 기본 치명타 피해 배율 150%
+- 장비, 패시브, 버프·디버프는 GAS Attribute로 확장 가능
+- 연속 공격과 다단 히트는 각 타격마다 피해와 치명타를 독립 판정
 
-관련 문서:
+### 전투 피드백
 
-- `Docs/AttackSkillDataAssetGuide.md`
-
-Data Asset 기준 위치:
-
-- `Content/DataAsset`
-- 공격 스킬 권장 위치: `Content/DataAsset/AttackSkill`
-
-### 인벤토리와 장비창
-
-- 아이템 창과 장비창 분리
-- 드래그 앤 드롭 이동
-- 우클릭 장착
-- 장비창에서 우클릭 해제
-- 아이템 hover 툴팁
-- 한국어 아이템 이름과 설명
-- 장비 슬롯 구조
-  - 왼쪽: 주무기, 머리, 갑옷, 신발
-  - 오른쪽: 보조무기, 반지, 귀걸이
+- 화면 로그와 피격 피드백
+- 몬스터 피격 시 월드 위치 기반 데미지 숫자 표시
+- 일반 피해는 흰색/검은 외곽선, 치명타는 노란색/주황 외곽선
+- 데미지 인디케이터 위젯 풀링으로 반복 생성 비용 절감
 
 ### HUD와 UI
 
-- 체력, 스테미나 기본 표시
-- 마나는 활성화 변수에 따라 표시
-- 캐릭터 정보 패널
-- 1번부터 5번까지 퀵 슬롯
-- 스킬트리 창
-- 설정 패널
-  - 음량
-  - X/Y 감도
-  - 60/120/140 FPS 제한
-- 런 시작 전에는 20분 타이머 UI 숨김
-- 플레이맵 진입 후 런 타이머 표시
+- 체력 ProgressBar는 빨간색, 스태미나 ProgressBar는 노란색
+- 체력·스태미나 텍스트는 정수 `현재 스탯 / 최대 스탯` 형식
+- 동일한 Vital 값은 다시 적용하지 않는 캐시 기반 갱신
+- 주요 HUD는 0.1초, 슬롯·로그는 0.25초 간격으로 분리 갱신
+- 슬롯과 로그는 전체 재생성 대신 증분 추가·제거
+- 장비창, 아이템창, 스킬 트리, 설정 UI 골격
+- 런 타이머와 몬스터 정보 표시
 
-### 맵 구조와 포탈
+### 성장과 장비 방향
 
-- 시작맵: NPC와 준비 시스템이 있는 허브
-- 플레이맵: 20분 제한 로그라이크 전투 맵
-- `ARogue10mRunPortal`로 시작맵에서 플레이맵 이동
-- 포탈 이동 시 `StartRun=1` 옵션을 전달해 플레이맵에서 타이머 시작
+- 무기 종류: 권갑, 단검, 대검, 쌍검, 활, 지팡이
+- 무기 종류별 숙련도와 스킬 해금 구조
+- 인벤토리와 장비창 분리, 장비 슬롯과 아이템 툴팁 UI
+- 외형 커스터마이징은 능력치에 영향을 주지 않는 방향
 
-권장 맵 에셋 위치:
+## 기술 구조
 
-- 시작맵: `Content/Rogue10m/Maps/StartHub.umap`
-- 플레이맵: `Content/Rogue10m/Maps/OpenRunMap.umap`
+```text
+Source/Rogue10m/
+├─ Ability/       GAS Attribute와 능력치
+├─ Character/     플레이어 캐릭터
+├─ Components/    전투 등 기능 컴포넌트
+├─ Core/          GameMode, PlayerController 등 핵심 프레임워크
+├─ Data/          공격·스킬 Data Asset 정의
+├─ Enemy/         몬스터 전투와 AI 연동
+├─ UI/            HUD, 위젯, 데미지 인디케이터
+└─ World/         맵 데이터와 런 포털
+```
 
-맵 메타데이터 위치:
+주요 기술은 Gameplay Ability System, Enhanced Input, StateTree, UMG/Slate이며 Niagara 확장을 고려합니다.
 
-- `Source/Rogue10m/World/Rogue10mMapDataLibrary.cpp`
+## 공격 Data Asset
 
-## 개발 문서
+공격 데이터의 기본 위치는 `Content/DataAsset/AttackSkill`입니다. 공격력, 범위, 공간 형태, 히트 모드, 타격 횟수와 간격, 쿨다운, 자원 비용, 콤보, 애니메이션, 이펙트, 피해·치명타 보정을 에디터에서 조정할 수 있습니다.
 
-- 하네스 규칙: `AGENTS.md`
-- 개발 기준: `Docs/ProjectDevelopmentGuidelines.md`
-- 브랜치 전략: `Docs/GitBranchStrategy.md`
-- 월드 구조: `Docs/WorldStructure.md`
-- 애니메이션 연결 가이드: `Docs/AnimationIntegrationGuide.md`
-- 공격 스킬 Data Asset 가이드: `Docs/AttackSkillDataAssetGuide.md`
-- 기능별 슈도 코드: `Docs/Pseudocode/`
-- 개발 로그: `DevLog/`
+자세한 설정 방법은 [공격 스킬 Data Asset 가이드](Docs/AttackSkillDataAssetGuide.md)를 참고하세요.
 
-## 빌드
+## 개발 환경과 빌드
 
-Editor target 빌드:
+필수 환경은 Unreal Engine 5.8, Windows 64-bit, Visual Studio Unreal Engine용 C++ 도구 체인입니다.
 
 ```powershell
 .\Scripts\BuildEditor.ps1
 ```
 
-PowerShell 실행 정책으로 막히는 경우:
+실행 정책으로 차단된 경우:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1
 ```
 
-커밋 전 생성 파일 확인:
+커밋 전 생성·캐시 파일 검사:
 
 ```powershell
 .\Scripts\CheckGeneratedChanges.ps1
 ```
 
-## 브랜치 전략
+## 문서
 
-기본 흐름:
+- [프로젝트 개발 가이드](Docs/ProjectDevelopmentGuidelines.md)
+- [월드 구조](Docs/WorldStructure.md)
+- [애니메이션 연동 가이드](Docs/AnimationIntegrationGuide.md)
+- [공격 스킬 Data Asset 가이드](Docs/AttackSkillDataAssetGuide.md)
+- [캐릭터 데이터 소유권](Docs/CharacterDataOwnership.md)
+- [브랜치 전략](Docs/GitBranchStrategy.md)
+- [Harness 파이프라인](Docs/HarnessPipeline.md)
+- [개발 로그](DevLog/)
+- [기능 설계와 결과 문서](Feature/)
 
-```text
-feature/*, content/*, level/*, balance/*, fix/* -> develop -> test -> main
-```
+## 개발 원칙
 
-현재 Codex 작업 규칙:
-
-- 기능 개발은 항상 별도 브랜치에서 진행
-- 변경이 있으면 `DevLog/YYYYMMDD.txt`에 한국어로 기록
-- 커밋 전 변경 파일과 요약 확인
-- 핵심 게임플레이 로직은 C++ 우선
-- 데이터 확장은 Data Asset 우선
-- 캐릭터 상태가 커지면 PlayerState와 Component로 분리
+- 핵심 게임플레이 로직은 C++에 구현하고 Blueprint는 에셋과 튜닝에 사용합니다.
+- 공격, 무기, 스킬, 아이템, 몬스터 데이터는 Data Asset을 우선합니다.
+- Tick은 기본적으로 피하고 이벤트, 델리게이트, 타이머, 캐시를 사용합니다.
+- 기능 브랜치에서 개발하고 빌드·리뷰·문서화를 거쳐 `main`에 반영합니다.
 
 ## 저장소
 
