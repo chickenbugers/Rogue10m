@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rogue10mPlayerState.h"
+
 #include "AbilitySystemComponent.h"
 #include "Rogue10mAbilitySystemComponent.h"
 #include "Rogue10mAttributeSet.h"
@@ -10,7 +11,6 @@ ARogue10mPlayerState::ARogue10mPlayerState()
 	AbilitySystemComponent = CreateDefaultSubobject<URogue10mAbilitySystemComponent>(TEXT("Ability System Component"));
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
-
 	AttributeSet = CreateDefaultSubobject<URogue10mAttributeSet>(TEXT("Attribute Set"));
 }
 
@@ -34,34 +34,69 @@ void ARogue10mPlayerState::SetIdentityType(ERogue10mIdentityType NewIdentityType
 	IdentityType = NewIdentityType;
 }
 
+int32 ARogue10mPlayerState::GetPlayerLevel() const
+{
+	return AttributeSet ? FMath::Max(1, FMath::RoundToInt(AttributeSet->GetPlayerLevel())) : 1;
+}
+
+int32 ARogue10mPlayerState::GetCurrentExperience() const
+{
+	return AttributeSet ? FMath::Max(0, FMath::RoundToInt(AttributeSet->GetExperience())) : 0;
+}
+
+int32 ARogue10mPlayerState::GetExperienceToNextLevel() const
+{
+	return AttributeSet ? FMath::Max(1, FMath::RoundToInt(AttributeSet->GetExperienceToNextLevel())) : 100;
+}
+
 float ARogue10mPlayerState::GetExperienceNormalized() const
 {
-	return ExperienceToNextLevel > 0 ? FMath::Clamp(static_cast<float>(CurrentExperience) / static_cast<float>(ExperienceToNextLevel), 0.0f, 1.0f) : 0.0f;
+	const int32 RequiredExperience = GetExperienceToNextLevel();
+	return RequiredExperience > 0
+		? FMath::Clamp(static_cast<float>(GetCurrentExperience()) / static_cast<float>(RequiredExperience), 0.0f, 1.0f)
+		: 0.0f;
 }
 
 void ARogue10mPlayerState::AddExperience(int32 ExperienceAmount)
 {
-	if (ExperienceAmount <= 0)
+	if (!AttributeSet || ExperienceAmount <= 0)
 	{
 		return;
 	}
 
-	CurrentExperience += ExperienceAmount;
-	while (CurrentExperience >= ExperienceToNextLevel)
+	int32 CurrentExperience = GetCurrentExperience() + ExperienceAmount;
+	int32 RequiredExperience = GetExperienceToNextLevel();
+	int32 Level = GetPlayerLevel();
+
+	while (CurrentExperience >= RequiredExperience)
 	{
-		CurrentExperience -= ExperienceToNextLevel;
-		++PlayerLevel;
-		ExperienceToNextLevel = FMath::Max(100, FMath::RoundToInt(ExperienceToNextLevel * 1.18f));
+		CurrentExperience -= RequiredExperience;
+		++Level;
+		RequiredExperience = FMath::Max(100, FMath::RoundToInt(RequiredExperience * 1.18f));
 	}
+
+	AttributeSet->SetPlayerLevel(static_cast<float>(Level));
+	AttributeSet->SetExperience(static_cast<float>(CurrentExperience));
+	AttributeSet->SetExperienceToNextLevel(static_cast<float>(RequiredExperience));
 }
 
 int32 ARogue10mPlayerState::GetWeaponMasteryLevel(ERogue10mWeaponType WeaponType) const
 {
-	// 현재는 기본 권 숙련만 개방합니다. 이후 무기별 숙련도 컴포넌트나 Data Asset으로 교체합니다.
 	return WeaponType == ERogue10mWeaponType::Knuckle || WeaponType == ERogue10mWeaponType::Unarmed ? 1 : 0;
+}
+
+float ARogue10mPlayerState::GetIdentityCurrent() const
+{
+	return AttributeSet ? AttributeSet->GetIdentity() : 0.0f;
+}
+
+float ARogue10mPlayerState::GetIdentityMax() const
+{
+	return AttributeSet ? AttributeSet->GetMaxIdentity() : 100.0f;
 }
 
 float ARogue10mPlayerState::GetIdentityNormalized() const
 {
-	return IdentityMax > 0.0f ? FMath::Clamp(IdentityCurrent / IdentityMax, 0.0f, 1.0f) : 0.0f;
+	const float MaxIdentity = GetIdentityMax();
+	return MaxIdentity > 0.0f ? FMath::Clamp(GetIdentityCurrent() / MaxIdentity, 0.0f, 1.0f) : 0.0f;
 }

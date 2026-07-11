@@ -2,46 +2,81 @@
 
 ## 목적
 
-`ARogue10mCharacter`에 누적되던 상태와 전투 데이터를 기능별 클래스로 분산한다.
+캐릭터 클래스에 기능을 누적하지 않고 지속 상태, 전투, 아이템, UI 상태를 각 책임 클래스에 분리한다.
 
-## 현재 분리 기준
+## PlayerState
 
-### PlayerState
+ARogue10mPlayerState는 플레이어에게 지속되는 상태를 소유한다.
 
-`ARogue10mPlayerState`는 플레이어에게 붙는 지속 상태를 관리한다.
-
-- 캐릭터 표시 이름
-- 캐릭터 직업 이름
+- AbilitySystemComponent
+- Rogue10mAttributeSet
+- 캐릭터 표시 이름과 직업
 - 현재 장착 무기 타입
 - 캐릭터 사망 상태
+- 아이덴티티 타입과 마나 활성 여부
 
-캐릭터는 기존 외부 호출을 유지하기 위해 `GetCharacterDisplayName`, `GetCharacterJobName`, `GetEquippedWeaponType`, `IsDead` 래퍼를 제공한다.
+레벨, 경험치, 체력, 스테미나, 마나, 아이덴티티 수치는 AttributeSet만 원본으로 사용한다.
 
-### CombatComponent
+## AttributeSet
 
-`URogue10mCombatComponent`는 공격 입력과 전투 런타임 상태를 관리한다.
+URogue10mAttributeSet은 모든 전투/성장 수치의 단일 원본이다.
 
-- 공격 Data Asset 참조
-- 차징 입력 시작 시간
-- 콤보 입력 가능 시간
-- 콤보 루트 스킬
-- 공유 공격 쿨타임
-- HUD에 표시할 현재 공격 스킬
+- Health / MaxHealth
+- Stamina / MaxStamina
+- Mana / MaxMana
+- Identity / MaxIdentity
+- PlayerLevel
+- Experience
+- ExperienceToNextLevel
 
-캐릭터는 입력을 받고 실제 카메라 트레이스와 데미지 적용을 수행한다. 공격 데이터 해석, 콤보 판단, 쿨타임 상태는 CombatComponent에 위임한다.
+플레이어는 PlayerState가 AttributeSet을 소유한다. 몬스터는 자신의 ASC와 AttributeSet을 직접 소유한다.
 
-### Character
+## CombatComponent
 
-`ARogue10mCharacter`는 다음 역할을 유지한다.
+URogue10mCombatComponent는 공격 실행 전체를 담당한다.
 
-- Enhanced Input과 키 입력 바인딩
-- 이동, 점프, 시점 회전
-- 카메라 기준 공격 트레이스
-- 피격 처리와 사망 연출
-- HUD, Inventory, Vitals, CombatComponent 연결 지점
+- 공격 Data Asset 참조와 입력별 선택
+- 차징 시간 측정
+- 스킬 해금 상태
+- GAS Ability 부여와 활성화
+- 자원 비용 검사와 소비
+- 카메라 기준 공격 판정과 피해 적용
+- Montage 재생
+- 콤보 입력 시간과 공유 쿨타임
+- 공격 디버그와 전투 로그
+
+Character는 입력을 CombatComponent에 전달하는 얇은 어댑터만 유지한다.
+
+## Character
+
+ARogue10mCharacter의 역할:
+
+- 이동, 점프, 시점 입력
+- 공격 입력 전달
+- PlayerState의 ASC ActorInfo 초기화
+- 피격과 사망 생명주기
+- InventoryComponent와 CombatComponent 소유
+- 카메라와 1인칭 Mesh 제공
+
+## PlayerController
+
+ARogue10mPlayerController의 역할:
+
+- Enhanced Input Mapping Context
+- Windows/Android 입력 모드
+- UMG 메인 HUD 생성
+- 인벤토리/아이템/스킬트리/설정 패널 상태
+- 마우스 커서와 GameAndUI 입력 모드
+- 감도와 FPS 제한
+- 전투 로그, 획득 알림, 피해 피드백
+- 조준 중인 몬스터 탐색
+
+## UI
+
+URogue10mRunHUD와 URogue10mMainHUDWidget은 PlayerState, Character, CombatComponent, PlayerController 데이터를 View 구조체로 변환한다. 화면 배치와 디자인은 Widget Blueprint가 담당한다.
 
 ## 다음 분리 후보
 
-- 스킬트리 해금 상태는 HUD 임시 값에서 PlayerState 또는 SkillTreeComponent로 이동한다.
-- 자원 비용 결제는 캐릭터에서 VitalsComponent 또는 CombatComponent로 더 분리할 수 있다.
-- 실제 공격 타이밍은 Animation Montage Notify 기반 CombatComponent 함수로 이동하는 것이 좋다.
+- 무기별 숙련도와 스킬 해금 상태를 전용 ProgressionComponent로 이전
+- 공격 적중 시점을 Animation Montage Notify 또는 Gameplay Event로 전환
+- 인벤토리 아이템 정의를 Item Data Asset으로 이전

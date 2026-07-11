@@ -48,13 +48,13 @@ public:
 	void SetCharacterDead(bool bNewCharacterDead);
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Progression")
-	int32 GetPlayerLevel() const { return PlayerLevel; }
+	int32 GetPlayerLevel() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Progression")
-	int32 GetCurrentExperience() const { return CurrentExperience; }
+	int32 GetCurrentExperience() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Progression")
-	int32 GetExperienceToNextLevel() const { return ExperienceToNextLevel; }
+	int32 GetExperienceToNextLevel() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Progression")
 	float GetExperienceNormalized() const;
@@ -66,10 +66,10 @@ public:
 	int32 GetWeaponMasteryLevel(ERogue10mWeaponType WeaponType) const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Identity")
-	float GetIdentityCurrent() const { return IdentityCurrent; }
+	float GetIdentityCurrent() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Identity")
-	float GetIdentityMax() const { return IdentityMax; }
+	float GetIdentityMax() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Identity")
 	float GetIdentityNormalized() const;
@@ -83,6 +83,12 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Identity")
 	bool HasIdentityResource() const { return IdentityType != ERogue10mIdentityType::None; }
 
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Vitals")
+	bool IsManaEnabled() const { return bManaEnabled; }
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Vitals")
+	void SetManaEnabled(bool bEnabled) { bManaEnabled = bEnabled; }
+
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rogue10m|GAS", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<URogue10mAbilitySystemComponent> AbilitySystemComponent;
@@ -91,10 +97,10 @@ private:
 	TObjectPtr<URogue10mAttributeSet> AttributeSet;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character", meta=(AllowPrivateAccess="true"))
-	FText CharacterDisplayName = FText::FromString(TEXT("Rogue"));
+	FText CharacterDisplayName = FText::FromString(TEXT("로그"));
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character", meta=(AllowPrivateAccess="true"))
-	FText CharacterJobName = FText::FromString(TEXT("Unassigned"));
+	FText CharacterJobName = FText::FromString(TEXT("미정"));
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|Combat", meta=(AllowPrivateAccess="true"))
 	ERogue10mWeaponType EquippedWeaponType = ERogue10mWeaponType::Unarmed;
@@ -102,21 +108,9 @@ private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|State", meta=(AllowPrivateAccess="true"))
 	bool bCharacterDead = false;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Progression", meta=(AllowPrivateAccess="true", ClampMin="1"))
-	int32 PlayerLevel = 1;
-
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|Progression", meta=(AllowPrivateAccess="true", ClampMin="0"))
-	int32 CurrentExperience = 0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Progression", meta=(AllowPrivateAccess="true", ClampMin="1"))
-	int32 ExperienceToNextLevel = 100;
-
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|Identity", meta=(AllowPrivateAccess="true", ClampMin="0"))
-	float IdentityCurrent = 0.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Identity", meta=(AllowPrivateAccess="true", ClampMin="1"))
-	float IdentityMax = 100.0f;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Identity", meta=(AllowPrivateAccess="true"))
 	ERogue10mIdentityType IdentityType = ERogue10mIdentityType::None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Vitals", meta=(AllowPrivateAccess="true"))
+	bool bManaEnabled = false;
 };

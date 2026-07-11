@@ -74,6 +74,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Combat", meta=(ClampMin="0.0"))
 	float Damage = 5.0f;
 
+	/** 怨듦꺽 ?ㅽ뻾 ??踰덉뿉 諛쒖깮?섎뒗 ?먯젙 ?꾩뒪 ?섏엯?덈떎. 1?대㈃ 湲곗〈 ?⑥씪 ?寃⑹엯?덈떎. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Combat|Multi Hit", meta=(ClampMin="1", ClampMax="64"))
+	int32 HitCount = 1;
+
+	/** ?ㅻ떒?덊듃 ?꾩뒪 ?ъ씠??媛꾧꺽?대ŉ 怨듦꺽?띾룄 諛곗쑉???곕씪 吏㏃븘吏묐땲?? */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Combat|Multi Hit", meta=(EditCondition="HitCount > 1", ClampMin="0.01", Units="s"))
+	float HitInterval = 0.08f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Combat|Multi Hit", meta=(ClampMin="1", ClampMax="64"))
+	int32 MaxTargetsPerHit = 8;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Combat|Multi Hit", meta=(ClampMin="1", ClampMax="64"))
+	int32 MaxHitsPerTarget = 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Combat", meta=(ClampMin="1.0", Units="cm"))
 	float AttackRange = 180.0f;
 

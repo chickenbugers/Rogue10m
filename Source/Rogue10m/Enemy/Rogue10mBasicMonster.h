@@ -3,25 +3,32 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystemInterface.h"
 #include "GameFramework/Character.h"
+#include "Rogue10mAttackTargetInterface.h"
 #include "Rogue10mBasicMonster.generated.h"
 
 class ARogue10mCharacter;
-class URogue10mVitalsComponent;
+class UAbilitySystemComponent;
+class URogue10mAbilitySystemComponent;
+class URogue10mAttributeSet;
 
 UCLASS(Blueprintable)
-class ROGUE10M_API ARogue10mBasicMonster : public ACharacter
+class ROGUE10M_API ARogue10mBasicMonster : public ACharacter, public IAbilitySystemInterface, public IRogue10mAttackTargetInterface
 {
 	GENERATED_BODY()
 
 public:
 	ARogue10mBasicMonster();
 
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	virtual bool CanReceiveRogue10mAttack_Implementation(AActor* AttackSource) const override;
+	virtual FVector GetRogue10mDamageIndicatorLocation_Implementation() const override;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
-	URogue10mVitalsComponent* GetVitalsComponent() const { return VitalsComponent; }
+	URogue10mAttributeSet* GetRogueAttributeSet() const { return AttributeSet; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
 	FText GetMonsterDisplayName() const { return MonsterDisplayName; }
@@ -38,8 +45,11 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
-	TObjectPtr<URogue10mVitalsComponent> VitalsComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rogue10m|GAS")
+	TObjectPtr<URogue10mAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rogue10m|GAS")
+	TObjectPtr<URogue10mAttributeSet> AttributeSet;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster")
 	FText MonsterDisplayName = FText::FromString(TEXT("기본 몬스터"));
@@ -49,6 +59,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster")
 	FText MonsterAttributeText = FText::FromString(TEXT("일반"));
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Vitals", meta=(ClampMin="1.0"))
+	float MaxHealth = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Movement", meta=(ClampMin="0.0"))
 	float DetectionRange = 1800.0f;
@@ -74,9 +87,7 @@ private:
 	void TryAttackTarget(float DistanceToTarget);
 	void Die();
 
-	UPROPERTY(Transient)
 	TWeakObjectPtr<ARogue10mCharacter> TargetCharacter;
-
 	float LastAttackTime = -1000.0f;
 	bool bIsDead = false;
 };

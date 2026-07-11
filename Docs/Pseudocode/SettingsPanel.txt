@@ -1,76 +1,16 @@
-Settings Panel
-==============
+# 설정 패널 의사코드
 
-[Purpose]
-- Provide a simple in-game settings panel opened with the O key.
-- Let the player adjust voice volume and look sensitivity.
-- Keep X and Y look sensitivity separate.
-- Provide FPS limit buttons for 60, 120, and 140 FPS.
+Input:
+  PlayerController가 O, Escape, F10 입력 처리
+  SettingsVisible 토글
+  열리면 마우스와 GameAndUI 입력 모드 활성화
+  닫히고 다른 패널도 없으면 GameOnly 입력 모드 복원
 
-[Input Flow]
-Pseudo:
-  Character.SetupPlayerInputComponent:
-    Bind O pressed -> DoToggleSettings
+Widget Blueprint:
+  GetPanelStateView의 bSettingsVisible로 패널 표시
+  X/Y 감도 슬라이더 변경 시 SetLookSensitivity 호출
+  FPS 옵션 60/120/140 선택 시 SetFpsLimit 호출
+  음량은 추후 Audio Settings 또는 GameUserSettings에 연결
 
-  Character.DoToggleSettings:
-    If character is dead:
-      Return
-    Get Rogue10mHUD
-    Toggle settings panel
-    If any blocking UI is visible:
-      Stop movement immediately
-
-  Character.DoAim:
-    If dead or UI is blocking:
-      Return
-    Get look sensitivity X/Y from HUD
-    Apply yaw input multiplied by X sensitivity
-    Apply pitch input multiplied by Y sensitivity
-
-[HUD State]
-Pseudo:
-  HUD owns:
-    bSettingsVisible
-    SettingsWindowPosition
-    DraggedSettingsSlider
-    MasterVolume
-    LookSensitivityX
-    LookSensitivityY
-    CurrentFpsLimit
-
-[Panel Flow]
-Pseudo:
-  HUD.DrawSettingsPanel:
-    If settings panel is hidden:
-      Return
-    Clamp panel position to screen
-    Update settings mouse interaction
-    Draw panel and title bar
-    Draw Voice Volume slider
-    Draw Look Sensitivity X slider
-    Draw Look Sensitivity Y slider
-    Draw FPS buttons for 60, 120, 140
-
-  HUD.UpdateSettingsInteraction:
-    If left mouse is released:
-      Stop dragging slider
-    If left mouse pressed on a slider track:
-      Mark that slider as dragged
-    If a slider is being dragged:
-      Convert mouse X to 0..1 alpha
-      Update matching setting value
-
-  HUD.ApplyFpsLimit:
-    Store selected FPS value
-    Execute console command:
-      t.MaxFPS <value>
-
-  HUD.ApplyAudioVolume:
-    Execute console command:
-      au.GlobalVolumeMultiplier <value>
-
-[Profiling Notes]
-- Settings panel is drawn only when bSettingsVisible is true.
-- Slider hit testing uses fixed checks for three sliders and does not allocate a temporary array per frame.
-- Sensitivity lookup during camera input is one HUD pointer lookup and two float reads.
-- FPS and volume console commands only run when the player changes the related setting.
+Character:
+  DoAim에서 PlayerController의 X/Y 감도 적용
