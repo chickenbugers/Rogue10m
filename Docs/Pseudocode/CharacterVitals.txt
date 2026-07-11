@@ -1,115 +1,33 @@
-Character Vitals
-================
+# 캐릭터 수치 데이터 의사코드
 
-[Purpose]
-- Give the player character simple health, mana, and stamina data.
-- Show health and stamina on the HUD by default.
-- Hide mana and other special resource bars until a feature flag enables them.
-- Keep the system ready for combat damage, spell costs, stamina actions, and regeneration later.
+## 소유권
 
-[Runtime State]
-- Character owns:
-  - Rogue10mVitalsComponent
-- VitalsComponent owns:
-  - Health Current / Max
-  - Mana Current / Max
-  - Stamina Current / Max
-  - bShowMana, default false
+PlayerState:
+  AbilitySystemComponent 생성
+  Rogue10mAttributeSet 생성
 
-[Component Flow]
-Pseudo:
-  VitalsComponent constructor:
-    Disable tick
-    Health = 100 / 100
-    Mana = 50 / 50
-    Stamina = 100 / 100
-    bShowMana = false
+AttributeSet:
+  Health / MaxHealth
+  Stamina / MaxStamina
+  Mana / MaxMana
+  Identity / MaxIdentity
+  PlayerLevel
+  Experience
+  ExperienceToNextLevel
 
-  SetShowMana(NewValue):
-    bShowMana = NewValue
+Character:
+  PlayerState의 AttributeSet 조회
+  피해를 받으면 Health 감소
+  Health가 0이면 Die 호출
 
-  SetHealth(NewCurrent):
-    Clamp NewCurrent between 0 and Health.Max
-    Store in Health.Current
+CombatComponent:
+  공격 Data Asset의 ResourceCosts 검사
+  Health 비용은 현재 체력보다 작을 때만 소비
+  Stamina, Mana, Identity 비용은 현재 수치 이상일 때 소비
+  모든 비용을 결제한 뒤 공격 실행
 
-  SetMana(NewCurrent):
-    Clamp NewCurrent between 0 and Mana.Max
-    Store in Mana.Current
-
-  SetStamina(NewCurrent):
-    Clamp NewCurrent between 0 and Stamina.Max
-    Store in Stamina.Current
-
-  RestoreAll:
-    Health.Current = Health.Max
-    Mana.Current = Mana.Max
-    Stamina.Current = Stamina.Max
-
-[Character Flow]
-Pseudo:
-  Character constructor:
-    Create VitalsComponent
-
-  GetVitalsComponent:
-    Return VitalsComponent
-
-[HUD Flow]
-Pseudo:
-  HUD.DrawHUD:
-    Draw run timer
-    Draw character vitals
-    Draw character info panel
-    Draw other active UI
-
-  HUD.DrawVitals:
-    Get owning pawn as Rogue10mCharacter
-    Get character VitalsComponent
-    If missing:
-      Return
-    Draw HP bar
-    If bShowMana is true:
-      Draw MP bar
-    Draw SP bar
-
-  HUD.DrawVitalBar:
-    FillAlpha = Current / Max
-    Draw dark bar background
-    Draw filled bar by FillAlpha
-    Draw label and numeric value
-
-  HUD.DrawCharacterInfo:
-    Position panel in top-right corner
-    Draw text at small 12pt-style scale
-    Draw:
-      Character name
-      Character job
-      Current state
-      Current weapon
-      Health
-      Mana if bShowMana is true
-      Stamina
-
-[Inventory Movement Lock]
-Pseudo:
-  Character.DoMove:
-    If inventory window or item window is open:
-      Stop movement immediately
-      Return
-
-  Character.DoJumpStart:
-    If inventory window or item window is open:
-      Return
-
-  Character.DoJumpEnd:
-    If inventory window or item window is open:
-      Return
-
-  Character toggles inventory or item window:
-    If any inventory window is now visible:
-      Stop movement immediately
-
-[Expansion Notes]
-- Damage should call SetHealth(CurrentHealth - Damage).
-- Spell casting should spend mana through SetMana.
-- Sprint, dodge, and charged attacks should spend stamina through SetStamina.
-- Regeneration can be implemented with timers or a component tick only when needed.
+RunHUD:
+  PlayerState의 AttributeSet에서 현재값/최대값 조회
+  Current / Max로 Normalized 계산
+  체력은 빨간색, 스테미나는 파란색
+  마나는 PlayerState의 ManaEnabled가 true일 때만 표시

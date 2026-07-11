@@ -1,142 +1,24 @@
-Skill Tree Window
-=================
+# 스킬트리 의사코드
 
-[Purpose]
-- Provide a prototype skill tree window opened with the K key.
-- Start from a weapon selection screen.
-- Show weapon cards in a grid that supports up to 3 columns and 4 rows.
-- Enter a weapon-specific skill tree screen when a weapon card is clicked.
-- Provide a Back button to return to the weapon selection screen.
+Input:
+  PlayerController가 K 입력 처리
+  SkillTreeVisible 토글
+  열려 있는 동안 이동과 공격 차단
 
-[Input Flow]
-Pseudo:
-  Character.SetupPlayerInputComponent:
-    Bind K pressed -> DoToggleSkillTree
+무기 선택 화면:
+  권을 첫 항목으로 표시
+  PlayerState.GetWeaponMasteryLevel이 1 이상인 무기만 접근 허용
+  현재 권 숙련도는 기본 1, 나머지는 0
 
-  Character.DoToggleSkillTree:
-    If character is dead:
-      Return
-    Get Rogue10mHUD
-    Toggle HUD skill tree visibility
-    If any blocking UI window is visible:
-      Stop character movement immediately
+권 스킬 화면:
+  일반 공격 계열과 점프 공격 계열을 가로 연결선으로 표시
+  기본 일반 좌클릭과 점프 좌클릭은 해금 상태
+  뒤 스킬은 선행 스킬 해금 후 클릭 가능
 
-[HUD State]
-Pseudo:
-  HUD owns:
-    bSkillTreeVisible
-    SkillTreeWindowPosition
-    SkillTreeView
-    SelectedSkillTreeWeapon
-    SkillWeaponHitAreas
+해금:
+  선택한 AttackSkillData를 CombatComponent.UnlockAttackSkill에 전달
+  GetSkillQuickSlotViews가 다음 갱신에서 새 슬롯을 반환
 
-  SkillTreeView:
-    WeaponSelect
-    WeaponDetail
-
-[Weapon Selection Flow]
-Pseudo:
-  HUD.DrawSkillTree:
-    Draw panel and title bar
-    If SkillTreeView is WeaponSelect:
-      DrawSkillTreeWeaponSelect
-    Else:
-      DrawSkillTreeWeaponDetail
-
-  HUD.DrawSkillTreeWeaponSelect:
-    WeaponTypes = Knuckle, Dagger, GreatSword, DualBlades, Bow, Staff
-    Columns = 3
-    Rows can expand up to 4 with the same layout
-    For each weapon:
-      Draw card background
-      Draw placeholder weapon image color
-      Draw weapon name
-      Draw proficiency level from 0 to 10
-      If weapon tree is locked:
-        Draw locked overlay
-        Ignore click
-      If card is clicked and unlocked:
-        SelectedSkillTreeWeapon = clicked weapon
-        SkillTreeView = WeaponDetail
-
-[Weapon Detail Flow]
-Pseudo:
-  HUD.DrawSkillTreeWeaponDetail:
-    Draw Back button
-    If Back is clicked:
-      SkillTreeView = WeaponSelect
-      Return
-
-    Draw selected weapon name and proficiency level
-    If selected weapon is locked:
-      Draw locked reason
-      Return
-    If selected weapon is Knuckle:
-      Draw command boxes on the left
-      Draw skill object nodes on the right as horizontal chains
-      Draw each skill node with a fixed attack icon area
-      Row 1 = left click line
-      Row 2 = jump left click line
-      Mark Primary and JumpPrimary as default unlocked
-      Keep combo nodes locked until the previous required node is unlocked
-      If an unlockable combo node is clicked:
-        Unlock the node for test progression
-    Later:
-      Move proficiency and unlock state from HUD into PlayerState or a dedicated component
-      Replace temporary icon labels with SkillIcon textures from attack Data Assets
-
-[Skill Use Lock Flow]
-Pseudo:
-  Character.ExecuteCombatAttack:
-    SkillData = Resolve combo skill or direct attack skill
-    If SkillData is null:
-      Show locked Data Asset log
-      Return
-    If HUD.IsAttackSkillUnlockedForUse(SkillData) is false:
-      Show skill tree locked log
-      Reset combo window
-      Return
-    ExecuteAttackSkill
-
-[Attack Cooldown HUD Flow]
-Pseudo:
-  Character.ExecuteAttackSkill:
-    If this is a combo attack:
-      CooldownSource = ActiveComboRootSkill
-    Else:
-      CooldownSource = SkillData
-      ActiveComboRootSkill = SkillData
-    AttackCooldownDuration = CooldownSource.AttackCooldown
-    If SkillData has a next combo skill:
-      AttackCooldownStartTime = Now + SkillData.ComboWindowCloseSeconds
-    Else:
-      AttackCooldownStartTime = Now
-    AttackCooldownEndTime = AttackCooldownStartTime + AttackCooldownDuration
-
-  Character.ExecuteCombatAttack:
-    If combo sequence is active and current input is not the expected combo input:
-      Ignore direct base attack restart
-      Keep waiting for the combo window to close
-
-  HUD.DrawAttackCooldownSlot:
-    DisplaySkill = Character.GetDisplayedAttackSkillForHUD
-    If a combo window has a usable next skill:
-      DisplaySkill = next combo skill
-    Draw icon, skill name, and cooldown overlay at the 6 o'clock position
-
-[Window Behavior]
-Pseudo:
-  HUD.UpdateWindowDrag:
-    If skill tree title bar is dragged:
-      Move SkillTreeWindowPosition
-
-  HUD.UpdateInventoryCursor:
-    Show mouse cursor if inventory, item window, or skill tree is visible
-
-  Character action checks:
-    Movement, attack, jump, and quick slot use are blocked when any blocking UI window is visible
-
-[Expansion Notes]
-- Weapon card images should later come from texture assets or weapon data assets.
-- Each weapon can have its own node layout, unlock rules, skill costs, and mastery requirements.
-- Skill tree data should eventually move out of HUD and into data assets or a dedicated skill tree component.
+Back:
+  무기 상세 화면에서 무기 선택 화면으로 이동
+  패널 자체 상태는 유지

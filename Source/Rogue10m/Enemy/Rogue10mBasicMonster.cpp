@@ -3,40 +3,47 @@
 #include "Rogue10mBasicMonster.h"
 
 #include "AIController.h"
-#include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/DamageType.h"
-#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Rogue10m.h"
+#include "Rogue10mAbilitySystemComponent.h"
+#include "Rogue10mAttributeSet.h"
 #include "Rogue10mCharacter.h"
-#include "Rogue10mHUD.h"
-#include "Rogue10mVitalsComponent.h"
+#include "Rogue10mPlayerController.h"
 
 ARogue10mBasicMonster::ARogue10mBasicMonster()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	VitalsComponent = CreateDefaultSubobject<URogue10mVitalsComponent>(TEXT("Vitals Component"));
+	AbilitySystemComponent = CreateDefaultSubobject<URogue10mAbilitySystemComponent>(TEXT("Ability System Component"));
+	AbilitySystemComponent->SetIsReplicated(true);
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
+	AttributeSet = CreateDefaultSubobject<URogue10mAttributeSet>(TEXT("Attribute Set"));
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	AIControllerClass = AAIController::StaticClass();
-
 	GetCharacterMovement()->MaxWalkSpeed = 260.0f;
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	bUseControllerRotationYaw = false;
 }
 
+UAbilitySystemComponent* ARogue10mBasicMonster::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
+}
+
 void ARogue10mBasicMonster::BeginPlay()
 {
 	Super::BeginPlay();
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	AttributeSet->InitializeVitals(MaxHealth, 1.0f, 1.0f);
 	UpdateTarget();
 }
 
 void ARogue10mBasicMonster::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
 	if (bIsDead)
 	{
 		return;
@@ -53,43 +60,57 @@ void ARogue10mBasicMonster::Tick(float DeltaSeconds)
 		return;
 	}
 
-	const float DistanceToTarget = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
-	if (DistanceToTarget > DetectionRange)
+	const float Distance = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
+	if (Distance <= DetectionRange)
 	{
-		return;
+		MoveTowardTarget(Distance);
+		TryAttackTarget(Distance);
 	}
-
-	MoveTowardTarget(DistanceToTarget);
-	TryAttackTarget(DistanceToTarget);
 }
 
-float ARogue10mBasicMonster::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+float ARogue10mBasicMonster::TakeDamage(
+	float DamageAmount, const FDamageEvent& DamageEvent,
+	AController* EventInstigator, AActor* DamageCauser)
 {
 	const float AppliedDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	if (bIsDead || !VitalsComponent || DamageAmount <= 0.0f)
+	if (bIsDead || !AttributeSet || AppliedDamage <= 0.0f)
 	{
 		return AppliedDamage;
 	}
 
-	const float NewHealth = VitalsComponent->GetHealth().Current - DamageAmount;
-	VitalsComponent->SetHealth(NewHealth);
-	UE_LOG(LogRogue10m, Log, TEXT("%s took %.1f damage. HP %.1f / %.1f"), *GetNameSafe(this), DamageAmount, VitalsComponent->GetHealth().Current, VitalsComponent->GetHealth().Max);
-	APlayerController* PlayerController = EventInstigator ? Cast<APlayerController>(EventInstigator) : UGameplayStatics::GetPlayerController(this, 0);
+	AttributeSet->SetHealth(AttributeSet->GetHealth() - AppliedDamage);
+	UE_LOG(
+		LogRogue10m, Log, TEXT("%s 피해 %.1f, 체력 %.1f / %.1f"),
+		*GetNameSafe(this), AppliedDamage, AttributeSet->GetHealth(), AttributeSet->GetMaxHealth());
+
+	ARogue10mPlayerController* PlayerController = EventInstigator
+		? Cast<ARogue10mPlayerController>(EventInstigator)
+		: Cast<ARogue10mPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
 	if (PlayerController)
 	{
-		if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
-		{
-			RogueHUD->AddFloatingDamageNumber(this, DamageAmount);
-			RogueHUD->AddCombatLogMessage(FString::Printf(TEXT("몬스터에게 피해 %.0f"), DamageAmount), FLinearColor(1.0f, 0.72f, 0.22f, 1.0f), 1.4f);
-		}
+		PlayerController->AddCombatLogMessage(
+			FString::Printf(TEXT("몬스터에게 피해 %.0f"), AppliedDamage),
+			FLinearColor(1.0f, 0.72f, 0.22f, 1.0f));
 	}
 
-	if (VitalsComponent->GetHealth().Current <= 0.0f)
+	if (AttributeSet->GetHealth() <= 0.0f)
 	{
 		Die();
 	}
+	return AppliedDamage;
+}
 
-	return DamageAmount;
+bool ARogue10mBasicMonster::CanReceiveRogue10mAttack_Implementation(AActor* AttackSource) const
+{
+	return !bIsDead && AttackSource != this;
+}
+
+FVector ARogue10mBasicMonster::GetRogue10mDamageIndicatorLocation_Implementation() const
+{
+	FVector BoundsOrigin;
+	FVector BoundsExtent;
+	GetActorBounds(true, BoundsOrigin, BoundsExtent);
+	return BoundsOrigin + FVector(0.0f, 0.0f, BoundsExtent.Z + 30.0f);
 }
 
 void ARogue10mBasicMonster::UpdateTarget()
@@ -100,25 +121,21 @@ void ARogue10mBasicMonster::UpdateTarget()
 void ARogue10mBasicMonster::MoveTowardTarget(float DistanceToTarget)
 {
 	ARogue10mCharacter* Target = TargetCharacter.Get();
-	if (!Target || DistanceToTarget <= StopDistance)
+	if (Target && DistanceToTarget > StopDistance)
 	{
-		return;
+		AddMovementInput((Target->GetActorLocation() - GetActorLocation()).GetSafeNormal2D(), 1.0f);
 	}
-
-	const FVector Direction = (Target->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
-	AddMovementInput(Direction, 1.0f);
 }
 
 void ARogue10mBasicMonster::TryAttackTarget(float DistanceToTarget)
 {
 	ARogue10mCharacter* Target = TargetCharacter.Get();
-	UWorld* World = GetWorld();
-	if (!Target || !World || DistanceToTarget > AttackRange)
+	if (!Target || !GetWorld() || DistanceToTarget > AttackRange)
 	{
 		return;
 	}
 
-	const float CurrentTime = World->GetTimeSeconds();
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
 	if (CurrentTime - LastAttackTime < AttackInterval)
 	{
 		return;
@@ -126,13 +143,13 @@ void ARogue10mBasicMonster::TryAttackTarget(float DistanceToTarget)
 
 	LastAttackTime = CurrentTime;
 	UGameplayStatics::ApplyDamage(Target, AttackDamage, GetController(), this, UDamageType::StaticClass());
-	UE_LOG(LogRogue10m, Log, TEXT("%s attacked %s for %.1f damage."), *GetNameSafe(this), *GetNameSafe(Target), AttackDamage);
-	if (APlayerController* PlayerController = Cast<APlayerController>(Target->GetController()))
+	UE_LOG(LogRogue10m, Log, TEXT("%s이(가) %s에게 %.1f 피해"), *GetNameSafe(this), *GetNameSafe(Target), AttackDamage);
+
+	if (ARogue10mPlayerController* PlayerController = Cast<ARogue10mPlayerController>(Target->GetController()))
 	{
-		if (ARogue10mHUD* RogueHUD = PlayerController->GetHUD<ARogue10mHUD>())
-		{
-			RogueHUD->AddCombatLogMessage(FString::Printf(TEXT("몬스터 공격: 플레이어 피해 %.0f"), AttackDamage), FLinearColor(1.0f, 0.42f, 0.36f, 1.0f), 1.4f);
-		}
+		PlayerController->AddCombatLogMessage(
+			FString::Printf(TEXT("몬스터 공격: 플레이어 피해 %.0f"), AttackDamage),
+			FLinearColor(1.0f, 0.42f, 0.36f, 1.0f));
 	}
 }
 
@@ -147,8 +164,8 @@ void ARogue10mBasicMonster::Die()
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 	SetActorEnableCollision(false);
+	UE_LOG(LogRogue10m, Log, TEXT("%s 사망"), *GetNameSafe(this));
 
-	UE_LOG(LogRogue10m, Log, TEXT("%s died."), *GetNameSafe(this));
 	if (bDestroyOnDeath)
 	{
 		Destroy();

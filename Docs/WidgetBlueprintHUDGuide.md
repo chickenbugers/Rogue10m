@@ -1,499 +1,106 @@
-﻿# Widget Blueprint HUD 연동 가이드
+# Widget Blueprint HUD 작업 가이드
 
-## 2026-07-02 현재 기준: Widget Blueprint 직접 배치
+## 현재 구조
 
-메인 HUD는 이제 Widget Blueprint에서 직접 요소를 배치하고, C++는 데이터 바인딩만 제공하는 구조를 기본으로 한다.
+Rogue10m의 화면 UI는 Canvas HUD를 사용하지 않고 UMG Widget Blueprint로만 구성한다.
 
-- `ARogue10mHUD::bDrawCanvasPrototypeHUD` 기본값은 `false`다.
-- `URogue10mMainHUDWidget::bCreatePrototypeLayoutWhenEmpty` 기본값은 `false`다.
-- `URogue10mHudPartWidget::bCreatePrototypeDesignScaffold` 기본값은 `false`다.
-- 기본 상태에서는 C++ `DrawRect`, `DrawText` 원형 HUD가 메인 UI를 직접 그리지 않는다.
-- 필요한 UI 요소는 `UW_Rogue10mMainWidget` 또는 하위 `WBP_*`에서 직접 배치한다.
-- 이름이 맞는 하위 위젯은 `BindWidgetOptional`로 자동 연결된다.
-- 이름이 다르거나 커스텀 구조를 쓸 경우 Event Graph에서 Getter를 직접 호출해 Bind한다.
+- 생성 담당: ARogue10mPlayerController::InitializeRunHUD
+- 메인 C++ 부모: URogue10mMainHUDWidget
+- View 데이터 부모: URogue10mRunHUD
+- 기본 Widget Blueprint: Content/Widget/UW_Rogue10mMainWidget
+- 파트 Widget Blueprint: Content/Widget/Parts
+- 패널/설정/로그 상태 소유자: ARogue10mPlayerController
+- 체력과 자원 데이터: ARogue10mPlayerState가 소유한 URogue10mAttributeSet
 
-### 메인 HUD Getter
+ARogue10mHUD는 기존 BP_Rogue10mHUD 에셋의 부모 참조를 유지하기 위한 빈 호환 클래스이며 화면을 그리지 않는다.
 
-- `GetRunTimerView`: 런 타이머 표시 여부, 남은 시간, 전체 시간, 진행률
-- `GetRunResultView`: 승리/패배 결과 표시 여부, 문구, 색상
-- `GetHealthView`, `GetStaminaView`, `GetManaView`: 체력, 스테미나, 마나
-- `GetProgressionView`: 레벨, 현재 경험치, 다음 레벨 경험치, 경험치 진행률
-- `GetIdentityView`: 아이덴티티 아이콘, 숙련도, 외곽선 색/굵기, 특수 자원
-- `GetLookedAtMonsterInfoView`: 바라보는 몬스터 이름, 레벨, 속성, 상태, 체력
-- `GetSkillQuickSlotViews`, `GetItemQuickSlotViews`: 스킬 슬롯과 사용 아이템 슬롯
-- `GetSystemLogEntries`, `GetItemAcquisitionEntries`: 시스템 로그와 아이템 획득 알림
-- `GetPrototypeMinimapMarkers`: 임시 미니맵 마커
-- `GetAimCrossLineView`: 에임 크로스라인 표시 여부, 색상, 길이, 간격, 굵기
-- `GetDamageFeedbackView`: 피격 화면 효과 표시 여부, 알파, 강도
-- `GetAttackCooldownView`: 현재 공격 스킬 이름, 아이콘, 쿨타임
-- `GetPanelStateView`: 장비창, 아이템창, 스킬트리, 설정창 열림 상태
+## 메인 Widget Blueprint
 
----
-# Widget Blueprint HUD ?곕룞 媛?대뱶
+UW_Rogue10mMainWidget의 부모는 Rogue10mMainHUDWidget이어야 한다.
 
-## 紐⑺몴
+자동 바인딩이 필요한 파트 이름:
 
-硫붿씤 HUD??諛곗튂, ?ш린, ?됱긽, ?좊땲硫붿씠?? 諛섏쓳??泥섎━??Widget Blueprint?먯꽌 ?섏젙?쒕떎.
+- HealthBarWidget
+- StaminaBarWidget
+- ManaBarWidget
+- ProgressionWidget
+- IdentityWidget
+- MonsterInfoWidget
 
-C++? ?ㅼ쓬 ??븷留??대떦?쒕떎.
+동적 자식이 들어갈 컨테이너 이름:
 
-- ?뚮젅?댁뼱/紐ъ뒪?????곹깭 ?곗씠???쒓났
-- ?몃깽?좊━, ?λ퉬, ?ㅽ궗, ?ㅼ젙 ?⑤꼸 ?쒖떆 ?곹깭 ?쒓났
-- 濡쒓렇? ?띾뱷 ?뚮┝ ?곗씠???쒓났
-- Canvas 湲곕컲 ?꾩떆 HUD fallback ?쒓났
+- SkillSlotContainer
+- ItemSlotContainer
+- SystemLogContainer
+- ItemAcquisitionContainer
+- MinimapMarkerContainer
 
-## ?꾩옱 援ъ“
+BindWidgetOptional을 사용하므로 일부 항목이 없어도 C++ 로드는 가능하다. 자동 연결이 필요하면 이름과 부모 C++ 클래스가 정확해야 한다.
 
-- C++ HUD ?대옒?? `ARogue10mHUD`
-- Widget Blueprint 踰좎씠???대옒?? `URogue10mRunHUD`
-- 硫붿씤 HUD Widget C++ 遺紐??대옒?? `URogue10mMainHUDWidget`
-- ?섏쐞 HUD Widget C++ 遺紐??대옒???대뜑: `Source/Rogue10m/UI/Widgets`
-- Widget ?앹꽦 ?꾩튂: `ARogue10mPlayerController::InitializeRunHUD`
-- Widget 吏???꾩튂: `BP_FirstPersonPlayerController` ?먮뒗 `ARogue10mPlayerController` 湲곕컲 Blueprint??`RunHUDClass`
-- 湲곗〈 Canvas HUD ?좉?: `ARogue10mHUD::SetDrawCanvasPrototypeHUD`
+## 파트 부모 클래스
 
-## ?꾩옱 Content/Widget ?먯뀑 ?곌껐 湲곗?
-
-- `Content/Widget/UW_Rogue10mMainWidget.uasset`
-  - 硫붿씤 HUD 諛곗튂??Widget Blueprint濡??ъ슜?쒕떎.
-  - 遺紐??대옒?ㅻ뒗 `Rogue10mMainHUDWidget` ?먮뒗 理쒖냼 `Rogue10mRunHUD` 怨꾩뿴?댁뼱???쒕떎.
-  - `RunHUDClass`媛 鍮꾩뼱 ?덉쑝硫?`ARogue10mPlayerController`媛 `/Game/Widget/UW_Rogue10mMainWidget.UW_Rogue10mMainWidget_C`瑜?湲곕낯媛믪쑝濡?濡쒕뱶?쒕떎.
-  - ?꾩젽???뺤긽 ?앹꽦?섎㈃ Canvas 湲곕컲 ?꾨줈?좏???HUD???먮룞?쇰줈 爰쇱졇??Widget Blueprint 諛곗튂? 寃뱀튂吏 ?딅뒗??
-
-- `Content/Widget/BP_Rogue10mHUD.uasset`
-  - HUD 愿由ъ옄 Blueprint濡??곕젮硫?遺紐??대옒?ㅺ? `Rogue10mHUD` 怨꾩뿴?댁뼱???쒕떎.
-  - ?쇰컲 Actor Blueprint?쇰㈃ GameMode??HUD Class濡쒕뒗 ?ъ슜?????놁쑝誘濡? ??HUD Blueprint瑜?留뚮뱾嫄곕굹 遺紐??대옒?ㅻ? `Rogue10mHUD`濡?留욎텣??
-  - HUD Blueprint?먯꽌??`Draw Canvas Prototype HUD`瑜?爰쇰몢硫?Widget Blueprint ?덉씠?꾩썐留??뺤씤?섍린 ?쎈떎.
-
-## C++ 遺紐??대옒??遺꾨쪟
-
-Widget Blueprint??`Content/Widget` ?꾨옒??留뚮뱾怨? 遺紐??대옒?ㅻ뒗 ?꾨옒 C++ ?대옒?ㅻ? ?ъ슜?쒕떎.
-
-| Widget Blueprint ?덉떆 | 遺紐?C++ ?대옒??| ?⑸룄 |
+| Widget Blueprint | C++ 부모 | 역할 |
 | --- | --- | --- |
-| `WBP_MainHUD` | `Rogue10mMainHUDWidget` | 硫붿씤 HUD 猷⑦듃 |
-| `WBP_VitalBar` | `Rogue10mVitalBarWidget` | 泥대젰/?ㅽ뀒誘몃굹/留덈굹 諛?|
-| `WBP_Progression` | `Rogue10mProgressionWidget` | ?덈꺼/寃쏀뿕移?|
-| `WBP_Identity` | `Rogue10mIdentityWidget` | ?꾩씠?댄떚?곗? ?뱀닔 ?먯썝 |
-| `WBP_MonsterInfo` | `Rogue10mMonsterInfoWidget` | 紐ъ뒪???대쫫/?띿꽦/泥대젰 |
-| `WBP_QuickSlot` | `Rogue10mQuickSlotWidget` | ?ㅽ궗/?꾩씠???щ’ |
-| `WBP_LogLine` | `Rogue10mLogLineWidget` | ?쒖뒪??濡쒓렇 ??以?|
-| `WBP_ItemAcquisitionLine` | `Rogue10mLogLineWidget` | ?꾩씠???띾뱷 ?뚮┝ ??以?|
-| `WBP_MinimapMarker` | `Rogue10mMinimapMarkerWidget` | 誘몃땲留?留덉빱 |
-| `WBP_ShortcutHint` | `Rogue10mShortcutHintWidget` | ?λ퉬/?몃깽/?ㅽ궗/?ㅼ젙 ?⑥텞??|
-| 而ㅼ뒪? ?섏쐞 ?⑤꼸 | `Rogue10mHudPartWidget` | 怨듯넻 ?섏쐞 ?꾩젽 踰좎씠??|
-
-## ?앹꽦???뚰듃 Widget Blueprint
-
-?꾨옒 ?먯뀑? `Content/Widget/Parts`???앹꽦?섏뼱 ?덈떎. ?대? ?붿옄?몄? 鍮꾩썙 ?먯뿀?쇰?濡?Designer?먯꽌 ?먯쑀濡?쾶 ?쒖옉?쒕떎.
-
-| ?먯뀑 | 遺紐?C++ ?대옒??| 硫붿씤 HUD 諛곗튂 ?꾩튂 |
-| --- | --- | --- |
-| `WBP_VitalBar` | `Rogue10mVitalBarWidget` | `HealthBarWidget`, `StaminaBarWidget`, `ManaBarWidget` |
-| `WBP_QuickSlot` | `Rogue10mQuickSlotWidget` | ?ㅽ궗 ?щ’, ?꾩씠???щ’ 諛섎났 ?붿냼 |
-| `WBP_MonsterInfo` | `Rogue10mMonsterInfoWidget` | `MonsterInfoWidget` |
-| `WBP_Progression` | `Rogue10mProgressionWidget` | `ProgressionWidget` |
-| `WBP_Identity` | `Rogue10mIdentityWidget` | `IdentityWidget` |
-| `WBP_ShortcutHint` | `Rogue10mShortcutHintWidget` | `EquipmentShortcutWidget`, `ItemWindowShortcutWidget`, `SkillTreeShortcutWidget`, `SettingsShortcutWidget` |
-| `WBP_LogLine` | `Rogue10mLogLineWidget` | ?쒖뒪??濡쒓렇 ??以?|
-| `WBP_ItemAcquisitionLine` | `Rogue10mLogLineWidget` | ?꾩씠???띾뱷 ?뚮┝ ??以?|
-| `WBP_MinimapMarker` | `Rogue10mMinimapMarkerWidget` | 誘몃땲留?留덉빱 諛섎났 ?붿냼 |
-
-`UW_Rogue10mMainWidget`?먮뒗 ???뚰듃 ?꾩젽??諛곗튂???? ?먮룞 諛붿씤?⑹씠 ?꾩슂???꾩젽? ?대쫫???뺥솗??留욎텣?? ?덈? ?ㅼ뼱 `WBP_VitalBar`瑜?泥대젰諛붾줈 ?ъ슜??寃쎌슦 諛곗튂???몄뒪?댁뒪 ?대쫫??`HealthBarWidget`?쇰줈 蹂寃쏀븳??
-
-### ?뚰듃 ?꾩젽 湲곕낯 Canvas ?ㅼ젙
-
-UE 5.7 紐낅졊以?Python ?섍꼍?먯꽌??Widget Blueprint??`WidgetTree.RootWidget`??蹂댄샇 ?띿꽦?대씪 Designer ?몃━瑜??먮룞 ??ν븯吏 ?딅뒗?? ???媛??뚰듃??C++ 遺紐??대옒?ㅺ? 鍮꾩뼱 ?덈뒗 Widget Blueprint?????`NativePreConstruct`?먯꽌 ?꾩떆 Canvas 誘몃━蹂닿린 援ъ“瑜?留뚮뱺??
-
-- 猷⑦듃媛 鍮꾩뼱 ?덉쑝硫?`CanvasPanel_Root`媛 ?고????꾨━酉곗슜?쇰줈 ?앹꽦?쒕떎.
-- ?대???`Border_DesignScaffold`, `Text_DesignTitle`, `Text_DesignDescription`???앹꽦?섏뼱 ?뚰듃 ?⑸룄? 沅뚯옣 ?ш린瑜?蹂댁뿬以??
-- Designer?먯꽌 吏곸젒 猷⑦듃 ?꾩젽?대굹 ?먯떇 ?꾩젽??諛곗튂?섎㈃ C++ ?꾩떆 援ъ“?????댁긽 ?앹꽦?섏? ?딅뒗??
-- 媛??뚰듃??`bCreatePrototypeDesignScaffold`瑜??꾨㈃ 誘몃━蹂닿린 援ъ“瑜?鍮꾪솢?깊솕?????덈떎.
-
-沅뚯옣 ?묒뾽 ?쒖꽌:
-
-1. `WBP_*` ?뚰듃 ?꾩젽???곕떎.
-2. Designer?먯꽌 ?먰븯??猷⑦듃 ?⑤꼸??吏곸젒 諛곗튂?쒕떎. 湲곕낯? `Canvas Panel`??異붿쿇?쒕떎.
-3. ?대? ?붿옄?몄쓣 留뚮뱾怨?Compile/Save?쒕떎.
-4. `UW_Rogue10mMainWidget`??諛곗튂?????몄뒪?댁뒪 ?대쫫???먮룞 諛붿씤??洹쒖튃??留욎텣??
-
-## Widget Blueprint ?앹꽦 ?덉감
-
-1. 肄섑뀗痢?釉뚮씪?곗??먯꽌 `Content/Widget` ?대뜑瑜??ъ슜?쒕떎.
-2. `User Interface > Widget Blueprint`瑜??앹꽦?쒕떎.
-3. ?대쫫? ?덉떆濡?`WBP_MainHUD`瑜??ъ슜?쒕떎.
-4. 遺紐??대옒?ㅻ? `Rogue10mMainHUDWidget`?쇰줈 吏?뺥븳??
-5. `BP_FirstPersonPlayerController`瑜??닿퀬 `RunHUDClass`??`WBP_MainHUD`瑜?吏?뺥븳??
-6. PIE ?ㅽ뻾 ??Widget??蹂댁씠?붿? ?뺤씤?쒕떎.
-7. Canvas ?꾩떆 HUD媛 寃뱀튂硫?`ARogue10mHUD` 湲곕낯媛??먮뒗 HUD Blueprint?먯꽌 `Draw Canvas Prototype HUD`瑜??덈떎.
-
-## ?먮룞 諛붿씤???대쫫 洹쒖튃
-
-`WBP_MainHUD` ?덉뿉 ?꾨옒 ?대쫫?쇰줈 ?섏쐞 ?꾩젽??諛곗튂?섎㈃ C++?먯꽌 ?먮룞?쇰줈 ?곗씠?곕? ?ｌ뼱以??
-
-| WBP_MainHUD ?대? ?꾩젽 ?대쫫 | 沅뚯옣 遺紐??대옒??| ?먮룞 ?낅젰 ?곗씠??|
-| --- | --- | --- |
-| `HealthBarWidget` | `Rogue10mVitalBarWidget` | 泥대젰 |
-| `StaminaBarWidget` | `Rogue10mVitalBarWidget` | ?ㅽ뀒誘몃굹 |
-| `ManaBarWidget` | `Rogue10mVitalBarWidget` | 留덈굹 |
-| `ProgressionWidget` | `Rogue10mProgressionWidget` | ?덈꺼/寃쏀뿕移?|
-| `IdentityWidget` | `Rogue10mIdentityWidget` | ?꾩씠?댄떚??|
-| `MonsterInfoWidget` | `Rogue10mMonsterInfoWidget` | 議곗? 以묒씤 紐ъ뒪??|
-| `EquipmentShortcutWidget` | `Rogue10mShortcutHintWidget` | ?λ퉬 ?⑥텞??|
-| `ItemWindowShortcutWidget` | `Rogue10mShortcutHintWidget` | ?몃깽 ?⑥텞??|
-| `SkillTreeShortcutWidget` | `Rogue10mShortcutHintWidget` | ?ㅽ궗 ?⑥텞??|
-| `SettingsShortcutWidget` | `Rogue10mShortcutHintWidget` | ?ㅼ젙 ?⑥텞??|
-
-?대쫫???ㅻⅤ寃??곌퀬 ?띠쑝硫??먮룞 諛붿씤?⑹쓣 ?ъ슜?섏? ?딄퀬 `BP_OnHudDataUpdated`?먯꽌 Getter瑜?吏곸젒 ?몄텧?섎㈃ ?쒕떎.
-
-## 沅뚯옣 Widget ?몃━
-
-?꾨옒 援ъ“瑜?湲곕낯?쇰줈 ?쒖옉?섎㈃ ?꾩옱 C++ Getter? ??留욌뒗??
-
-```text
-WBP_MainHUD
-?붴? CanvasPanel Root
-   ?쒋? MonsterInfoWidget
-   ?쒋? Panel_Minimap
-   ?쒋? Panel_ItemAcquisition
-   ?쒋? Panel_SystemLog
-   ?쒋? Panel_BottomHUD
-   ?? ?쒋? HealthBarWidget
-   ?? ?쒋? Box_SkillSlots
-   ?? ?쒋? IdentityWidget
-   ?? ?쒋? StaminaBarWidget
-   ?? ?붴? Box_ItemSlots
-   ?붴? Box_ShortcutHints
-```
+| WBP_VitalBar | Rogue10mVitalBarWidget | 체력, 스테미나, 선택 자원 |
+| WBP_Progression | Rogue10mProgressionWidget | 레벨과 경험치 |
+| WBP_Identity | Rogue10mIdentityWidget | 무기 숙련도와 아이덴티티 |
+| WBP_MonsterInfo | Rogue10mMonsterInfoWidget | 조준 중인 몬스터 정보 |
+| WBP_QuickSlot | Rogue10mQuickSlotWidget | 스킬/아이템 슬롯 |
+| WBP_LogLine | Rogue10mLogLineWidget | 시스템 로그 한 줄 |
+| WBP_MinimapMarker | Rogue10mMinimapMarkerWidget | 미니맵 마커 |
 
-沅뚯옣 Anchor:
+각 파트는 Set...View 호출 뒤 발생하는 BP_On...Changed 이벤트에서 Text, ProgressBar, Image를 갱신한다.
 
-- `Overlay_MonsterInfo`: ?곷떒 以묒븰
-- `Panel_Minimap`: ?곗륫 ?곷떒
-- `Panel_ItemAcquisition`: 以묒븰 ?곗륫
-- `Panel_SystemLog`: 醫뚯륫 ?섎떒
-- `Panel_BottomHUD`: ?섎떒 以묒븰
-- `Box_ShortcutHints`: ?곗륫 ?섎떒
+## 수치 바
 
-## ?낅뜲?댄듃 ?대깽??援ъ꽦
+- 체력: GetHealthView, 빨간색
+- 스테미나: GetStaminaView, 파란색
+- 마나: GetManaView, bVisible이 true일 때만 표시
+- 아이덴티티: GetIdentityView, 회색 기본 테두리
 
-`URogue10mRunHUD`??湲곕낯?곸쑝濡?留?Tick留덈떎 `BP_OnHudDataUpdated`瑜??몄텧?쒕떎.
+모든 바는 Current, Max, Normalized, ValueText, PercentText를 제공한다.
 
-Widget Blueprint??Event Graph?먯꽌 ?ㅼ쓬 ?먮쫫??留뚮뱺??
+## 동적 스킬 슬롯
 
-```text
-Event BP_OnHudDataUpdated
-?쒋? UpdateVitals
-?쒋? UpdateProgression
-?쒋? UpdateIdentity
-?쒋? UpdateMonsterInfo
-?쒋? UpdateSkillSlots
-?쒋? UpdateItemSlots
-?쒋? UpdateSystemLog
-?쒋? UpdateItemAcquisition
-?쒋? UpdateMinimap
-?붴? UpdateShortcutHints
-```
+GetSkillQuickSlotViews는 현재 무기에 바인딩되고 해금된 공격 Data Asset만 반환한다.
 
-泥섏쓬?먮뒗 紐⑤뱺 媛깆떊??Tick ?대깽?몄뿉??泥섎━?대룄 ?쒕떎. UI媛 留롮븘吏硫?蹂寃??대깽??諛⑹떇?쇰줈 遺꾨━?쒕떎.
+- 기본 최소 슬롯은 1개다.
+- 무기 변경 또는 스킬 해금으로 배열 수가 바뀌면 SkillSlotContainer의 자식을 다시 생성한다.
+- QuickSlotWidgetClass에는 WBP_QuickSlot을 지정한다.
+- 콤보는 공유 쿨타임을 사용하며 다음 콤보 대기 중에는 표시 아이콘이 다음 공격으로 바뀐다.
 
-## 二쇱슂 Getter ?ъ슜踰?
+## 패널 상태
 
-### 泥대젰
+I, B, K, O/Escape/F10 입력은 PlayerController의 패널 상태를 변경한다.
 
-?ъ슜 ?⑥닔:
+GetPanelStateView에서 다음 값을 읽을 수 있다.
 
-- `GetHealthView`
+- bEquipmentVisible
+- bItemWindowVisible
+- bSkillTreeVisible
+- bSettingsVisible
 
-諛섑솚媛?
+패널이 하나라도 열리면 마우스 커서와 GameAndUI 입력 모드가 활성화되고 캐릭터 이동과 공격이 차단된다. 실제 패널 디자인과 표시 애니메이션은 Widget Blueprint에서 구현한다.
 
-- `Current`
-- `Max`
-- `Normalized`
-- `bVisible`
+## 로그와 획득 알림
 
-Blueprint ?곌껐 ??
+- 시스템 로그: GetSystemLogEntries
+- 획득 알림: GetItemAcquisitionEntries
+- 각 항목: Message, Color, RemainingSeconds
+- 최신 항목이 배열 앞에 위치한다.
 
-```text
-GetHealthView
-?쒋? ProgressBar_Health.SetPercent(Normalized)
-?붴? Text_Health.SetText("{Current} / {Max}")
-```
+LogLineWidgetClass에 로그 파트 Blueprint를 지정하면 컨테이너 자식이 자동 관리된다.
 
-### ?ㅽ뀒誘몃굹? 留덈굹
+## 몬스터 정보와 피해 피드백
 
-?ъ슜 ?⑥닔:
+- GetLookedAtMonsterInfoView: 카메라 중앙 선상 몬스터의 이름, 레벨, 속성, 상태, 체력
+- GetDamageFeedbackView: 플레이어 피격 오버레이의 강도와 투명도
+- GetAimCrossLineView: 패널이 닫혀 있고 캐릭터가 살아 있을 때 조준선 표시
 
-- `GetStaminaView`
-- `GetManaView`
+## 점검 순서
 
-留덈굹??`bVisible`??false硫??꾩젽???④릿??
-
-```text
-GetManaView
-?쒋? Branch bVisible
-?? ?쒋? true: ManaPanel.SetVisibility(Visible)
-?? ?붴? false: ManaPanel.SetVisibility(Collapsed)
-?붴? ProgressBar_Mana.SetPercent(Normalized)
-```
-
-### ?덈꺼怨?寃쏀뿕移?
-
-?ъ슜 ?⑥닔:
-
-- `GetProgressionView`
-
-?쒖떆 沅뚯옣:
-
-- ?덈꺼 ?띿뒪?? `Lv.{Level}`
-- 寃쏀뿕移??띿뒪?? `{CurrentExperience} / {ExperienceToNextLevel}`
-- 寃쏀뿕移?諛? `ExperienceNormalized`
-
-### ?꾩씠?댄떚??
-
-?ъ슜 ?⑥닔:
-
-- `GetIdentityView`
-
-沅뚯옣 援ъ꽦:
-
-- `Border` ?먮뒗 `Image` ?멸낸?? `OutlineColor`, `OutlineThickness`, `MasteryNormalized`瑜??ъ슜?쒕떎.
-- 硫붿씤 ?대?吏: `IconTexture`瑜??ъ슜?쒕떎. 湲곕낯 二쇰㉨ ?꾩씠肄??먮낯? `Content/UI/Icons/T_Identity_StoneFist.png`???덈떎.
-- ?숇젴???띿뒪?? `Label`???ъ슜?쒕떎. ?꾩옱 湲곕낯媛믪? `沅??숇젴??1` 怨꾩뿴?대떎.
-- ?뱀닔 ?먯썝 諛? `Current`, `Max`, `Normalized`, `ResourceLabel`???ъ슜?쒕떎.
-- 沅?湲곕낯 二쇰㉨? `/Game/UI/Icons/T_Identity_StoneFist` ?띿뒪泥??먯뀑??諛붾씪蹂대룄濡?以鍮꾪뻽?? PNG瑜?Unreal Editor?먯꽌 import?섎㈃ 媛숈? 寃쎈줈??Texture濡??곌껐?섍린 ?쎈떎.
-
-Designer ?덉떆:
-
-```text
-CanvasPanel Root
-?쒋? Border_IdentityOutline
-?? ?붴? Overlay
-??    ?쒋? Image_IdentityIcon
-??    ?붴? Text_MasteryLabel
-?붴? ProgressBar_IdentityResource
-```
-
-?쒖떆 沅뚯옣:
-
-- ?쒕ぉ: `?꾩씠?댄떚??
-- 蹂댁“ ?띿뒪?? `Label`
-- 寃뚯씠吏: `Normalized`
-
-?꾩옱 ?꾩씠?댄떚?곕뒗 湲고쉷 以묒씠誘濡?臾닿린 ?숇젴?꾩? ?뱀닔 ?먯썝 ?먮━濡??ъ슜?쒕떎.
-
-### 紐ъ뒪???뺣낫
-
-?ъ슜 ?⑥닔:
-
-- `GetLookedAtMonsterInfoView`
-
-?쒖떆 洹쒖튃:
-
-- `bHasMonster`媛 false硫?紐ъ뒪???뺣낫 ?⑤꼸???④릿??
-- true硫??대쫫, ?덈꺼, ?띿꽦, ?곹깭, 泥대젰 ?섏튂, 泥대젰 ?쇱꽱?몃? ?쒖떆?쒕떎.
-
-Blueprint ?곌껐 ??
-
-```text
-GetLookedAtMonsterInfoView
-?쒋? Branch bHasMonster
-?? ?쒋? false: MonsterInfo.SetVisibility(Collapsed)
-?? ?붴? true: MonsterInfo.SetVisibility(Visible)
-?쒋? Text_Name.SetText(Name)
-?쒋? Text_Level.SetText("Lv.{Level}")
-?쒋? Text_Attribute.SetText(AttributeText)
-?쒋? Text_State.SetText(StateText)
-?붴? ProgressBar_MonsterHealth.SetPercent(Health.Normalized)
-```
-
-### ?ㅽ궗 ?щ’
-
-?ъ슜 ?⑥닔:
-
-- `GetSkillQuickSlotViews`
-
-諛섑솚 諛곗뿴??媛??먯냼:
-
-- `SlotNumber`
-- `DisplayName`
-- `IconColor`
-- `CooldownRemaining`
-- `CooldownDuration`
-- `CooldownNormalized`
-- `bUnlocked`
-
-沅뚯옣 援ы쁽:
-
-- `Box_SkillSlots`瑜?`HorizontalBox`濡?留뚮뱺??
-- `WBP_QuickSlot` ?섏쐞 ?꾩젽??蹂꾨룄濡?留뚮뱺??
-- `BP_OnHudDataUpdated`?먯꽌 ?щ’ ?섍? 諛붾뚮㈃ ?먯떇 ?꾩젽???ъ깮?깊븳??
-- ?щ’ ?섍? 媛숈쑝硫?湲곗〈 ?먯떇 ?꾩젽???쒖떆 ?곗씠?곕쭔 媛깆떊?쒕떎.
-
-荑⑦????쒖떆:
-
-- `CooldownNormalized > 0`?대㈃ ?대몢??Overlay ?쒖떆
-- ?띿뒪?몃뒗 `CooldownRemaining`???뚯닔??1?먮━濡??쒖떆
-
-?좉툑 ?쒖떆:
-
-- `bUnlocked == false`?대㈃ ?꾩씠肄섏쓣 ?대몼寃??섍퀬 `?좉?` ?띿뒪?몃? ?쒖떆?쒕떎.
-
-### ?꾩씠???щ’
-
-?ъ슜 ?⑥닔:
-
-- `GetItemQuickSlotViews`
-
-?ㅽ궗 ?щ’怨?媛숈? 諛⑹떇?쇰줈 泥섎━?섎릺, `Box_ItemSlots`??諛곗튂?쒕떎.
-
-### ?쒖뒪??濡쒓렇
-
-?ъ슜 ?⑥닔:
-
-- `GetSystemLogEntries`
-
-沅뚯옣 Widget:
-
-- `ScrollBox_SystemLog`
-- 濡쒓렇 ??以꾩슜 `WBP_LogLine`
-
-?쒖떆 洹쒖튃:
-
-- 理쒖떊 濡쒓렇媛 ?꾩뿉 ?⑤떎.
-- ??ぉ ?섍? 留롮쑝硫?ScrollBox媛 ?ㅽ겕濡ㅼ쓣 ?대떦?쒕떎.
-- `Color`瑜??띿뒪???됱긽??諛섏쁺?쒕떎.
-
-### ?꾩씠???띾뱷 ?뚮┝
-
-?ъ슜 ?⑥닔:
-
-- `GetItemAcquisitionEntries`
-
-?쒖떆 洹쒖튃:
-
-- 理쒖떊 ?뚮┝???꾩뿉 ?쒖떆?쒕떎.
-- `RemainingSeconds`媛 0??媛源뚯슱?섎줉 ?щ챸?꾨? ??텣??
-- Widget Animation???ъ슜?섎㈃ 濡쒖뒪?몄븘?ъ쿂???먯뿰?ㅻ읇寃??щ씪吏???곗텧??留뚮뱾 ???덈떎.
-
-沅뚯옣 ?щ챸??怨꾩궛:
-
-```text
-Opacity = Clamp(RemainingSeconds / 3.0, 0.0, 1.0)
-```
-
-### 誘몃땲留?
-
-?ъ슜 ?⑥닔:
-
-- `GetPrototypeMinimapMarkers`
-
-?꾩옱???꾩떆 留덉빱??
-
-媛?留덉빱:
-
-- `NormalizedPosition`: 0~1 踰붿쐞??誘몃땲留??대? 醫뚰몴
-- `Color`: 留덉빱 ?됱긽
-- `Label`: 留덉빱 ?ㅻ챸
-
-Widget?먯꽌 諛곗튂????
-
-```text
-X = MinimapWidth * NormalizedPosition.X
-Y = MinimapHeight * NormalizedPosition.Y
-```
-
-異뷀썑 ?ㅼ젣 誘몃땲留듭? ?붾뱶 醫뚰몴瑜??뺢퇋?뷀빐????援ъ“濡?怨듦툒?쒕떎.
-
-### ?⑤꼸 ?곹깭? ?⑥텞??
-
-?ъ슜 ?⑥닔:
-
-- `GetPanelStateView`
-- `GetEquipmentShortcutText`
-- `GetItemWindowShortcutText`
-- `GetSkillTreeShortcutText`
-- `GetSettingsShortcutText`
-
-?ъ슜 ??
-
-- ?λ퉬 踰꾪듉???대젮 ?덉쑝硫?媛뺤“ ?됱긽
-- ?꾩씠??李쎌씠 ?대젮 ?덉쑝硫?媛뺤“ ?됱긽
-- ?ㅽ궗?몃━/?ㅼ젙???숈씪?섍쾶 泥섎━
-
-## ?섏쐞 ?꾩젽 遺꾨━ 沅뚯옣
-
-泥섏쓬遺??紐⑤뱺 UI瑜?`WBP_MainHUD`??紐곗븘?ｌ쑝硫?愿由ш? ?대젮?뚯쭊??
-
-沅뚯옣 遺꾨━:
-
-- `WBP_VitalBar`: 遺紐?`Rogue10mVitalBarWidget`
-- `WBP_QuickSlot`: 遺紐?`Rogue10mQuickSlotWidget`
-- `WBP_SystemLogLine`: 遺紐?`Rogue10mLogLineWidget`
-- `WBP_ItemAcquisitionLine`: 遺紐?`Rogue10mLogLineWidget`
-- `WBP_MonsterInfo`: 遺紐?`Rogue10mMonsterInfoWidget`
-- `WBP_MinimapMarker`: 遺紐?`Rogue10mMinimapMarkerWidget`
-- `WBP_ShortcutHint`: 遺紐?`Rogue10mShortcutHintWidget`
-
-媛??섏쐞 ?꾩젽? `SetData` ?⑥닔 ?섎굹瑜?留뚮뱾???몃??먯꽌 View 援ъ“泥대? ?섍린??諛⑹떇?쇰줈 愿由ы븳??
-
-?꾩옱 C++ 遺紐??대옒?ㅻ뱾? ?대? `SetVitalView`, `SetQuickSlotView`, `SetLogEntryView` 媛숈? ?곗씠???낅젰 ?⑥닔瑜??쒓났?쒕떎. Blueprint?먯꽌??媛?`BP_On...Changed` ?대깽?몄뿉???쒖떆留?媛깆떊?섎㈃ ?쒕떎.
-
-## Canvas HUD? 蹂묓뻾 ?ъ슜
-
-珥덇린 媛쒕컻 以묒뿉??Canvas HUD? Widget HUD瑜?媛숈씠 耳????덈떎.
-
-- 鍮좊Ⅸ C++ ?붾쾭洹??뺤씤: Canvas HUD 耳쒓린
-- ?ㅼ젣 UI 諛곗튂 寃?? Canvas HUD ?꾧린, Widget Blueprint ?ъ슜
-
-Canvas HUD瑜??꾨뒗 諛⑸쾿:
-
-1. HUD Blueprint ?먮뒗 C++ 湲곕낯媛믪뿉??`Draw Canvas Prototype HUD`瑜?false濡??ㅼ젙?쒕떎.
-2. ?먮뒗 Blueprint?먯꽌 `Get HUD > Cast to Rogue10mHUD > Set Draw Canvas Prototype HUD(false)`瑜??몄텧?쒕떎.
-
-## ?깅뒫 二쇱쓽?ы빆
-
-- 留?Tick留덈떎 紐⑤뱺 ?꾩젽????젣/?ъ깮?깊븯吏 ?딅뒗??
-- ?щ’/濡쒓렇 媛쒖닔媛 諛붾??뚮쭔 ?먯떇 ?꾩젽???ъ깮?깊븳??
-- ?レ옄 ?띿뒪?몃뒗 媛믪씠 諛붾?寃쎌슦?먮쭔 `SetText`?쒕떎.
-- ProgressBar Percent 媛깆떊? Tick?먯꽌 ?대룄 ?쒕떎.
-- ?꾩씠???띾뱷 ?뚮┝? Widget Animation???곕㈃ Tick 怨꾩궛??以꾩씪 ???덈떎.
-
-## 臾몄젣 ?닿껐
-
-### Widget??蹂댁씠吏 ?딆쓬
-
-- PlayerController Blueprint??`RunHUDClass`媛 鍮꾩뼱 ?덈뒗吏 ?뺤씤?쒕떎.
-- 遺紐??대옒?ㅺ? `Rogue10mRunHUD`?몄? ?뺤씤?쒕떎.
-- PlayerController媛 ?ㅼ젣 GameMode?먯꽌 ?ъ슜 以묒씤吏 ?뺤씤?쒕떎.
-
-### Canvas HUD? 寃뱀묠
-
-- `Draw Canvas Prototype HUD`瑜?false濡??ㅼ젙?쒕떎.
-- ?꾩쭅 Widget???꾩꽦?섏? ?딆븯?ㅻ㈃ Canvas HUD瑜?耳쒕몦 ?곹깭濡?鍮꾧탳?대룄 ?쒕떎.
-
-### 泥대젰/?ㅽ뀒誘몃굹媛 0?쇰줈 蹂댁엫
-
-- ?뚮젅?댁뼱 Pawn??`Rogue10mCharacter`?몄? ?뺤씤?쒕떎.
-- 罹먮┃?곗뿉 `Rogue10mVitalsComponent`媛 遺숈뼱 ?덈뒗吏 ?뺤씤?쒕떎.
-
-### 紐ъ뒪???뺣낫媛 蹂댁씠吏 ?딆쓬
-
-- ?붾㈃ 以묒븰 議곗??좎씠 紐ъ뒪?곕? 諛붾씪蹂닿퀬 ?덈뒗吏 ?뺤씤?쒕떎.
-- 紐ъ뒪?곌? `Rogue10mBasicMonster` 怨꾩뿴?몄? ?뺤씤?쒕떎.
-- UI??`bHasMonster`媛 false硫??④꺼???쒕떎.
-
-### 濡쒓렇媛 媛깆떊?섏? ?딆쓬
-
-- `BP_OnHudDataUpdated`?먯꽌 `GetSystemLogEntries`瑜??몄텧?섍퀬 ?덈뒗吏 ?뺤씤?쒕떎.
-- C++ 履쎌뿉??`AddCombatLogMessage`媛 ?몄텧?섎뒗吏 ?뺤씤?쒕떎.
-
-## ?ㅼ쓬 ?묒뾽 ?꾨낫
-
-- `WBP_MainHUD` ?섑뵆 ?먯뀑 ?쒖옉
-- `WBP_QuickSlot`, `WBP_VitalBar`, `WBP_MonsterInfo` ?섑뵆 ?쒖옉
-- 濡쒓렇 ?ㅽ겕濡??낅젰??Widget `ScrollBox` 以묒떖?쇰줈 ?댁쟾
-- ?꾩씠???띾뱷 ?뚮┝??Widget Animation?쇰줈 ?섏씠??泥섎━
-- ?ㅼ젣 誘몃땲留?RenderTarget ?먮뒗 留??곗씠??湲곕컲 2D ?꾩젽 ?곌껐
-- ?λ퉬/?꾩씠???ㅽ궗/?ㅼ젙 ?⑤꼸??媛곴컖 ?낅┰ Widget Blueprint濡?遺꾨━
-
+1. UW_Rogue10mMainWidget 부모가 Rogue10mMainHUDWidget인지 확인한다.
+2. 자동 바인딩 이름과 파트 부모 클래스를 확인한다.
+3. QuickSlotWidgetClass, LogLineWidgetClass, MinimapMarkerWidgetClass를 지정한다.
+4. Compile과 Save를 실행한다.
+5. PIE에서 체력/스테미나, 공격 슬롯, 몬스터 정보, 패널 입력 모드를 확인한다.
