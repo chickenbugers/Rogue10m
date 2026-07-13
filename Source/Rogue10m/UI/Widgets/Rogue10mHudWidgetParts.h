@@ -8,6 +8,8 @@
 #include "Rogue10mHudWidgetParts.generated.h"
 
 class URogue10mMainHUDWidget;
+class UBorder;
+class UImage;
 class UProgressBar;
 class UTextBlock;
 
@@ -68,8 +70,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Vitals")
 	TObjectPtr<UTextBlock> UI_ValueText;
 
-	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Vitals")
-	TObjectPtr<UTextBlock> LabelText;
 	virtual FText GetPrototypeDesignDescription() const override;
 	virtual FVector2D GetPrototypeDesignSize() const override;
 
@@ -101,12 +101,23 @@ protected:
 	virtual FText GetPrototypeDesignDescription() const override;
 	virtual FVector2D GetPrototypeDesignSize() const override;
 
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Progression")
+	TObjectPtr<UProgressBar> UI_ExperienceBar;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Progression")
+	TObjectPtr<UTextBlock> UI_ExperienceText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Progression")
+	TObjectPtr<UTextBlock> UI_LevelText;
+
 	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|HUD|Progression", meta=(DisplayName="Progression View Changed"))
 	void BP_OnProgressionViewChanged();
 
 private:
 	UPROPERTY(Transient, BlueprintReadOnly, Category="Rogue10m|HUD|Progression", meta=(AllowPrivateAccess="true"))
 	FRogue10mHudProgressionView ProgressionView;
+
+	bool bHasProgressionView = false;
 };
 
 UCLASS(Abstract, Blueprintable)
@@ -150,6 +161,15 @@ protected:
 	virtual FText GetPrototypeDesignTitle() const override;
 	virtual FText GetPrototypeDesignDescription() const override;
 	virtual FVector2D GetPrototypeDesignSize() const override;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Monster")
+	TObjectPtr<UTextBlock> UI_MonsterNameText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Monster")
+	TObjectPtr<UProgressBar> UI_MonsterHealthBar;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Monster")
+	TObjectPtr<UTextBlock> UI_MonsterHealthText;
+
 
 	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|HUD|Monster", meta=(DisplayName="Monster Info View Changed"))
 	void BP_OnMonsterInfoViewChanged();
@@ -171,11 +191,25 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|HUD|Quick Slot")
 	FRogue10mHudQuickSlotView GetQuickSlotView() const { return QuickSlotView; }
 
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+		UDragDropOperation* InOperation) override;
+
 protected:
 	virtual FText GetPrototypeDesignTitle() const override;
 	virtual FText GetPrototypeDesignDescription() const override;
 	virtual FVector2D GetPrototypeDesignSize() const override;
 
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Quick Slot")
+	TObjectPtr<UTextBlock> UI_KeyText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Quick Slot")
+	TObjectPtr<UTextBlock> UI_CooldownText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Quick Slot")
+	TObjectPtr<UImage> UI_IconImage;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Quick Slot")
+	TObjectPtr<UBorder> UI_SlotFrame;
 	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|HUD|Quick Slot", meta=(DisplayName="Quick Slot View Changed"))
 	void BP_OnQuickSlotViewChanged();
 
@@ -184,6 +218,35 @@ private:
 	FRogue10mHudQuickSlotView QuickSlotView;
 };
 
+UCLASS(Abstract, Blueprintable)
+class ROGUE10M_API URogue10mSkillSlotPanelWidget : public URogue10mHudPartWidget
+{
+	GENERATED_BODY()
+
+public:
+	void SetSkillSlotViews(const TArray<FRogue10mHudQuickSlotView>& Views,
+		TSubclassOf<URogue10mQuickSlotWidget> InQuickSlotWidgetClass);
+
+protected:
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Skill Slots")
+	TObjectPtr<UBorder> UI_SkillSlotFrame1;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Skill Slots")
+	TObjectPtr<UBorder> UI_SkillSlotFrame2;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Skill Slots")
+	TObjectPtr<UBorder> UI_SkillSlotFrame3;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Skill Slots")
+	TObjectPtr<UBorder> UI_SkillSlotFrame4;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Skill Slots")
+	TObjectPtr<UBorder> UI_SkillSlotFrame5;
+
+private:
+	void RefreshSlot(UBorder* Frame, int32 Index, const TArray<FRogue10mHudQuickSlotView>& Views,
+		TSubclassOf<URogue10mQuickSlotWidget> InQuickSlotWidgetClass);
+};
 UCLASS(Abstract, Blueprintable)
 class ROGUE10M_API URogue10mLogLineWidget : public URogue10mHudPartWidget
 {
@@ -200,6 +263,15 @@ protected:
 	virtual FText GetPrototypeDesignTitle() const override;
 	virtual FText GetPrototypeDesignDescription() const override;
 	virtual FVector2D GetPrototypeDesignSize() const override;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Log")
+	TObjectPtr<UImage> UI_ItemIconImage;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Log")
+	TObjectPtr<UTextBlock> UI_ItemCountText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Log")
+	TObjectPtr<UTextBlock> UI_ItemNameText;
+
 
 	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|HUD|Log", meta=(DisplayName="Log Entry View Changed"))
 	void BP_OnLogEntryViewChanged();

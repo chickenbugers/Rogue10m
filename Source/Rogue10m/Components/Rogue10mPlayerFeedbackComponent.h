@@ -27,6 +27,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Feedback")
 	void NotifyInsufficientStamina();
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Feedback")
+	void SetSprinting(bool bNewSprinting);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -53,7 +56,19 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Feedback|Stamina", meta=(AllowPrivateAccess="true"))
 	FLinearColor StaminaTint = FLinearColor(0.55f, 0.68f, 0.9f, 1.0f);
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Feedback|Damage", meta=(AllowPrivateAccess="true", ClampMin="0.05"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Feedback|Sprint", meta=(AllowPrivateAccess="true"))
+	FLinearColor SprintTint = FLinearColor(0.86f, 0.94f, 1.0f, 1.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Feedback|Sprint", meta=(AllowPrivateAccess="true", ClampMin="0.0", ClampMax="1.0"))
+	float SprintVignetteIntensity = 0.25f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Feedback|Sprint", meta=(AllowPrivateAccess="true", ClampMin="0.0", ClampMax="1.0"))
+	float SprintMotionBlurAmount = 0.35f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Feedback|Sprint", meta=(AllowPrivateAccess="true", ClampMin="0.0", ClampMax="5.0"))
+	float SprintChromaticAberration = 0.6f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Feedback|Damage", meta=(AllowPrivateAccess="true", ClampMin="0.05", Units="s"))
 	float DamagePulseDuration = 0.5f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Feedback|Damage", meta=(AllowPrivateAccess="true", ClampMin="1.0"))
@@ -84,4 +99,5 @@ private:
 	float DamagePulse = 0.0f;
 	float InsufficientStaminaPulse = 0.0f;
 	float LowStaminaIntensity = 0.0f;
+	bool bSprinting = false;
 };

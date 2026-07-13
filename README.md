@@ -124,6 +124,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1
 - [월드 구조](Docs/WorldStructure.md)
 - [애니메이션 연동 가이드](Docs/AnimationIntegrationGuide.md)
 - [공격 스킬 Data Asset 가이드](Docs/AttackSkillDataAssetGuide.md)
+- [달리기와 화면 피드백 설정 가이드](Docs/SprintAndFeedbackGuide.md)
 - [캐릭터 데이터 소유권](Docs/CharacterDataOwnership.md)
 - [브랜치 전략](Docs/GitBranchStrategy.md)
 - [Harness 파이프라인](Docs/HarnessPipeline.md)
@@ -140,3 +141,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1
 ## 저장소
 
 - GitHub: https://github.com/chickenbugers/Rogue10m
+
+- [Grid Inventory and Menu Windows Guide](Docs/GridInventoryAndMenuWindowsGuide.md)
+
+- [Sprint 변경 이력](Docs/SprintChangeLog.md)
+
+- [스킬트리 Loadout과 무기별 회피 설정](Docs/SkillTreeLoadoutGuide.md)

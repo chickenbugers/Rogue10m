@@ -12,6 +12,10 @@
 #include "Rogue10mAttackSkillData.h"
 #include "Rogue10mCharacter.h"
 #include "Rogue10mPlayerController.h"
+#include "Rogue10mPlayerState.h"
+#include "Rogue10mMonsterDataAsset.h"
+#include "Rogue10mVitalRegenerationComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "TimerManager.h"
 
 ARogue10mBasicMonster::ARogue10mBasicMonster()
@@ -22,6 +26,7 @@ ARogue10mBasicMonster::ARogue10mBasicMonster()
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 	AttributeSet = CreateDefaultSubobject<URogue10mAttributeSet>(TEXT("Attribute Set"));
+	VitalRegenerationComponent = CreateDefaultSubobject<URogue10mVitalRegenerationComponent>(TEXT("Vital Regeneration Component"));
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	AIControllerClass = AAIController::StaticClass();
@@ -39,7 +44,32 @@ void ARogue10mBasicMonster::BeginPlay()
 {
 	Super::BeginPlay();
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
-	AttributeSet->InitializeVitals(MaxHealth, 1.0f, 1.0f);
+	float InitialStamina = 1.0f;
+	float InitialMana = 1.0f;
+	if (MonsterData)
+	{
+		MonsterDisplayName = MonsterData->DisplayName;
+		MonsterLevel = MonsterData->Level;
+		MaxHealth = MonsterData->MaxHealth;
+		InitialStamina = MonsterData->MaxStamina;
+		InitialMana = MonsterData->MaxMana;
+		ExperienceReward = MonsterData->ExperienceReward;
+		DetectionRange = MonsterData->DetectionRange;
+		StopDistance = MonsterData->StopDistance;
+		AttackSkillData = MonsterData->AttackSkill;
+		bDestroyOnDeath = MonsterData->bDestroyOnDeath;
+		GetCharacterMovement()->MaxWalkSpeed = MonsterData->WalkSpeed;
+		if (!MonsterData->SkeletalMesh.IsNull()) GetMesh()->SetSkeletalMeshAsset(MonsterData->SkeletalMesh.LoadSynchronous());
+		if (MonsterData->AnimationBlueprintClass) GetMesh()->SetAnimInstanceClass(MonsterData->AnimationBlueprintClass);
+		GetMesh()->SetRelativeLocation(MonsterData->MeshRelativeLocation);
+		GetMesh()->SetRelativeRotation(MonsterData->MeshRelativeRotation);
+		GetMesh()->SetRelativeScale3D(MonsterData->MeshRelativeScale);
+		VitalRegenerationComponent->ConfigureRegeneration(
+			MonsterData->HealthRegenerationPerSecond,
+			MonsterData->StaminaRegenerationPerSecond,
+			MonsterData->ManaRegenerationPerSecond);
+	}
+	AttributeSet->InitializeVitals(MaxHealth, InitialStamina, InitialMana);
 	UpdateTarget();
 }
 
@@ -80,6 +110,7 @@ float ARogue10mBasicMonster::TakeDamage(
 		return AppliedDamage;
 	}
 
+	LastDamageInstigator = EventInstigator;
 	AttributeSet->SetHealth(AttributeSet->GetHealth() - AppliedDamage);
 	UE_LOG(
 		LogRogue10m, Log, TEXT("%s 피해 %.1f, 체력 %.1f / %.1f"),
@@ -211,6 +242,13 @@ void ARogue10mBasicMonster::Die()
 	}
 
 	bIsDead = true;
+	if (ARogue10mPlayerController* RewardController = Cast<ARogue10mPlayerController>(LastDamageInstigator.Get()))
+	{
+		if (ARogue10mPlayerState* RewardState = RewardController->GetPlayerState<ARogue10mPlayerState>())
+		{
+			RewardState->AddExperience(ExperienceReward);
+		}
+	}
 	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(AttackSequenceTimer);
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();

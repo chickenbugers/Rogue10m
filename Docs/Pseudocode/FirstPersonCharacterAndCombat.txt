@@ -34,7 +34,7 @@ Pseudo:
     Bind RightMouseButton pressed -> DoSpecialAttackPressed
     Bind RightMouseButton released -> DoSpecialAttackReleased
     Bind I pressed -> DoToggleInventory
-    Bind B pressed -> DoToggleItemWindow
+    Bind P pressed -> DoToggleItemWindow
     Bind K pressed -> DoToggleSkillTree
 
   MoveInput(Value):

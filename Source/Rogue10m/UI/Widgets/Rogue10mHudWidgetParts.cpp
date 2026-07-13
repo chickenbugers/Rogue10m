@@ -6,10 +6,14 @@
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Rogue10mCharacter.h"
+#include "Rogue10mCombatComponent.h"
+#include "Widgets/Rogue10mSkillDragDropOperation.h"
 
 namespace
 {
@@ -155,10 +159,6 @@ void URogue10mVitalBarWidget::SetVitalView(FText InLabel, const FRogue10mHudVita
 		UI_ValueText->SetText(FText::FromString(FString::Printf(
 			TEXT("%d / %d"), FMath::RoundToInt(VitalView.Current), FMath::RoundToInt(VitalView.Max))));
 	}
-	if (LabelText)
-	{
-		LabelText->SetText(VitalLabel);
-	}
 	BP_OnVitalViewChanged();
 }
 
@@ -179,7 +179,44 @@ FVector2D URogue10mVitalBarWidget::GetPrototypeDesignSize() const
 
 void URogue10mProgressionWidget::SetProgressionView(const FRogue10mHudProgressionView& InProgressionView)
 {
+	const bool bUnchanged = ProgressionView.Level == InProgressionView.Level
+		&& ProgressionView.CurrentExperience == InProgressionView.CurrentExperience
+		&& ProgressionView.ExperienceToNextLevel == InProgressionView.ExperienceToNextLevel
+		&& FMath::IsNearlyEqual(ProgressionView.ExperienceNormalized, InProgressionView.ExperienceNormalized);
+	if (bUnchanged)
+	{
+		return;
+	}
+
 	ProgressionView = InProgressionView;
+	bHasProgressionView = true;
+
+	const float CurrentExperience = FMath::Max(0.0f, ProgressionView.CurrentExperience);
+	const float ExperienceToNextLevel = FMath::Max(0.0f, ProgressionView.ExperienceToNextLevel);
+	const float RemainingExperience = FMath::Max(0.0f, ExperienceToNextLevel - CurrentExperience);
+	const FText ExperienceValueText = FText::FromString(FString::Printf(
+		TEXT("%.3f / %.3f"), CurrentExperience, ExperienceToNextLevel));
+	const FText ExperienceToolTip = FText::FromString(FString::Printf(
+		TEXT("경험치\n현재 경험치: %.3f / %.3f\n다음 레벨까지: %.3f"),
+		CurrentExperience, ExperienceToNextLevel, RemainingExperience));
+
+	if (UI_ExperienceBar)
+	{
+		UI_ExperienceBar->SetPercent(FMath::Clamp(ProgressionView.ExperienceNormalized, 0.0f, 1.0f));
+		UI_ExperienceBar->SetToolTipText(ExperienceToolTip);
+	}
+
+	if (UI_ExperienceText)
+	{
+		UI_ExperienceText->SetText(ExperienceValueText);
+		UI_ExperienceText->SetToolTipText(ExperienceToolTip);
+	}
+
+	if (UI_LevelText)
+	{
+		UI_LevelText->SetText(FText::FromString(FString::Printf(TEXT("%d"), FMath::Max(1, ProgressionView.Level))));
+	}
+
 	BP_OnProgressionViewChanged();
 }
 
@@ -222,6 +259,22 @@ FVector2D URogue10mIdentityWidget::GetPrototypeDesignSize() const
 void URogue10mMonsterInfoWidget::SetMonsterInfoView(const FRogue10mHudMonsterInfoView& InMonsterInfoView)
 {
 	MonsterInfoView = InMonsterInfoView;
+	SetVisibility(MonsterInfoView.bHasMonster ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+	if (UI_MonsterNameText)
+	{
+		UI_MonsterNameText->SetText(FText::FromString(FString::Printf(TEXT("LV %d : %s"),
+			MonsterInfoView.Level, *MonsterInfoView.Name.ToString())));
+	}
+	if (UI_MonsterHealthBar)
+	{
+		UI_MonsterHealthBar->SetPercent(FMath::Clamp(MonsterInfoView.Health.Normalized, 0.0f, 1.0f));
+	}
+	if (UI_MonsterHealthText)
+	{
+		UI_MonsterHealthText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"),
+			FMath::RoundToInt(MonsterInfoView.Health.Current), FMath::RoundToInt(MonsterInfoView.Health.Max))));
+	}
 	BP_OnMonsterInfoViewChanged();
 }
 
@@ -243,9 +296,65 @@ FVector2D URogue10mMonsterInfoWidget::GetPrototypeDesignSize() const
 void URogue10mQuickSlotWidget::SetQuickSlotView(const FRogue10mHudQuickSlotView& InQuickSlotView)
 {
 	QuickSlotView = InQuickSlotView;
+
+	if (UI_KeyText)
+	{
+		UI_KeyText->SetText(QuickSlotView.InputText);
+	}
+
+	if (UI_CooldownText)
+	{
+		UI_CooldownText->SetText(QuickSlotView.CooldownRemaining > 0.0f
+			? FText::FromString(FString::Printf(TEXT("%.1f"), QuickSlotView.CooldownRemaining))
+			: FText::GetEmpty());
+	}
+
+	if (UI_IconImage)
+	{
+		UI_IconImage->SetBrushFromTexture(QuickSlotView.SkillIcon);
+		UI_IconImage->SetColorAndOpacity(QuickSlotView.IconColor);
+	}
+
+	const FText SlotToolTipText = QuickSlotView.bUnlocked
+		? QuickSlotView.DisplayName
+		: FText::FromString(FString::Printf(TEXT("%s: 해금되지 않음"), *QuickSlotView.InputText.ToString()));
+	SetToolTipText(SlotToolTipText);
+
+	if (UI_SlotFrame)
+	{
+		UI_SlotFrame->SetIsEnabled(QuickSlotView.bUnlocked);
+		UI_SlotFrame->SetRenderOpacity(QuickSlotView.bUnlocked ? 1.0f : 0.35f);
+	}
+
 	BP_OnQuickSlotViewChanged();
 }
 
+bool URogue10mQuickSlotWidget::NativeOnDrop(
+	const FGeometry& InGeometry,
+	const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation)
+{
+	const URogue10mSkillDragDropOperation* SkillOperation = Cast<URogue10mSkillDragDropOperation>(InOperation);
+	if (!SkillOperation || !SkillOperation->bUnlocked || !SkillOperation->SkillData || QuickSlotView.bDodgeSlot)
+	{
+		return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+	}
+
+	ARogue10mCharacter* Character = Cast<ARogue10mCharacter>(GetOwningPlayerPawn());
+	URogue10mCombatComponent* Combat = Character ? Character->GetCombatComponent() : nullptr;
+	if (!Combat || !Combat->AssignSkillToInputSlot(SkillOperation->SkillData, QuickSlotView.InputSlot))
+	{
+		return false;
+	}
+
+	QuickSlotView.SkillData = SkillOperation->SkillData;
+	QuickSlotView.DisplayName = SkillOperation->SkillData->SkillName;
+	QuickSlotView.SkillIcon = SkillOperation->SkillData->SkillIcon;
+	QuickSlotView.IconColor = SkillOperation->SkillData->IconTint;
+	QuickSlotView.bUnlocked = true;
+	SetQuickSlotView(QuickSlotView);
+	return true;
+}
 FText URogue10mQuickSlotWidget::GetPrototypeDesignTitle() const
 {
 	return FText::FromString(TEXT("퀵 슬롯"));
@@ -264,9 +373,58 @@ FVector2D URogue10mQuickSlotWidget::GetPrototypeDesignSize() const
 void URogue10mLogLineWidget::SetLogEntryView(const FRogue10mHudLogEntryView& InLogEntryView)
 {
 	LogEntryView = InLogEntryView;
+	if (LogEntryView.bItemAcquisition)
+	{
+		if (UI_ItemIconImage)
+		{
+			UI_ItemIconImage->SetBrushFromTexture(LogEntryView.ItemIcon);
+			UI_ItemIconImage->SetVisibility(LogEntryView.ItemIcon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		}
+		if (UI_ItemCountText)
+		{
+			UI_ItemCountText->SetText(FText::FromString(FString::Printf(TEXT("x%d"), FMath::Max(0, LogEntryView.Quantity))));
+		}
+		if (UI_ItemNameText)
+		{
+			UI_ItemNameText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		SetToolTipText(LogEntryView.Message);
+	}
 	BP_OnLogEntryViewChanged();
 }
 
+void URogue10mSkillSlotPanelWidget::SetSkillSlotViews(const TArray<FRogue10mHudQuickSlotView>& Views,
+	TSubclassOf<URogue10mQuickSlotWidget> InQuickSlotWidgetClass)
+{
+	RefreshSlot(UI_SkillSlotFrame1, 0, Views, InQuickSlotWidgetClass);
+	RefreshSlot(UI_SkillSlotFrame2, 1, Views, InQuickSlotWidgetClass);
+	RefreshSlot(UI_SkillSlotFrame3, 2, Views, InQuickSlotWidgetClass);
+	RefreshSlot(UI_SkillSlotFrame4, 3, Views, InQuickSlotWidgetClass);
+	RefreshSlot(UI_SkillSlotFrame5, 4, Views, InQuickSlotWidgetClass);
+}
+
+void URogue10mSkillSlotPanelWidget::RefreshSlot(UBorder* Frame, int32 Index,
+	const TArray<FRogue10mHudQuickSlotView>& Views,
+	TSubclassOf<URogue10mQuickSlotWidget> InQuickSlotWidgetClass)
+{
+	if (!Frame || !Views.IsValidIndex(Index) || !InQuickSlotWidgetClass)
+	{
+		return;
+	}
+
+	URogue10mQuickSlotWidget* SlotWidget = Cast<URogue10mQuickSlotWidget>(Frame->GetContent());
+	if (!SlotWidget)
+	{
+		SlotWidget = CreateWidget<URogue10mQuickSlotWidget>(GetOwningPlayer(), InQuickSlotWidgetClass);
+		if (!SlotWidget)
+		{
+			return;
+		}
+		SlotWidget->SetOwningMainHUD(GetOwningMainHUD());
+		Frame->SetContent(SlotWidget);
+	}
+	SlotWidget->SetQuickSlotView(Views[Index]);
+}
 FText URogue10mLogLineWidget::GetPrototypeDesignTitle() const
 {
 	return FText::FromString(TEXT("로그/획득 알림 한 줄"));

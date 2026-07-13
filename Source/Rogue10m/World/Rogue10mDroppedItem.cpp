@@ -2,6 +2,8 @@
 
 #include "Rogue10mDroppedItem.h"
 
+#include "Rogue10mItemDataAsset.h"
+
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -40,6 +42,10 @@ void ARogue10mDroppedItem::InitializeDroppedItem(const FRogue10mItemStack& NewIt
 	if (ItemMesh)
 	{
 		ItemMesh->SetCustomPrimitiveDataFloat(0, ItemStack.ItemColor.R);
+		if (ItemStack.ItemData && !ItemStack.ItemData->DroppedWorldMesh.IsNull())
+		{
+			ItemMesh->SetStaticMesh(ItemStack.ItemData->DroppedWorldMesh.LoadSynchronous());
+		}
 	}
 
 	if (ItemNameText)
