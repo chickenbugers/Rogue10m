@@ -17,6 +17,9 @@
 #include "Rogue10mPlayerController.h"
 #include "Rogue10mPlayerFeedbackComponent.h"
 #include "Rogue10mPlayerState.h"
+#include "Rogue10mSkillLoadoutDataAsset.h"
+#include "Rogue10mVitalRegenerationComponent.h"
+#include "TimerManager.h"
 
 ARogue10mCharacter::ARogue10mCharacter()
 {
@@ -43,11 +46,13 @@ ARogue10mCharacter::ARogue10mCharacter()
 	FirstPersonCameraComponent->FirstPersonScale = 0.6f;
 
 	PlayerFeedbackComponent = CreateDefaultSubobject<URogue10mPlayerFeedbackComponent>(TEXT("Player Feedback Component"));
+	VitalRegenerationComponent = CreateDefaultSubobject<URogue10mVitalRegenerationComponent>(TEXT("Vital Regeneration Component"));
 
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
+	NormalWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
 }
 
 UAbilitySystemComponent* ARogue10mCharacter::GetAbilitySystemComponent() const
@@ -122,6 +127,7 @@ void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ARogue10mCharacter::DoJumpStart);
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ARogue10mCharacter::DoJumpEnd);
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARogue10mCharacter::MoveInput);
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &ARogue10mCharacter::MoveInput);
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARogue10mCharacter::LookInput);
 		EnhancedInput->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ARogue10mCharacter::LookInput);
 	}
@@ -134,6 +140,9 @@ void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &ARogue10mCharacter::DoPrimaryAttackReleased);
 	PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &ARogue10mCharacter::DoSpecialAttackPressed);
 	PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this, &ARogue10mCharacter::DoSpecialAttackReleased);
+	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &ARogue10mCharacter::DoSprintStart);
+	PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ARogue10mCharacter::DoSprintEnd);
+	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ARogue10mCharacter::DoDodge);
 
 	PlayerInputComponent->BindKey(EKeys::One, IE_Pressed, this, &ARogue10mCharacter::DoQuickSlot1);
 	PlayerInputComponent->BindKey(EKeys::Two, IE_Pressed, this, &ARogue10mCharacter::DoQuickSlot2);
@@ -145,6 +154,7 @@ void ARogue10mCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void ARogue10mCharacter::MoveInput(const FInputActionValue& Value)
 {
 	const FVector2D Movement = Value.Get<FVector2D>();
+	CachedMovementInput = Movement.GetClampedToMaxSize(1.0f);
 	DoMove(Movement.X, Movement.Y);
 }
 
@@ -170,8 +180,13 @@ void ARogue10mCharacter::DoAim(float Yaw, float Pitch)
 
 void ARogue10mCharacter::DoMove(float Right, float Forward)
 {
+	if (bIsDodging)
+	{
+		return;
+	}
 	if (IsBlockingWindowVisible())
 	{
+		SetSprinting(false);
 		GetCharacterMovement()->StopMovementImmediately();
 		return;
 	}
@@ -184,17 +199,140 @@ void ARogue10mCharacter::DoMove(float Right, float Forward)
 
 void ARogue10mCharacter::DoJumpStart()
 {
-	if (!IsDead() && !IsBlockingWindowVisible())
+	if (IsDead() || IsBlockingWindowVisible() || bIsDodging)
 	{
-		Jump();
+		return;
 	}
+
+	SetSprinting(false);
+	Jump();
 }
 
 void ARogue10mCharacter::DoJumpEnd()
 {
-	if (!IsDead() && !IsBlockingWindowVisible())
+	StopJumping();
+}
+void ARogue10mCharacter::DoDodge()
+{
+	UWorld* World = GetWorld();
+	if (!World || IsDead() || IsBlockingWindowVisible() || GetCharacterMovement()->IsFalling()
+		|| bIsDodging || World->GetTimeSeconds() < NextDodgeAllowedTime)
 	{
-		StopJumping();
+		return;
+	}
+
+	SetSprinting(false);
+	const URogue10mDodgeSkillDataAsset* DodgeSkill = CombatComponent
+		? CombatComponent->GetActiveDodgeSkill()
+		: nullptr;
+	const float ActiveDistance = DodgeSkill ? DodgeSkill->Distance : DodgeDistance;
+	const float ActiveDuration = DodgeSkill ? DodgeSkill->Duration : DodgeDuration;
+	const float ActiveCooldown = DodgeSkill ? DodgeSkill->Cooldown : DodgeCooldown;
+	const float StaminaCost = DodgeSkill ? DodgeSkill->StaminaCost : 0.0f;
+	URogue10mAttributeSet* Attributes = GetRogueAttributeSet();
+	if (StaminaCost > 0.0f && (!Attributes || Attributes->GetStamina() < StaminaCost))
+	{
+		return;
+	}
+	if (Attributes && StaminaCost > 0.0f)
+	{
+		Attributes->SetStamina(Attributes->GetStamina() - StaminaCost);
+	}
+
+	FVector Direction = GetActorForwardVector();
+	if (!CachedMovementInput.IsNearlyZero())
+	{
+		Direction = GetActorRightVector() * CachedMovementInput.X + GetActorForwardVector() * CachedMovementInput.Y;
+	}
+	Direction.Z = 0.0f;
+	Direction = Direction.GetSafeNormal();
+	if (Direction.IsNearlyZero()) Direction = GetActorForwardVector();
+
+	bIsDodging = true;
+	NextDodgeAllowedTime = World->GetTimeSeconds() + ActiveCooldown;
+	GetCharacterMovement()->Velocity = Direction * (ActiveDistance / FMath::Max(0.05f, ActiveDuration));
+	World->GetTimerManager().SetTimer(DodgeTimerHandle, this, &ARogue10mCharacter::FinishDodge, ActiveDuration, false);
+}
+
+void ARogue10mCharacter::FinishDodge()
+{
+	bIsDodging = false;
+	FVector Velocity = GetCharacterMovement()->Velocity;
+	Velocity.X = 0.0f;
+	Velocity.Y = 0.0f;
+	GetCharacterMovement()->Velocity = Velocity;
+}
+
+void ARogue10mCharacter::DoSprintStart()
+{
+	if (IsDead() || IsBlockingWindowVisible())
+	{
+		return;
+	}
+
+	const URogue10mAttributeSet* Attributes = GetRogueAttributeSet();
+	if (!Attributes || Attributes->GetStamina() <= 0.0f)
+	{
+		if (PlayerFeedbackComponent)
+		{
+			PlayerFeedbackComponent->NotifyInsufficientStamina();
+		}
+		return;
+	}
+	SetSprinting(true);
+}
+
+void ARogue10mCharacter::DoSprintEnd()
+{
+	SetSprinting(false);
+}
+
+void ARogue10mCharacter::SetSprinting(bool bNewSprinting)
+{
+	if (bIsSprinting == bNewSprinting)
+	{
+		return;
+	}
+
+	bIsSprinting = bNewSprinting;
+	GetCharacterMovement()->MaxWalkSpeed = bIsSprinting ? SprintWalkSpeed : NormalWalkSpeed;
+	if (PlayerFeedbackComponent)
+	{
+		PlayerFeedbackComponent->SetSprinting(bIsSprinting);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		if (bIsSprinting)
+		{
+			World->GetTimerManager().SetTimer(
+				SprintStaminaTimerHandle, this, &ARogue10mCharacter::ConsumeSprintStamina,
+				SprintStaminaDrainInterval, true, SprintStaminaDrainInterval);
+		}
+		else
+		{
+			World->GetTimerManager().ClearTimer(SprintStaminaTimerHandle);
+		}
+	}
+}
+
+void ARogue10mCharacter::ConsumeSprintStamina()
+{
+	if (!bIsSprinting || IsDead() || IsBlockingWindowVisible())
+	{
+		SetSprinting(false);
+		return;
+	}
+
+	URogue10mAttributeSet* Attributes = GetRogueAttributeSet();
+	const float StaminaCost = SprintStaminaCostPerSecond * SprintStaminaDrainInterval;
+	if (!Attributes || !Attributes->ConsumeStamina(StaminaCost))
+	{
+		SetSprinting(false);
+		if (PlayerFeedbackComponent)
+		{
+			PlayerFeedbackComponent->NotifyInsufficientStamina();
+		}
 	}
 }
 
@@ -307,6 +445,8 @@ void ARogue10mCharacter::Die()
 		return;
 	}
 
+	SetSprinting(false);
+
 	if (ARogue10mPlayerState* State = GetPlayerState<ARogue10mPlayerState>())
 	{
 		State->SetCharacterDead(true);
@@ -351,6 +491,10 @@ void ARogue10mCharacter::SetEquippedWeaponType(ERogue10mWeaponType NewWeaponType
 	if (ARogue10mPlayerState* State = GetPlayerState<ARogue10mPlayerState>())
 	{
 		State->SetEquippedWeaponType(NewWeaponType);
+		if (CombatComponent)
+		{
+			CombatComponent->HandleEquippedWeaponChanged();
+		}
 	}
 }
 

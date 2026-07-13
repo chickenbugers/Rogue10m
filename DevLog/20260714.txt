@@ -1,0 +1,229 @@
+# Sprint#1-6 - 장비창 P 키 및 에디터 연결 안내
+
+## 작업 내용
+
+- 장비창 토글 키를 B에서 P로 변경했다.
+- 인벤토리 및 스킬트리 Widget Class 미설정 경고의 해결 위치를 확인했다.
+- 무기별 회피 Data Asset 연결 경로를 문서화했다.
+- 메뉴 창 가이드와 입력 의사 코드를 현재 키 설정에 맞게 수정했다.
+
+## 검증
+
+- Rogue10mEditor Win64 Development 빌드 성공
+- CheckGeneratedChanges Harness 경로 검사 통과
+
+## Notion 요약 후보
+
+장비창 키를 P로 변경하고, 메뉴 Widget Class 경고 해결 절차와 무기별 회피 Data Asset 연결 구조를 정리했다. 메뉴 클래스는 PlayerController Blueprint에, 회피기는 Weapon Skill Profile의 DefaultDodgeSkill에 설정한다.
+# Sprint#1-7 - 캐릭터 Data Asset 및 메뉴 UserWidget 기반
+
+## 작업 내용
+
+- 기본 맨손 회피 Data Asset과 무기 스킬 프로필을 생성·연결하는 Editor Python 스크립트를 추가했다.
+- 회피 기본값은 이동 100cm, 지속 0.16초, 쿨타임 0.45초, 스테미나 소모 10으로 구성했다.
+- 인벤토리에 10x10 그리드/용량/안내 영역, 장비창에 장비 슬롯 컨테이너, 스킬 트리에 엔트리/목록/Drag & Drop 안내를 추가했다.
+- 빈 Widget Blueprint에서도 필수 요소가 보이도록 네이티브 `RebuildWidget()` 골격을 만들었다.
+- 열린 Editor에 안전하게 반영할 수 있도록 기존 에셋을 중복 생성하지 않는 자동화 스크립트를 준비했다.
+
+## 검증
+
+- Unreal Python 스크립트 문법 검사 성공
+- Rogue10mEditor Win64 Development 빌드 성공
+- Editor Remote Execution 활성화 후 실제 `.uasset` 생성/연결 검증 예정
+
+## Notion 요약 후보
+
+캐릭터의 맨손 공격 6종과 1m 기본 회피를 Weapon Skill Profile Data Asset으로 묶어 Combat Component에 연결하는 자동화 기반을 추가했다. 인벤토리, 장비창, 스킬 트리는 빈 WBP에서도 기능 검증이 가능한 최소 네이티브 UI 골격을 제공하며, 이후 Designer에서 스타일과 배치를 확장할 수 있다.
+# Rogue10m TDD 실제 명칭 감사
+
+## 작업 내용
+
+- `Source/Rogue10m`, 프로젝트 아키텍처 문서와 콘텐츠 자산명을 기준으로 TDD의 클래스 및 데이터 명칭을 대조했다.
+- `ARogue10mGameMode`, `ARogue10mGameState`, `ERogue10mRunPhase`, `ARogue10mCharacter`, `ARogue10mBasicMonster` 등 현재 구현 명칭을 반영했다.
+- GAS 소유 위치를 `ARogue10mPlayerState`로 확정 표기하고 실제 컴포넌트 책임을 정리했다.
+- 아직 구현되지 않은 Boss, Encounter, SaveGame, 전용 Subsystem 명칭은 계획 명칭으로 구분했다.
+- 현재 20분 런 타이머와 기획상 30분~1시간 세션 목표의 차이를 미정 사항으로 기록했다.
+
+## 검증
+
+- 실제 C++ 헤더, `Docs/CurrentProjectArchitecture.md`, `Docs/WorldStructure.md`, `Docs/CharacterDataOwnership.md`와 대조 완료
+- TDD 내 주요 현재 클래스명 검색 및 계획 명칭 구분 확인
+- 코드 및 바이너리 에셋 변경 없음
+
+## Notion 요약 후보
+
+Rogue10m TDD를 실제 프로젝트 구조와 대조해 구현 명칭과 계획 명칭을 분리했다. 현재 GAS는 PlayerState가 소유하며 Character는 Combat, Inventory, Feedback, VitalRegeneration 컴포넌트를 조립한다. Boss, Encounter, SaveGame 계층은 아직 계획 단계로 유지한다.
+# AI 개발 세팅 참조 문서 추가
+
+## 작업 내용
+
+- Unreal Editor Python 자동화에 필요한 플러그인과 Project Settings 위치를 정리했다.
+- Remote Execution의 로컬 주소, 실행 방법, 보안 주의사항을 기록했다.
+- Data Asset과 Widget Blueprint 생성 예시, C++ 변경 후 권장 작업 순서를 정리했다.
+- HOTRELOAD 클래스 변환 실패와 미저장 에셋 문제의 해결 방법을 추가했다.
+
+## 검증
+
+- 프로젝트 uproject의 실제 AI/MCP 플러그인 목록 확인
+- UE 5.8 로컬 Python Remote Execution 기본값 확인
+- Markdown 파일 UTF-8 저장 확인
+
+## Notion 요약 후보
+
+Rogue10m에서 AI가 Unreal Editor를 조작할 때 필요한 Python, MCP, Remote Execution 설정과 안전한 에셋 자동화 절차를 문서화했다. C++ 변경 뒤 Hot Reload 타입을 억지로 연결하지 않고 Editor 재시작 후 자동화를 수행하는 것을 핵심 규칙으로 정의했다.
+# Sprint#1-8 - Editor 플러그인 및 C++ 설정 정리
+
+## 작업 내용
+
+- 프로젝트 코드와 열린 Editor의 Asset Registry를 기준으로 플러그인 사용 여부를 감사했다.
+- 참조가 없는 Modeling Tools Editor Mode, StateTree, Gameplay StateTree의 프로젝트 자동 활성화를 제거했다.
+- Runtime 모듈에서 사용하지 않는 StateTreeModule과 GameplayStateTreeModule 의존성을 제거했다.
+- Main HUD에서 이미 비활성화된 미니맵의 바인딩 설정, Widget Class 설정, 갱신 함수와 미사용 색상 상수를 제거했다.
+- Build.cs의 빈 의존성 선언과 사용 안내용 샘플 주석을 정리했다.
+- Unreal Python 자동화 과정에서 생성되는 __pycache__와 pyc 파일이 Git에 들어오지 않도록 무시 규칙을 추가하고 기존 캐시를 삭제했다.
+- GAS, Enhanced Input, AIController, UMG/Slate 및 AI Assistant/MCP 계열은 현재 기능에 필요하여 유지했다.
+
+## 검증
+
+- Unreal 프로젝트 파일 생성 성공
+- Rogue10mEditor Win64 Development 빌드 성공
+- CheckGeneratedChanges 통과
+- git diff --check 통과
+- Rogue10m.uproject JSON 파싱 통과
+- 제거한 플러그인·모듈·Main HUD 심볼 재검색 결과 0건
+- 기존 uasset 변경은 이번 작업 범위 밖의 사용자 작업으로 보존
+
+## 적용 시 주의사항
+
+- 열린 Unreal Editor를 재시작해야 플러그인 로드 목록 변경이 적용된다.
+- 향후 StateTree 기반 AI를 도입할 때 StateTree 계열 플러그인과 Build.cs 모듈을 다시 추가한다.
+- Modeling Tools가 필요한 작업에서는 Plugins 창에서 다시 활성화한다.
+
+## Notion 요약 후보
+
+Rogue10m의 Editor 시작 구성과 Runtime 모듈 의존성을 실제 사용 근거로 정리했다. 현재 사용하지 않는 Modeling Tools, StateTree, Gameplay StateTree의 자동 활성화와 모듈 의존성을 제거하고, 비활성 Main HUD 미니맵의 잔여 설정 및 Python 캐시를 정리했다. Editor 프로젝트 파일 생성과 Win64 Development 빌드, 생성물 및 diff 검사를 모두 통과했으며 현재 사용 중인 GAS, UMG, AI 자동화 도구 체인은 유지했다.
+# Sprint#1-9 - 인벤토리 및 스킬트리 메뉴 위젯 설정
+
+## 작업 내용
+
+- 열린 Unreal Editor에서 WBP_InventoryWindow, WBP_EquipmentWindow, WBP_SkillTreeEntry, WBP_SkillTreeWindow 에셋을 확인했다.
+- BP_FirstPersonPlayerController의 Inventory, Equipment, SkillTree Widget Class가 모두 비어 있는 것이 경고 원인이었다.
+- 기존 WBP를 재사용하고 없을 때만 올바른 C++ 부모로 생성하는 ConfigureMenuWindowWidgets.py를 추가했다.
+- 첫 실행에서는 이전 Hot Reload 부모 클래스가 남아 있어 타입 연결이 차단되었고, 같은 실패를 반복하지 않고 Editor를 안전하게 재시작했다.
+- PlayerController에 기본 메뉴 WBP Soft Class 경로를 추가해 Blueprint 설정이 비어 있어도 창을 생성하도록 보강했다.
+- Editor 재시작 후 Inventory, Equipment, SkillTree ClassProperty와 SkillTreeEntry Class를 연결하고 컴파일·저장했다.
+
+## 최종 설정
+
+- InventoryWindowWidgetClass: WBP_InventoryWindow
+- EquipmentWindowWidgetClass: WBP_EquipmentWindow
+- SkillTreeWindowWidgetClass: WBP_SkillTreeWindow
+- SkillTreeEntryWidgetClass: WBP_SkillTreeEntry
+- 입력: I 인벤토리, P 장비창, K 스킬트리
+
+## 검증
+
+- UE bundled Python 문법 검사 성공
+- Rogue10mEditor Win64 Development 빌드 성공
+- Editor CDO ClassProperty 네 항목 경로 재조회 성공
+- 저장 후 Editor dirty package 0건
+- CheckGeneratedChanges 및 git diff --check 통과
+
+## Notion 요약 후보
+
+Rogue10m의 인벤토리, 장비창, 스킬트리 Widget Blueprint를 BP_FirstPersonPlayerController에 영구 연결했다. 설정 누락 시에도 기본 WBP Soft Class를 사용하는 C++ fallback과 반복 실행 가능한 Unreal Editor Python 복구 스크립트를 추가했다. I, P, K 입력으로 각 창을 열 수 있으며 Editor 빌드와 에셋 저장 후 ClassProperty 재검증을 완료했다.
+# Sprint#1-10 - Content 에셋 명명 규칙 정리
+
+## 작업 내용
+
+- Content/Widget, Content/DataAsset, Content/FirstPerson의 에셋 38개를 Unreal Asset Registry로 전수 검사했다.
+- Widget Blueprint의 비표준 접두사였던 UW_Rogue10mMainWidget을 WBP_Rogue10mMainHUD로 변경했다.
+- 임시 사본 이름이던 ABP_FP_Copy를 ABP_FirstPerson으로 변경했다.
+- Control Rig의 CtrlRig_FPWarp를 UE 권장 접두사에 맞춘 Rig_FirstPersonWarp로 변경했다.
+- 파일 시스템에서 uasset을 직접 이동하지 않고 Unreal Editor AssetTools와 EditorAssetSubsystem으로 참조를 함께 갱신했다.
+- Main HUD 소프트 클래스 경로와 관련 Python 유지보수 스크립트, Widget Blueprint 가이드를 새 이름으로 갱신했다.
+- 이름 변경 과정에서 남은 구 Animation Blueprint와 Control Rig은 상호 참조를 함께 처리하는 배치 삭제로 정리했다.
+- DataAsset 10개는 모두 DA_ 접두사를 사용해 유지했고, Lvl_FirstPerson은 World Partition 외부 액터 대량 변경 위험과 공식 필수 접두사 부재를 근거로 유지했다.
+
+## 검증
+
+- 이름 규칙 위반 0건
+- 구 경로 3개 부재 및 신규 경로 3개 존재 확인
+- Character → ABP_FirstPerson → Rig_FirstPersonWarp 참조 확인
+- BP_FirstPersonPlayerController → WBP_Rogue10mMainHUD 참조 확인
+- Object Redirector 0건, Editor dirty package 0건
+- Rogue10mEditor Win64 Development 빌드 성공
+
+## Notion 요약 후보
+
+Rogue10m의 Widget, DataAsset, FirstPerson 콘텐츠 38개를 UE 5.8 명명 규칙으로 감사하고 세 에셋을 정리했다. Main HUD는 WBP_Rogue10mMainHUD, 1인칭 Anim Blueprint는 ABP_FirstPerson, Control Rig은 Rig_FirstPersonWarp로 통일했으며 Unreal Editor를 통해 내부 참조까지 갱신했다. DataAsset의 DA_ 규칙과 World Partition 맵 이름은 타당성을 검토한 뒤 유지했고, 최종 감사에서 위반·redirector·dirty package가 모두 0건임을 확인했다.
+# Sprint#1-11 - 권(Stone Fist) 아이덴티티 설계 및 데이터 구성
+
+## 작업 내용
+
+- `T_Identity_StoneFist`를 권 아이덴티티 대표 이미지로 연결했다.
+- 왼손 잽, 오른손 스트레이트, 권압, 권보, 낙권, 2단 점프 스킬 아이콘 6종을 생성하고 투명 PNG 및 Unreal Texture 자산으로 임포트했다.
+- 권 공격 Data Asset 4종과 Dodge/Profile Data Asset을 생성했다.
+- 좌클릭 잽에서 오른손 스트레이트로 이어지는 2타 콤보를 `NextComboSkill`로 연결했다.
+- 일반 우클릭과 좌클릭 차징은 프로필 바인딩에서 제외해 비활성화했다.
+- 우클릭 차징은 `ChargedSpecial`, 점프 좌클릭은 `JumpPrimary`에 연결했다.
+- CharacterData에 기본 무기 타입을 추가하고 권을 기본 `Knuckle` 프로필로 지정했다.
+- 활성 무기 프로필의 최대 점프 횟수를 캐릭터에 적용해 권의 2단 점프를 데이터로 구성했다.
+- Hot Reload 클래스 충돌을 피하기 위해 모든 패키지를 저장하고 Editor를 정상 재시작한 뒤 멱등 Python 스크립트를 재실행했다.
+
+## 임시 밸런스
+
+- 잽: 피해 8, 사거리 140cm, 쿨다운 0.22초
+- 스트레이트: 피해 14, 사거리 165cm, 쿨다운 0.38초
+- 권압: 피해 30, 충전 0.8초, 사거리 600cm, 쿨다운 4초, 스테미나 12
+- 낙권: 피해 24, 반경 220cm, 쿨다운 1.2초, 스테미나 8
+- 권보: 거리 250cm, 시간 0.16초, 쿨다운 0.55초, 스테미나 6
+
+## 검증
+
+- Rogue10mEditor Win64 Development 빌드 성공
+- Unreal Editor에서 권 프로필, CharacterData, CombatComponent 참조 재로드 성공
+- 기본 바인딩 Primary/ChargedSpecial/JumpPrimary 확인
+- 잽에서 스트레이트 콤보 연결 확인
+- `MaxJumpCount=2`, 기본 무기 `Knuckle`, 공중 회피 차단 확인
+
+## 다음 작업
+
+- 권압 전용 GameplayAbility, GameplayEffect, GameplayTag와 Niagara 풍압 구현
+- 낙권의 착지 Gameplay Event와 원형 충격파 구현
+- 공격 몽타주와 사운드 연결
+- 권압 관통/넉백/경직, 회피 무적 프레임, 권 자원 규칙 확정
+
+## Notion 요약 후보
+
+Rogue10m의 권(Stone Fist) 아이덴티티를 데이터 주도 구조로 추가했다. 권 프로필은 왼손 잽에서 오른손 스트레이트로 이어지는 2타 콤보, 우클릭 차징 권압, 점프 내려찍기 낙권, 방향 회피 권보, 2단 점프를 제공한다. 스킬과 프로필에는 전용 아이콘·설명·임시 밸런스를 반영했고 CharacterData가 기본 무기 타입을 선택하도록 확장했다. 현재 Data Asset은 표시와 밸런스를, GAS는 실행·비용·쿨다운·상태를 맡도록 경계를 정리했으며 권압과 낙권의 전용 Ability/VFX는 다음 구현 단계로 남겼다.
+# Sprint#1-12 - 메뉴 Widget 레이아웃 재구성
+
+## 작업 내용
+
+- Parts UI의 어두운 패널, 금색 강조, 본문/보조 텍스트 색상을 메뉴 창 공통 스타일로 적용했다.
+- Inventory Window를 Canvas, Frame, 가방 탭, 용량 표시, 10x10 UniformGrid, NxM ItemCanvas 레이어로 재구성했다.
+- Equipment Window에 캐릭터 프리뷰, 7개 장비 슬롯, 능력치 표시 영역을 추가했다.
+- SkillTreeEntry에 64px 아이콘, 이름, 설명, 잠금 상태를 추가하고 기존 Drag & Drop 동작을 유지했다.
+- SkillTreeWindow를 필터 영역, ScrollBox, WrapBox 카드 목록, 스킬 포인트 영역으로 재구성했다.
+- 네 WBP를 새 C++ 부모 기준으로 재컴파일하고 PlayerController 및 SkillTreeEntry Class 참조를 다시 저장했다.
+- NxM 인벤토리 아이템을 UniformGrid 자식으로 직접 표현하지 않고 Grid 상단 Canvas에 셀 좌표와 크기로 배치하도록 구조를 분리했다.
+
+## 검증
+
+- Rogue10mEditor Win64 Development 빌드 성공
+- WBP 4종 Generated Class 재로드 성공
+- SkillTreeWindow의 Entry Class 연결 확인
+- PlayerController의 Inventory/Equipment/SkillTree Window Class 연결 확인
+- Tick 추가 없음
+
+## 추가 필요 요소
+
+- InventoryCell/InventoryItem/BagTab 공통 WBP와 Inventory 변경 delegate
+- 장비 슬롯 Drag & Drop, 장비 타입 제한, 캐릭터 RenderTarget
+- 스킬 포인트/선행 조건/분기선/필터 버튼/Loadout Drop Zone
+- 닫기 버튼, 게임패드 포커스, 애니메이션, DPI/Safe Zone
+
+## Notion 요약 후보
+
+Rogue10m의 Inventory, Equipment, SkillTreeEntry, SkillTreeWindow를 Parts UI 스타일에 맞춰 재구성했다. 인벤토리는 10x10 UniformGrid가 셀 기준을 제공하고 별도 Canvas가 NxM 아이템의 실제 크기와 위치를 표현한다. 장비창에는 프리뷰·장비 슬롯·능력치 영역을, 스킬트리에는 카드형 엔트리·필터·스크롤 목록·스킬 포인트 영역을 추가했다. 네 WBP는 빈 Designer 트리 대신 C++ RebuildWidget fallback으로 생성되며 향후 Designer 전환 시 동일 BindWidget 이름을 사용해야 한다.

@@ -10,7 +10,13 @@
 class ARogue10mBasicMonster;
 class UInputMappingContext;
 class URogue10mDamageIndicatorWidget;
+class URogue10mEquipmentWindowWidget;
+class URogue10mInventoryWindowWidget;
+class URogue10mMenuWindowWidget;
+class URogue10mSkillTreeWindowWidget;
 class URogue10mRunHUD;
+class URogue10mItemDataAsset;
+class UTexture2D;
 class UUserWidget;
 
 struct FRogue10mRuntimeLogEntry
@@ -18,6 +24,8 @@ struct FRogue10mRuntimeLogEntry
 	FString Message;
 	FLinearColor Color = FLinearColor::White;
 	float ExpireTime = 0.0f;
+	TWeakObjectPtr<UTexture2D> ItemIcon;
+	int32 Quantity = 0;
 };
 
 struct FRogue10mFloatingDamageEntry
@@ -44,6 +52,9 @@ public:
 	void ToggleItemWindow();
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|UI")
+	void ToggleEquipment() { ToggleItemWindow(); }
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|UI")
 	void ToggleSkillTree();
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|UI")
@@ -57,6 +68,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|UI")
 	bool IsItemWindowVisible() const { return bItemWindowVisible; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|UI")
+	bool IsEquipmentVisible() const { return bItemWindowVisible; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|UI")
 	bool IsSkillTreeVisible() const { return bSkillTreeVisible; }
@@ -87,6 +101,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
 	void AddItemAcquisitionMessage(const FString& Message, const FLinearColor& Color = FLinearColor::White, float Duration = 3.0f);
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
+	void AddItemAcquisitionItem(const URogue10mItemDataAsset* ItemData, int32 Quantity, float Duration = 3.0f);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
 	void AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount, bool bCriticalHit = false);
@@ -143,6 +160,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator", meta=(ClampMin="0.2", ClampMax="3.0"))
 	float DamageIndicatorDuration = 1.2f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Feedback", meta=(ClampMin="0.05", ClampMax="3.0", Units="s"))
+	float PlayerDamageFeedbackDuration = 0.5f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Damage Indicator", meta=(ClampMin="0.0", ClampMax="200.0"))
 	float DamageIndicatorHeightOffset = 30.0f;
 
@@ -171,8 +191,40 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Aim", meta=(ClampMin="1.0", ClampMax="6.0"))
 	float AimCrossLineThickness = 2.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|UI|Menu Windows")
+	TSubclassOf<URogue10mInventoryWindowWidget> InventoryWindowWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|UI|Menu Windows")
+	TSubclassOf<URogue10mEquipmentWindowWidget> EquipmentWindowWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|UI|Menu Windows")
+	TSubclassOf<URogue10mSkillTreeWindowWidget> SkillTreeWindowWidgetClass;
+
+	/** Blueprint에서 클래스가 비어 있을 때 사용할 기본 인벤토리 창입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|UI|Menu Windows")
+	TSoftClassPtr<URogue10mInventoryWindowWidget> DefaultInventoryWindowWidgetClass;
+
+	/** Blueprint에서 클래스가 비어 있을 때 사용할 기본 장비 창입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|UI|Menu Windows")
+	TSoftClassPtr<URogue10mEquipmentWindowWidget> DefaultEquipmentWindowWidgetClass;
+
+	/** Blueprint에서 클래스가 비어 있을 때 사용할 기본 스킬트리 창입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|UI|Menu Windows")
+	TSoftClassPtr<URogue10mSkillTreeWindowWidget> DefaultSkillTreeWindowWidgetClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<URogue10mInventoryWindowWidget> InventoryWindowWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<URogue10mEquipmentWindowWidget> EquipmentWindowWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<URogue10mSkillTreeWindowWidget> SkillTreeWindowWidget;
+
 private:
 	bool ShouldUseTouchControls() const;
+	void InitializeMenuWindows();
+	void ApplyMenuWindowVisibility();
 	void InitializeRunHUD();
 	TSubclassOf<URogue10mRunHUD> ResolveRunHUDClass();
 	void RefreshInputMode();

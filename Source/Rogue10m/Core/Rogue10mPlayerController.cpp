@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rogue10mPlayerController.h"
+#include "Data/Rogue10mItemDataAsset.h"
 
 #include "Blueprint/UserWidget.h"
 
@@ -15,11 +16,32 @@
 #include "Rogue10mCameraManager.h"
 #include "Rogue10mCharacter.h"
 #include "Rogue10mCombatComponent.h"
+#include "Rogue10mInventoryComponent.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mRunHUD.h"
 #include "Widgets/Rogue10mDamageIndicatorWidget.h"
+#include "Widgets/Rogue10mMenuWindowWidgets.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	template <typename TWidget>
+	TSubclassOf<TWidget> ResolveMenuWidgetClass(
+		const TSubclassOf<TWidget> ConfiguredClass,
+		const TSoftClassPtr<TWidget>& DefaultClass)
+	{
+		if (ConfiguredClass)
+		{
+			return ConfiguredClass;
+		}
+
+		UClass* LoadedClass = DefaultClass.LoadSynchronous();
+		return LoadedClass && LoadedClass->IsChildOf(TWidget::StaticClass())
+			? TSubclassOf<TWidget>(LoadedClass)
+			: nullptr;
+	}
+}
 
 ARogue10mPlayerController::ARogue10mPlayerController()
 {
@@ -32,7 +54,13 @@ ARogue10mPlayerController::ARogue10mPlayerController()
 		DamageIndicatorWidgetClass = DamageIndicatorWidgetFinder.Class;
 	}
 	DefaultRunHUDClass = TSoftClassPtr<URogue10mRunHUD>(
-		FSoftClassPath(TEXT("/Game/Widget/UW_Rogue10mMainWidget.UW_Rogue10mMainWidget_C")));
+		FSoftClassPath(TEXT("/Game/Widget/WBP_Rogue10mMainHUD.WBP_Rogue10mMainHUD_C")));
+	DefaultInventoryWindowWidgetClass = TSoftClassPtr<URogue10mInventoryWindowWidget>(
+		FSoftClassPath(TEXT("/Game/Widget/Menu/WBP_InventoryWindow.WBP_InventoryWindow_C")));
+	DefaultEquipmentWindowWidgetClass = TSoftClassPtr<URogue10mEquipmentWindowWidget>(
+		FSoftClassPath(TEXT("/Game/Widget/Menu/WBP_EquipmentWindow.WBP_EquipmentWindow_C")));
+	DefaultSkillTreeWindowWidgetClass = TSoftClassPtr<URogue10mSkillTreeWindowWidget>(
+		FSoftClassPath(TEXT("/Game/Widget/Menu/WBP_SkillTreeWindow.WBP_SkillTreeWindow_C")));
 }
 
 void ARogue10mPlayerController::BeginPlay()
@@ -54,6 +82,7 @@ void ARogue10mPlayerController::BeginPlay()
 
 	SetFpsLimit(CurrentFpsLimit);
 	InitializeRunHUD();
+	InitializeMenuWindows();
 	InitializeDamageIndicatorPool();
 	RefreshInputMode();
 }
@@ -68,7 +97,7 @@ void ARogue10mPlayerController::SetupInputComponent()
 	}
 
 	InputComponent->BindKey(EKeys::I, IE_Pressed, this, &ARogue10mPlayerController::ToggleInventory);
-	InputComponent->BindKey(EKeys::B, IE_Pressed, this, &ARogue10mPlayerController::ToggleItemWindow);
+	InputComponent->BindKey(EKeys::P, IE_Pressed, this, &ARogue10mPlayerController::ToggleItemWindow);
 	InputComponent->BindKey(EKeys::K, IE_Pressed, this, &ARogue10mPlayerController::ToggleSkillTree);
 	InputComponent->BindKey(EKeys::O, IE_Pressed, this, &ARogue10mPlayerController::ToggleSettings);
 	InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ARogue10mPlayerController::ToggleSettings);
@@ -100,16 +129,31 @@ void ARogue10mPlayerController::SetupInputComponent()
 
 void ARogue10mPlayerController::ToggleInventory()
 {
+	if (!InventoryWindowWidget)
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("InventoryWindowWidgetClass가 설정되지 않았습니다."));
+		return;
+	}
 	SetPanelVisible(bInventoryVisible, !bInventoryVisible);
 }
 
 void ARogue10mPlayerController::ToggleItemWindow()
 {
+	if (!EquipmentWindowWidget)
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("EquipmentWindowWidgetClass가 설정되지 않았습니다."));
+		return;
+	}
 	SetPanelVisible(bItemWindowVisible, !bItemWindowVisible);
 }
 
 void ARogue10mPlayerController::ToggleSkillTree()
 {
+	if (!SkillTreeWindowWidget)
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("SkillTreeWindowWidgetClass가 설정되지 않았습니다."));
+		return;
+	}
 	SetPanelVisible(bSkillTreeVisible, !bSkillTreeVisible);
 }
 
@@ -124,6 +168,7 @@ void ARogue10mPlayerController::CloseAllBlockingPanels()
 	bItemWindowVisible = false;
 	bSkillTreeVisible = false;
 	bSettingsVisible = false;
+	ApplyMenuWindowVisibility();
 	RefreshInputMode();
 }
 
@@ -197,6 +242,25 @@ void ARogue10mPlayerController::AddItemAcquisitionMessage(const FString& Message
 	}
 }
 
+void ARogue10mPlayerController::AddItemAcquisitionItem(const URogue10mItemDataAsset* ItemData, int32 Quantity, float Duration)
+{
+	if (!ItemData || Quantity <= 0 || !GetWorld())
+	{
+		return;
+	}
+
+	FRogue10mRuntimeLogEntry Entry;
+	Entry.Message = ItemData->DisplayName.ToString();
+	Entry.Color = FLinearColor::White;
+	Entry.ExpireTime = GetWorld()->GetTimeSeconds() + FMath::Max(0.1f, Duration);
+	Entry.ItemIcon = ItemData->InventoryIcon.LoadSynchronous();
+	Entry.Quantity = Quantity;
+	ItemAcquisitionEntries.Insert(MoveTemp(Entry), 0);
+	if (ItemAcquisitionEntries.Num() > 8)
+	{
+		ItemAcquisitionEntries.SetNum(8);
+	}
+}
 void ARogue10mPlayerController::AddFloatingDamageNumber(AActor* TargetActor, float DamageAmount, bool bCriticalHit)
 {
 	AActor* AttackSource = GetPawn();
@@ -333,7 +397,7 @@ void ARogue10mPlayerController::NotifyPlayerDamaged(float DamageAmount)
 	}
 
 	PlayerDamageFeedbackStrength = FMath::Clamp(DamageAmount / 35.0f, 0.25f, 1.0f);
-	PlayerDamageFeedbackEndTime = GetWorld()->GetTimeSeconds() + 0.35f;
+	PlayerDamageFeedbackEndTime = GetWorld()->GetTimeSeconds() + PlayerDamageFeedbackDuration;
 }
 
 bool ARogue10mPlayerController::ToggleCombatLogVisible()
@@ -349,8 +413,8 @@ bool ARogue10mPlayerController::ToggleCombatLogVisible()
 bool ARogue10mPlayerController::ActivateQuickSlot(int32 SlotNumber)
 {
 	ARogue10mCharacter* RogueCharacter = Cast<ARogue10mCharacter>(GetPawn());
-	URogue10mCombatComponent* Combat = RogueCharacter ? RogueCharacter->GetCombatComponent() : nullptr;
-	return Combat && Combat->ActivateQuickSlot(SlotNumber);
+	URogue10mInventoryComponent* Inventory = RogueCharacter ? RogueCharacter->GetInventoryComponent() : nullptr;
+	return Inventory && Inventory->UseConsumableQuickSlot(SlotNumber - 1);
 }
 
 ARogue10mBasicMonster* ARogue10mPlayerController::FindLookedAtMonster() const
@@ -375,7 +439,7 @@ float ARogue10mPlayerController::GetPlayerDamageFeedbackAlpha() const
 	{
 		return 0.0f;
 	}
-	return FMath::Clamp((PlayerDamageFeedbackEndTime - GetWorld()->GetTimeSeconds()) / 0.35f, 0.0f, 1.0f);
+	return FMath::Clamp((PlayerDamageFeedbackEndTime - GetWorld()->GetTimeSeconds()) / FMath::Max(0.05f, PlayerDamageFeedbackDuration), 0.0f, 1.0f);
 }
 
 bool ARogue10mPlayerController::ShouldUseTouchControls() const
@@ -428,6 +492,56 @@ TSubclassOf<URogue10mRunHUD> ARogue10mPlayerController::ResolveRunHUDClass()
 	return LoadedClass;
 }
 
+void ARogue10mPlayerController::InitializeMenuWindows()
+{
+	if (!IsLocalPlayerController())
+	{
+		return;
+	}
+	const ARogue10mCharacter* RogueCharacter = Cast<ARogue10mCharacter>(GetPawn());
+	URogue10mInventoryComponent* Inventory = RogueCharacter ? RogueCharacter->GetInventoryComponent() : nullptr;
+	const TSubclassOf<URogue10mInventoryWindowWidget> ResolvedInventoryClass = ResolveMenuWidgetClass(
+		InventoryWindowWidgetClass, DefaultInventoryWindowWidgetClass);
+	const TSubclassOf<URogue10mEquipmentWindowWidget> ResolvedEquipmentClass = ResolveMenuWidgetClass(
+		EquipmentWindowWidgetClass, DefaultEquipmentWindowWidgetClass);
+	const TSubclassOf<URogue10mSkillTreeWindowWidget> ResolvedSkillTreeClass = ResolveMenuWidgetClass(
+		SkillTreeWindowWidgetClass, DefaultSkillTreeWindowWidgetClass);
+
+	auto InitializeWindow = [this, Inventory](TSubclassOf<URogue10mMenuWindowWidget> WidgetClass,
+		TObjectPtr<URogue10mMenuWindowWidget>& OutWidget)
+	{
+		if (!WidgetClass)
+		{
+			return;
+		}
+		OutWidget = CreateWidget<URogue10mMenuWindowWidget>(this, WidgetClass);
+		if (OutWidget)
+		{
+			OutWidget->InitializeMenuWindow(Inventory);
+			OutWidget->AddToPlayerScreen(50);
+			OutWidget->SetWindowOpen(false);
+		}
+	};
+
+	TObjectPtr<URogue10mMenuWindowWidget> InventoryBase;
+	InitializeWindow(ResolvedInventoryClass, InventoryBase);
+	InventoryWindowWidget = Cast<URogue10mInventoryWindowWidget>(InventoryBase);
+
+	TObjectPtr<URogue10mMenuWindowWidget> EquipmentBase;
+	InitializeWindow(ResolvedEquipmentClass, EquipmentBase);
+	EquipmentWindowWidget = Cast<URogue10mEquipmentWindowWidget>(EquipmentBase);
+
+	TObjectPtr<URogue10mMenuWindowWidget> SkillTreeBase;
+	InitializeWindow(ResolvedSkillTreeClass, SkillTreeBase);
+	SkillTreeWindowWidget = Cast<URogue10mSkillTreeWindowWidget>(SkillTreeBase);
+}
+
+void ARogue10mPlayerController::ApplyMenuWindowVisibility()
+{
+	if (InventoryWindowWidget) InventoryWindowWidget->SetWindowOpen(bInventoryVisible);
+	if (EquipmentWindowWidget) EquipmentWindowWidget->SetWindowOpen(bItemWindowVisible);
+	if (SkillTreeWindowWidget) SkillTreeWindowWidget->SetWindowOpen(bSkillTreeVisible);
+}
 void ARogue10mPlayerController::RefreshInputMode()
 {
 	const bool bBlocking = IsAnyBlockingWindowVisible();
@@ -438,9 +552,14 @@ void ARogue10mPlayerController::RefreshInputMode()
 	if (bBlocking)
 	{
 		FInputModeGameAndUI InputMode;
-		if (RunHUD)
+		UUserWidget* FocusWidget = nullptr;
+		if (bInventoryVisible) FocusWidget = InventoryWindowWidget;
+		else if (bItemWindowVisible) FocusWidget = EquipmentWindowWidget;
+		else if (bSkillTreeVisible) FocusWidget = SkillTreeWindowWidget;
+		else FocusWidget = RunHUD;
+		if (FocusWidget)
 		{
-			InputMode.SetWidgetToFocus(RunHUD->TakeWidget());
+			InputMode.SetWidgetToFocus(FocusWidget->TakeWidget());
 		}
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		InputMode.SetHideCursorDuringCapture(false);
@@ -454,7 +573,16 @@ void ARogue10mPlayerController::RefreshInputMode()
 
 void ARogue10mPlayerController::SetPanelVisible(bool& PanelState, bool bVisible)
 {
+	if (bVisible)
+	{
+		bInventoryVisible = false;
+		bItemWindowVisible = false;
+		bSkillTreeVisible = false;
+		bSettingsVisible = false;
+	}
 	PanelState = bVisible;
+	ApplyMenuWindowVisibility();
+
 	if (bVisible)
 	{
 		if (ARogue10mCharacter* RogueCharacter = Cast<ARogue10mCharacter>(GetPawn()))
