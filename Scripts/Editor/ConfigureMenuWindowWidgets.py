@@ -10,10 +10,10 @@ import unreal
 WIDGET_ROOT = "/Game/Widget/Menu"
 PLAYER_CONTROLLER_BP_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonPlayerController"
 WIDGETS = {
-    "inventory": ("WBP_InventoryWindow", "/Script/Rogue10m.Rogue10mInventoryWindowWidget"),
-    "equipment": ("WBP_EquipmentWindow", "/Script/Rogue10m.Rogue10mEquipmentWindowWidget"),
-    "skill_tree_entry": ("WBP_SkillTreeEntry", "/Script/Rogue10m.Rogue10mSkillTreeEntryWidget"),
-    "skill_tree": ("WBP_SkillTreeWindow", "/Script/Rogue10m.Rogue10mSkillTreeWindowWidget"),
+    "inventory": ("/Game/Widget/Menu/Inventory/WBP_InventoryWindow", "/Script/Rogue10m.Rogue10mInventoryWindowWidget"),
+    "equipment": ("/Game/Widget/Menu/Equipment/WBP_EquipmentWindow", "/Script/Rogue10m.Rogue10mEquipmentWindowWidget"),
+    "skill_tree_entry": ("/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry", "/Script/Rogue10m.Rogue10mSkillTreeEntryWidget"),
+    "skill_tree": ("/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow", "/Script/Rogue10m.Rogue10mSkillTreeWindowWidget"),
 }
 
 
@@ -29,7 +29,8 @@ def load_blueprint_class(asset_path):
 
 
 def create_or_load_widget_blueprint(asset_name, parent_class_path):
-    asset_path = f"{WIDGET_ROOT}/{asset_name}"
+    asset_path = asset_name
+    package_path, short_name = asset_path.rsplit("/", 1)
     widget_blueprint = unreal.EditorAssetLibrary.load_asset(asset_path)
     if widget_blueprint:
         return widget_blueprint, asset_path
@@ -41,7 +42,7 @@ def create_or_load_widget_blueprint(asset_name, parent_class_path):
     factory = unreal.WidgetBlueprintFactory()
     factory.set_editor_property("parent_class", parent_class)
     widget_blueprint = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
-        asset_name, WIDGET_ROOT, unreal.WidgetBlueprint, factory
+        short_name, package_path, unreal.WidgetBlueprint, factory
     )
     if not widget_blueprint:
         raise RuntimeError(f"Widget Blueprint creation failed: {asset_path}")

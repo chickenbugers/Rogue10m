@@ -13,7 +13,9 @@
 Create short-lived branches from `develop` using `Sprint#<sprint>-<work>-<short-description>`.
 
 - `Sprint#<sprint>-<work>-<short-description>`: Short-lived work branch for every feature, content, level, balance, and fix task.
-- Increment the sprint and work numbers as development proceeds.
+- Keep the Sprint number fixed while work is promoted through `develop` and `test`.
+- Increment only the work number for independent work branches in the current Sprint.
+- Increment the Sprint number only after that Sprint is successfully merged into `main`; then reset the work number to `1`.
 - Use a short English kebab-case description.
 - Examples: `Sprint#1-1-item-quick-slot`, `Sprint#1-2-sprint-postprocess`, `Sprint#2-1-monster-ai`.
 
@@ -24,6 +26,7 @@ Create short-lived branches from `develop` using `Sprint#<sprint>-<work>-<short-
 3. Promote `develop` into `test` for playable test builds.
 4. Test and fix on branches made from `develop`.
 5. Merge `test` into `main` only when the build is stable.
+6. After the successful `main` merge, close the current Sprint; the next work branch uses the next Sprint number and work number `1`.
 
 ## Promotion Rules
 

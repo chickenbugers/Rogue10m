@@ -13,6 +13,7 @@ It adapts the harness engineering ideas from `BaeJongHo/Unreal_Harness` to this 
 - Runtime module: `Source/Rogue10m`
 - Module API macro: `ROGUE10M_API`
 - Primary branch flow: `Sprint#<sprint>-<work>-<short-description>` -> `develop` -> `test` -> `main`
+- Sprint numbering rule: a Sprint closes and the Sprint number increments only after a successful merge into `main`. Work branches created before that merge keep the same Sprint number and increment only `<work>`; the first work after the merge starts at `<next-sprint>-1`.
 
 ## Harness Pipeline
 

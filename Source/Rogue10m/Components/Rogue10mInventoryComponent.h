@@ -130,6 +130,10 @@ struct FRogue10mInventoryGridEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Inventory|Grid")
 	FIntPoint Position = FIntPoint::ZeroValue;
+
+	/** Base item footprint is rotated 90 degrees clockwise in the grid. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Inventory|Grid")
+	bool bRotatedClockwise = false;
 };
 
 USTRUCT(BlueprintType)
@@ -185,6 +189,12 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Items")
 	int32 GetCrystals() const { return Crystals; }
 
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory|Weight")
+	float GetTotalInventoryWeight() const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory|Weight")
+	float GetMaxCarryWeight() const { return MaxCarryWeight; }
+
 	// 아이템 슬롯의 장비를 기본 장착 슬롯으로 장착합니다.
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
 	bool TryEquipItemFromSlot(int32 ItemSlotIndex);
@@ -221,13 +231,15 @@ public:
 	const TArray<FRogue10mInventoryContainer>& GetInventoryContainers() const { return InventoryContainers; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory|Grid")
-	bool CanPlaceGridItem(int32 ContainerIndex, const URogue10mItemDataAsset* ItemData, FIntPoint Position, FGuid IgnoredInstanceId) const;
+	bool CanPlaceGridItem(int32 ContainerIndex, const URogue10mItemDataAsset* ItemData, FIntPoint Position,
+		FGuid IgnoredInstanceId, bool bRotatedClockwise = false) const;
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
 	bool TryAddGridItem(const URogue10mItemDataAsset* ItemData, int32 Quantity, int32& OutContainerIndex, FGuid& OutInstanceId);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
-	bool TryMoveGridItem(int32 SourceContainerIndex, FGuid InstanceId, int32 TargetContainerIndex, FIntPoint TargetPosition);
+	bool TryMoveGridItem(int32 SourceContainerIndex, FGuid InstanceId, int32 TargetContainerIndex,
+		FIntPoint TargetPosition, bool bRotatedClockwise = false);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
 	bool RemoveGridItem(int32 ContainerIndex, FGuid InstanceId, FRogue10mInventoryGridEntry& OutRemovedEntry);
@@ -259,6 +271,13 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Grid")
 	TArray<FRogue10mInventoryContainer> InventoryContainers;
 
+	/** Adds the configured prototype items once when the base inventory starts empty. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Prototype")
+	bool bAddPrototypeStartingItems = true;
+
+	/** Data-driven starter items used to exercise NxM inventory placement. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Prototype")
+	TArray<TSoftObjectPtr<URogue10mItemDataAsset>> PrototypeStartingItems;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Drop")
 	TSubclassOf<ARogue10mDroppedItem> DroppedItemClass;
 
@@ -269,6 +288,10 @@ protected:
 	// 현재는 UI 표시용 0 고정값입니다. 이후 재화 관리 컴포넌트에서 받아오도록 교체합니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items", meta=(ClampMin="0"))
 	int32 Crystals = 0;
+
+	/** 현재는 UI 표시 기준이며, 초과 시 이동 제한 정책은 후속 구현합니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Weight", meta=(ClampMin="0.0", Units="kg"))
+	float MaxCarryWeight = 100.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Quick Slot", meta=(EditFixedSize))
 	TArray<int32> ConsumableQuickSlotItemIndices;

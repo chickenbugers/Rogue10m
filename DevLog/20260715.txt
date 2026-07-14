@@ -1,0 +1,124 @@
+# 2026-07-15 개발 기록
+
+## Sprint#1-13 메뉴 UserWidget Designer 직접 배치
+
+### 작업 목적
+
+인벤토리, 장비창, 스킬 트리 UI가 C++에서 Slate 위젯을 런타임 생성하지 않고 Widget Blueprint Designer에서 직접 편집 가능한 구조가 되도록 변경했다.
+
+### 주요 변경 사항
+
+- WBP 4종의 Designer 트리를 Unreal Editor API로 생성·컴파일·저장했다.
+- 인벤토리에 Grid, NxM 아이템 Canvas, 하단 돈·무게 정보를 직접 배치했다.
+- 장비창에 캐릭터 프리뷰, 장비 슬롯 7종, 능력치 영역을 배치했다.
+- 스킬 엔트리를 반복용 UserWidget으로 구성하고 스킬 트리에 필터, 스크롤 목록, 스킬 포인트 영역을 배치했다.
+- Overlay 없이 Canvas 형제 배치와 ZOrder로 인벤토리 셀/아이템 표시 순서를 구성했다.
+- C++ `RebuildWidget()` UI 생성 코드를 제거하고 필수 위젯을 `BindWidget`으로 강제했다.
+- Editor 자동화에 필수 이름 및 Overlay 미사용 검증을 추가했다.
+
+### 검증 결과
+
+- Rogue10mEditor Win64 Development 빌드 성공
+- 네 Widget Blueprint 컴파일 및 저장 성공
+- 필수 위젯 누락 0개, Overlay 0개
+- Inventory 8개, InventoryCell 2개, Equipment 23개, SkillTreeEntry 8개, SkillTreeWindow 11개 위젯 확인
+
+### 주의 사항
+
+필수 BindWidget 이름이나 타입을 Designer에서 바꾸면 Widget Blueprint 컴파일이 실패한다. 스타일 변경은 WBP에서 진행하고, 데이터·입력·Drag & Drop 동작은 C++에 유지한다.
+
+## [Notion 요약 후보]
+
+메뉴 UI 4종을 C++ 런타임 Slate 생성에서 WBP Designer 직접 배치로 전환했다. Inventory 10×10/NxM, Equipment 7슬롯, SkillTreeEntry/Window 필수 구성을 완료했으며, BindWidget 강제와 Editor 자동 검증으로 누락을 방지했다.
+
+## Sprint 번호 증가 기준 확정
+
+- Sprint 번호는 작업 브랜치를 새로 만들 때 증가시키지 않는다.
+- 현재 Sprint의 변경이 `develop`과 `test`를 거쳐 `main`에 성공적으로 병합된 시점에만 Sprint를 종료하고 다음 번호로 증가시킨다.
+- 같은 Sprint 안의 독립 작업은 작업 번호만 증가시킨다.
+- 다음 Sprint의 첫 작업 번호는 1로 초기화한다.
+- 현재 메뉴 Designer 작업 식별자는 `Sprint#1-13`으로 정정했다.
+## Inventory UserWidget 후속 개선
+
+### 변경 사항
+
+- `UI_BagTabContainer`, `UI_InventoryCapacityText`, `UI_InventoryHintText`를 제거했다.
+- `WBP_InventoryCell` UserWidget을 추가했다.
+- Inventory Container의 GridSize X×Y만큼 셀을 Construct/창 열기/Grid 변경 이벤트에서 자동 생성하도록 구현했다.
+- `UI_InventoryGrid`는 셀 좌표와 Drop 기준, `UI_InventoryItemCanvas`는 NxM 아이템 표시와 Drag & Drop을 담당하도록 역할을 분리했다.
+- 하단에 `UI_InventoryMoneyText`와 `UI_InventoryWeightText`를 배치했다.
+- Item Data Asset에 기본 0.1kg의 `UnitWeight`를 추가했다.
+- 전체 컨테이너의 아이템 무게×수량을 합산해 현재 무게를 계산하고, 기본 최대 무게 100kg과 함께 표시한다.
+- 무게 초과 시 획득 제한은 아직 적용하지 않고 표시 데이터만 구성했다.
+
+### 검증
+
+- Rogue10mEditor Win64 Development 빌드 성공
+- 열린 Editor Remote Execution으로 WBP 5종 컴파일·저장 성공
+- Inventory 필수 위젯 4개, 제거 대상 0개, Overlay 0개 확인
+- `InventoryCellWidgetClass = WBP_InventoryCell_C` 연결 확인
+- Python 문법 검사 성공
+
+## [Notion 요약 후보] Inventory UI
+
+인벤토리의 고정 100셀을 제거하고 컨테이너 X×Y에 맞춰 WBP_InventoryCell을 자동 생성하도록 변경했다. Grid는 좌표, ItemCanvas는 NxM 아이템 표시를 담당하며 하단에 돈과 현재/최대 무게 정보를 추가했다.
+
+[개발 작업] Sprint#1-13 NxM 인벤토리 셀/아이템/가방 탭 구현
+
+- WBP_InventoryCell을 UI_InventoryGrid의 각 X,Y 좌표에 자동 생성하도록 유지하고 역할을 좌표/배경 셀로 명확히 했다.
+- WBP_InventoryItem을 추가해 아이템 아이콘과 수량을 표시하고 UI_InventoryItemCanvas에 NxM 크기로 배치했다.
+- WBP_BagTab을 추가해 가방 이름과 크기를 표시하고 여러 인벤토리 컨테이너를 전환하도록 했다.
+- 아이템 인스턴스에 회전 상태를 저장하고 회전된 폭/높이로 인벤토리 경계와 다른 아이템 충돌을 검사하도록 수정했다.
+- 드래그 중 마우스로 잡은 셀 오프셋을 보존하고 R키 입력 시 시계 방향 90도 회전 좌표를 계산하도록 했다.
+- 배치 가능 영역은 녹색, 경계 초과 또는 다른 아이템과 충돌하는 영역은 적색 프리뷰로 표시하도록 했다.
+- Rogue10mEditor Development 빌드와 열린 Editor의 WBP 컴파일/저장, GeneratedClass 할당을 확인했다.
+
+[Notion 정리 후보]
+제목: NxM 그리드 인벤토리 Drag & Drop 및 회전 프리뷰
+요약: Cell은 UniformGrid 좌표, Item은 상단 Canvas의 NxM 표현, BagTab은 컨테이너 전환을 담당한다. 포인터 로컬 좌표와 잡은 셀 오프셋으로 배치 좌표를 산출하고 회전 footprint 기반 AABB 검사 결과를 녹색/적색으로 표시한다.
+후속 확인: PIE에서 1x1, 1x2, 2x3 아이템을 가장자리와 다른 아이템 주변에서 이동·회전하고, 여러 가방 탭 간 이동을 검증한다.
+[개발 작업] Sprint#1-13 메뉴 위젯 계약 및 폴더 정리
+
+- WBP_BagTab에서 제거된 UI_BagSizeText에 맞춰 C++ 필수 BindWidget과 GridSize 초기화 인자를 제거했다.
+- WBP_InventoryCell의 44×44 Frame 내부에 0.5 패딩의 Fill을 배치해 셀 경계가 어두운 외곽선으로 구분되도록 했다.
+- Inventory 4종, Equipment 1종, SkillTree 2종을 Content/Widget/Menu 아래 기능별 폴더로 이동했다.
+- PlayerController 기본 SoftClassPath와 Editor 자동화 경로를 새 폴더에 맞췄다.
+- 이동 후 비어 있던 SkillTreeEntryWidgetClass를 새 WBP_SkillTreeEntry로 다시 지정해 저장했다.
+- UserInterfaceSettings에 유효한 Font DPI 기본값을 명시하고 전체 Editor 모듈을 재빌드해 오래된 Hot Reload 리플렉션을 제거했다.
+- UE5.8 commandlet에서 메뉴 WBP 7종과 내부 클래스 참조를 검증했으며 UI_BagSizeText, LogEditCondition 오류가 재발하지 않았다.
+
+[Notion 정리 후보]
+제목: 메뉴 Widget Blueprint 폴더 분리와 Inventory Cell 시인성 개선
+요약: BagTab의 제거된 크기 텍스트 계약을 정리하고, Inventory Cell에 0.5 외곽선을 적용했다. 메뉴 자산을 Inventory/Equipment/SkillTree 폴더로 분리한 뒤 SoftClassPath와 내부 WidgetClass 참조를 함께 갱신했다.
+검증: Rogue10mEditor 빌드 성공, UE5.8 WBP 7종 컴파일 및 참조 검사 성공, 최신 로그에서 LogEditCondition 오류 없음.
+[개발 작업] Sprint#1-13 Inventory Grid 시각 균형 개선
+
+- 첨부된 PIE 화면에서 BagTab과 Grid가 약 11px 겹치고 Grid 전체를 묶는 배경 프레임이 없어 창 내부가 불균형하게 보이는 원인을 확인했다.
+- 마비노기의 촘촘한 NxM Inventory Tetris와 Diablo II의 프레임형 Inventory Grid를 기준으로 재설계했다.
+- 44×44 셀은 유지하면서 1px 다크 외곽선과 차콜 Fill을 적용했다.
+- 440×440 Grid와 ItemCanvas 뒤에 448×448 Grid Frame을 추가하고 세 레이어의 중심을 `(0, 16)`으로 맞췄다.
+- BagTab을 136×36, 14pt 텍스트로 조정하고 Title/Tab/Grid/BottomInfo 사이 여백을 분리했다.
+- UE5.8 Designer 재생성과 깨끗한 commandlet에서 메뉴 WBP 7종, 필수 위젯, 내부 클래스 참조를 검증했다.
+
+[Notion 정리 후보]
+제목: NxM Inventory Grid 시각 균형 개선
+요약: 셀 간 Margin 대신 1px 다크 경계를 사용하고 Grid 전체를 별도 Recess Frame으로 묶었다. 탭과 그리드의 중첩을 제거하고 Grid/ItemCanvas 중심 좌표를 일치시켜 NxM Drag & Drop 계산은 유지했다.
+후속 확인: PIE 16:9/16:10에서 10×10 Grid, 여러 BagTab, 1×1·1×2·2×3 아이템 배치와 회전 프리뷰를 확인한다.
+
+[개발 작업] Sprint#1-13 프로토타입 NxM 인벤토리 아이템
+
+- 1x1 소형, 2x3 중형, 4x3 대형 테스트 아이템을 URogue10mItemDataAsset 기반 에셋으로 제작했다.
+- 각 아이템에는 이름, 설명, 무게, 인벤토리 크기와 구분 색상을 설정했다.
+- 기본 10x10 인벤토리가 비어 있으면 시작 시 세 아이템을 한 번만 자동 배치하도록 했다.
+- 저장 데이터나 기존 아이템이 있으면 자동 추가를 생략해 기존 상태를 보존한다.
+- 아이콘이 아직 없는 Data Asset은 InventoryTint 색상으로 인벤토리에서 구분되도록 했다.
+- Rogue10mEditor 빌드와 Unreal Python Data Asset 크기 재검증을 통과했다.
+
+[Notion 정리 후보]
+제목: 1x1·2x3·4x3 NxM 인벤토리 테스트 아이템 준비
+요약: 세 크기의 Item Data Asset을 만들고 빈 기본 인벤토리에 자동 배치했다. 아이콘이 없는 초기 아이템도 InventoryTint로 구분되며, 에디터에서 자동 추가 여부와 시작 아이템 목록을 조정할 수 있다.
+후속 확인: PIE에서 R키 회전, 충돌 프리뷰, 경계 배치와 10x10 셀 정렬을 체감 QA한다.
+[문서 및 배포 준비] README와 Sprint#1-13 게시 범위 정리
+
+- README에 메뉴 Widget Blueprint 구조, 10x10/NxM 인벤토리, 드래그·회전·충돌 프리뷰, 프로토타입 Data Asset 위치와 조정 항목을 추가했다.
+- 같은 Sprint에서 누적된 C++, Config, Editor Python, Widget Blueprint, Data Asset, 문서 변경을 하나의 게시 범위로 확정했다.

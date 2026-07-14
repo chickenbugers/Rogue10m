@@ -69,6 +69,18 @@
 - 장비창, 아이템창, 스킬 트리, 설정 UI 골격
 - 런 타이머와 몬스터 정보 표시
 
+### 메뉴 UI와 NxM 인벤토리
+
+- Inventory, Equipment, SkillTree 메뉴를 기능별 Widget Blueprint 폴더로 분리
+- 10×10 기본 인벤토리와 가방별 가변 GridSize 지원
+- 아이템 Data Asset의 InventorySize를 이용한 1×1부터 NxM까지의 공간 점유
+- Canvas 좌표 기반 드래그 앤 드롭, 경계·아이템 충돌 프리뷰
+- 드래그 중 R키를 이용한 시계 방향 90도 회전
+- 셀은 WBP_InventoryCell UserWidget으로 GridSize X×Y만큼 자동 생성
+- 하단에 Gold와 현재 무게 / 최대 무게 표시
+- 아이콘이 없는 초기 아이템은 InventoryTint 색상으로 구분
+
+프로토타입 Data Asset은 Content/DataAsset/Item/Prototype에 있으며 1×1, 2×3, 4×3 크기를 제공합니다. 기본 인벤토리가 비어 있으면 게임 시작 시 한 번만 자동 배치됩니다. Inventory Component의 bAddPrototypeStartingItems와 PrototypeStartingItems에서 자동 배치 여부와 목록을 조정할 수 있습니다.
 ### 성장과 장비 방향
 
 - 무기 종류: 권갑, 단검, 대검, 쌍검, 활, 지팡이
@@ -124,6 +136,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1
 - [월드 구조](Docs/WorldStructure.md)
 - [애니메이션 연동 가이드](Docs/AnimationIntegrationGuide.md)
 - [공격 스킬 Data Asset 가이드](Docs/AttackSkillDataAssetGuide.md)
+- [Grid Inventory와 메뉴 창 가이드](Docs/GridInventoryAndMenuWindowsGuide.md)
 - [달리기와 화면 피드백 설정 가이드](Docs/SprintAndFeedbackGuide.md)
 - [캐릭터 데이터 소유권](Docs/CharacterDataOwnership.md)
 - [브랜치 전략](Docs/GitBranchStrategy.md)

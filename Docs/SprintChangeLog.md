@@ -9,6 +9,8 @@
 
 - 작업 식별자: Sprint#스프린트번호-작업번호
 - 브랜치: Sprint#스프린트번호-작업번호-간단한-영문-설명
+- Sprint 번호: `test`가 `main`에 성공적으로 병합되어 현재 Sprint가 종료된 시점에만 증가
+- 작업 번호: 같은 Sprint 안에서 독립 작업이 시작될 때 증가하며, 다음 Sprint 시작 시 1로 초기화
 - 상태: 계획 / 개발 중 / 빌드 완료 / QA 완료 / main 반영
 - 목표: 작업이 해결하려는 문제
 - 주요 변경: 플레이어가 체감하거나 구조적으로 중요한 변경
@@ -304,3 +306,90 @@
 - 관련 문서:
   - Feature/architect/2026-07-14_menu-widget-layout.md
   - Feature/doc/2026-07-14_menu-widget-layout.md
+
+### Sprint#1-13 - menu-designer-layout
+
+- 상태: 구현, Editor 자산 직접 배치 및 빌드 완료
+- 목표: 메뉴 UI를 C++ Slate fallback이 아닌 Widget Blueprint Designer 소유 구조로 전환
+- 주요 변경:
+  - Inventory Canvas/Frame/Grid/NxM ItemCanvas/하단 돈·무게 직접 배치
+  - GridSize X×Y에 맞춘 WBP_InventoryCell UserWidget 자동 생성
+  - BagTab/Capacity/Hint 제거 및 Item Data Asset UnitWeight 기반 총 무게 계산
+  - Equipment 프리뷰/장비 슬롯 7종/능력치 영역 직접 배치
+  - SkillTreeEntry 아이콘/이름/설명/잠금 상태 UserWidget 구성
+  - SkillTreeWindow 필터/ScrollBox/WrapBox/스킬 포인트 영역 직접 배치
+  - Overlay 제거, Root Canvas 형제 배치와 ZOrder 사용
+  - 네이티브 `RebuildWidget()` 제거 및 필수 `BindWidget` 계약 적용
+  - Editor Python 필수 이름·Overlay 0개 검증 추가
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - 메뉴 WBP 4종과 WBP_InventoryCell Compile/Save 성공
+  - InventoryCellWidgetClass 연결 및 제거 대상 위젯 0개 확인
+  - 필수 위젯 누락 0개, Overlay 0개
+- 관련 문서:
+  - Feature/architect/2026-07-15_menu-designer-layout.md
+  - Feature/doc/2026-07-15_menu-designer-layout.md
+  - Docs/GridInventoryAndMenuWindowsGuide.md
+
+### Sprint#1-13 - NxM Inventory Cell/Item/BagTab 상호작용
+
+- 목표: 인벤토리 좌표 셀, NxM 아이템, 가방 탭을 분리된 UserWidget으로 구현하고 회전·충돌 프리뷰를 제공한다.
+- 주요 변경: 회전 상태 저장, 회전 footprint 기반 경계/AABB 충돌, Canvas 좌표 스냅, 잡은 셀 오프셋, R키 90도 회전, 녹색/적색 프리뷰, 가방 탭 전환.
+- 자산: `WBP_InventoryCell`, `WBP_InventoryItem`, `WBP_BagTab`, `WBP_InventoryWindow`.
+- 검증: Rogue10mEditor Development 빌드 성공, 열린 Editor WBP 컴파일/저장 및 클래스 할당 확인.
+- 상태: 구현 및 로컬 검증 완료. PIE에서 아이템 Data Asset별 NxM 이동/회전 체감 QA 필요.
+- 관련 문서: `Feature/architect/2026-07-15_menu-designer-layout.md`, `Feature/doc/2026-07-15_menu-designer-layout.md`, `Docs/GridInventoryAndMenuWindowsGuide.md`.
+### Sprint#1-13 - menu-widget-contract-and-folders
+
+- 상태: 구현 및 로컬 검증 완료
+- 목표: BagTab 바인딩 오류와 UserInterfaceSettings EditCondition 오류를 해소하고 메뉴 자산 구조 및 Inventory Cell 시인성을 정리한다.
+- 주요 변경:
+  - `UI_BagSizeText` C++ 필수 바인딩 및 BagTab GridSize 인자 제거
+  - `WBP_InventoryCell`에 0.5 패딩 기반 어두운 외곽선 적용
+  - 메뉴 자산을 `Inventory`, `Equipment`, `SkillTree` 기능별 폴더로 이동
+  - PlayerController SoftClassPath, 내부 WidgetClass, Editor 자동화 경로 갱신
+  - 이동 후 누락된 `SkillTreeEntryWidgetClass` 재지정
+  - UserInterfaceSettings Font DPI 기본값 명시 및 전체 Editor 모듈 재빌드
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - UE5.8 commandlet 메뉴 WBP 7종 컴파일 및 내부 클래스 참조 검사 성공
+  - `UI_BagSizeText`, `LogEditCondition`, `bUseCustomFontDPI` 오류 재발 없음
+- 관련 문서:
+  - `Feature/architect/2026-07-15_menu-designer-layout.md`
+  - `Feature/doc/2026-07-15_menu-designer-layout.md`
+  - `Docs/GridInventoryAndMenuWindowsGuide.md`
+### Sprint#1-13 - inventory-grid-visual-balance
+
+- 상태: 구현 및 로컬 WBP 검증 완료, PIE 시각 재확인 필요
+- 목표: Inventory Cell과 창 내부 구획의 시각적 균형을 마비노기/Diablo II식 NxM Grid 기준으로 개선한다.
+- 주요 변경:
+  - 44×44 Cell에 1px 다크 경계와 차콜 Fill 적용
+  - 448×448 `UI_InventoryGridFrame` 추가
+  - Grid/ItemCanvas 중심 `(0, 16)` 통일
+  - BagTab 136×36, 14pt 및 어두운 배경 적용
+  - Title/Tab/Grid/BottomInfo 중첩 제거와 대칭 여백 확보
+- 검증:
+  - UE5.8 메뉴 WBP 7종 commandlet 컴파일 성공
+  - `UI_InventoryGridFrame` 필수 Designer 위젯 확인
+  - Inventory/SkillTree 내부 WidgetClass 참조 확인
+  - Python 오류 및 Overlay 0개
+- 관련 문서:
+  - `Feature/architect/2026-07-15_menu-designer-layout.md`
+  - `Feature/doc/2026-07-15_menu-designer-layout.md`
+  - `Docs/GridInventoryAndMenuWindowsGuide.md`
+
+### Sprint#1-13 - prototype-inventory-items
+
+- 상태: 구현, Editor Data Asset 생성 및 C++ 빌드 검증 완료
+- 목표: NxM 인벤토리 배치와 회전 QA에 사용할 1x1, 2x3, 4x3 프로토타입 아이템 준비
+- 주요 변경:
+  - 프로토타입 Item Data Asset 3종 생성
+  - 아이콘 미지정 시 사용하는 InventoryTint 속성 추가
+  - 빈 기본 인벤토리에 시작 아이템을 한 번만 자동 배치
+  - bAddPrototypeStartingItems, PrototypeStartingItems로 에디터 조정 가능
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - Unreal Python 에셋 생성 및 InventorySize 재검증 성공
+- 관련 문서:
+  - Feature/architect/2026-07-15_prototype-inventory-items.md
+  - Feature/doc/2026-07-15_prototype-inventory-items.md

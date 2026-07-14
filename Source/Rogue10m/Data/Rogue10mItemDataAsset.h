@@ -47,6 +47,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Display")
 	TSoftObjectPtr<UTexture2D> InventoryIcon;
 
+	/** Inventory fallback color used when an item does not have an icon yet. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Display")
+	FLinearColor InventoryTint = FLinearColor(0.16f, 0.42f, 0.68f, 0.85f);
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Display")
 	ERogue10mItemRarity Rarity = ERogue10mItemRarity::Common;
 
@@ -64,6 +68,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Inventory", meta=(ClampMin="1"))
 	int32 MaxStackSize = 1;
+
+	/** 아이템 한 개의 무게(kg)입니다. 총 무게는 수량을 곱해 계산합니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Inventory", meta=(ClampMin="0.0", Units="kg"))
+	float UnitWeight = 0.1f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|World")
 	TSoftObjectPtr<UStaticMesh> DroppedWorldMesh;

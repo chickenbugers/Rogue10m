@@ -56,11 +56,11 @@ ARogue10mPlayerController::ARogue10mPlayerController()
 	DefaultRunHUDClass = TSoftClassPtr<URogue10mRunHUD>(
 		FSoftClassPath(TEXT("/Game/Widget/WBP_Rogue10mMainHUD.WBP_Rogue10mMainHUD_C")));
 	DefaultInventoryWindowWidgetClass = TSoftClassPtr<URogue10mInventoryWindowWidget>(
-		FSoftClassPath(TEXT("/Game/Widget/Menu/WBP_InventoryWindow.WBP_InventoryWindow_C")));
+		FSoftClassPath(TEXT("/Game/Widget/Menu/Inventory/WBP_InventoryWindow.WBP_InventoryWindow_C")));
 	DefaultEquipmentWindowWidgetClass = TSoftClassPtr<URogue10mEquipmentWindowWidget>(
-		FSoftClassPath(TEXT("/Game/Widget/Menu/WBP_EquipmentWindow.WBP_EquipmentWindow_C")));
+		FSoftClassPath(TEXT("/Game/Widget/Menu/Equipment/WBP_EquipmentWindow.WBP_EquipmentWindow_C")));
 	DefaultSkillTreeWindowWidgetClass = TSoftClassPtr<URogue10mSkillTreeWindowWidget>(
-		FSoftClassPath(TEXT("/Game/Widget/Menu/WBP_SkillTreeWindow.WBP_SkillTreeWindow_C")));
+		FSoftClassPath(TEXT("/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow.WBP_SkillTreeWindow_C")));
 }
 
 void ARogue10mPlayerController::BeginPlay()

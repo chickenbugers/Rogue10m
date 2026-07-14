@@ -24,10 +24,10 @@ ATTACK_ASSETS = {
 }
 
 WIDGETS = {
-    "Inventory": ("WBP_InventoryWindow", "/Script/Rogue10m.Rogue10mInventoryWindowWidget"),
-    "Equipment": ("WBP_EquipmentWindow", "/Script/Rogue10m.Rogue10mEquipmentWindowWidget"),
-    "SkillTreeEntry": ("WBP_SkillTreeEntry", "/Script/Rogue10m.Rogue10mSkillTreeEntryWidget"),
-    "SkillTree": ("WBP_SkillTreeWindow", "/Script/Rogue10m.Rogue10mSkillTreeWindowWidget"),
+    "Inventory": ("/Game/Widget/Menu/Inventory/WBP_InventoryWindow", "/Script/Rogue10m.Rogue10mInventoryWindowWidget"),
+    "Equipment": ("/Game/Widget/Menu/Equipment/WBP_EquipmentWindow", "/Script/Rogue10m.Rogue10mEquipmentWindowWidget"),
+    "SkillTreeEntry": ("/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry", "/Script/Rogue10m.Rogue10mSkillTreeEntryWidget"),
+    "SkillTree": ("/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow", "/Script/Rogue10m.Rogue10mSkillTreeWindowWidget"),
 }
 
 
@@ -67,7 +67,8 @@ def create_or_load_data_asset(asset_path, data_asset_class):
 
 
 def create_or_load_widget_blueprint(asset_name, parent_class_path):
-    asset_path = f"{WIDGET_ROOT}/{asset_name}"
+    asset_path = asset_name
+    package_path, short_name = asset_path.rsplit("/", 1)
     existing = unreal.EditorAssetLibrary.load_asset(asset_path)
     if existing:
         return existing
@@ -79,7 +80,7 @@ def create_or_load_widget_blueprint(asset_name, parent_class_path):
     factory = unreal.WidgetBlueprintFactory()
     factory.set_editor_property("parent_class", parent_class)
     widget_blueprint = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
-        asset_name, WIDGET_ROOT, unreal.WidgetBlueprint, factory
+        short_name, package_path, unreal.WidgetBlueprint, factory
     )
     if not widget_blueprint:
         raise RuntimeError(f"Widget Blueprint 생성 실패: {asset_path}")
@@ -153,7 +154,7 @@ def configure_menu_widgets():
     for key, (asset_name, parent_path) in WIDGETS.items():
         widget_bp = create_or_load_widget_blueprint(asset_name, parent_path)
         unreal.BlueprintEditorLibrary.compile_blueprint(widget_bp)
-        created[key] = f"{WIDGET_ROOT}/{asset_name}"
+        created[key] = asset_name
         unreal.EditorAssetLibrary.save_asset(created[key], only_if_is_dirty=False)
 
     skill_tree_cdo = unreal.get_default_object(generated_class(created["SkillTree"]))
