@@ -1,0 +1,24 @@
+# 스킬트리 의사코드
+
+Input:
+  PlayerController가 K 입력 처리
+  SkillTreeVisible 토글
+  열려 있는 동안 이동과 공격 차단
+
+무기 선택 화면:
+  권을 첫 항목으로 표시
+  PlayerState.GetWeaponMasteryLevel이 1 이상인 무기만 접근 허용
+  현재 권 숙련도는 기본 1, 나머지는 0
+
+권 스킬 화면:
+  일반 공격 계열과 점프 공격 계열을 가로 연결선으로 표시
+  기본 일반 좌클릭과 점프 좌클릭은 해금 상태
+  뒤 스킬은 선행 스킬 해금 후 클릭 가능
+
+해금:
+  선택한 AttackSkillData를 CombatComponent.UnlockAttackSkill에 전달
+  GetSkillQuickSlotViews가 다음 갱신에서 새 슬롯을 반환
+
+Back:
+  무기 상세 화면에서 무기 선택 화면으로 이동
+  패널 자체 상태는 유지

@@ -1,0 +1,84 @@
+# 2026-07-08 개발 로그
+
+## 작업: Unarmed 공격 DataAsset 이동 재시도 및 캐릭터 부상/커스터마이징 설계 검토
+
+### 작업 배경
+
+- 에디터 종료 후 `Content/DataAsset` 루트의 주먹 공격 DataAsset을 `Content/DataAsset/AttackSkill/Unarmed` 폴더로 이동하는 작업을 이어서 진행했다.
+- 동시에 향후 캐릭터 커스터마이징 시스템과 부위별 부상 표현 시스템의 구현 난이도를 검토했다.
+
+### 작업 내용
+
+- Unreal Editor 프로세스가 종료된 것을 확인한 뒤 DataAsset 이동 스크립트를 다시 실행했다.
+- `DA_Attack_Unarmed_ChargedPrimary`의 원본 잔여 파일 정리를 시도했고, 이미 이동된 에셋은 대상 폴더 기준으로 인식되도록 스크립트를 보강했다.
+- Unreal 에셋 이동 중 소스 코드, INI, 텍스트 참조 변경 확인창이 발생하면 커맨드렛 환경에서는 자동으로 취소되는 것을 확인했다.
+
+### 현재 상태
+
+- `AttackSkill/Unarmed` 폴더에는 일부 Unarmed DataAsset이 이동된 상태다.
+- `DA_Attack_Unarmed_JumpPrimary` 이동 단계에서 Unreal의 참조 변경 확인창이 발생했고, 커맨드렛에서는 `Cancel`로 처리되어 이동이 중단되었다.
+- 참조 안전성을 위해 남은 에셋은 Unreal Editor UI 또는 MCP/에디터 도구에서 확인창을 승인하는 방식으로 이동하는 것이 안전하다.
+
+### 설계 검토
+
+- 캐릭터 커스터마이징은 외형 전용 시스템으로 분리하고, 스탯에는 영향을 주지 않는 방향이 적합하다.
+- 부상 표현은 화면 효과, 이동/공격 페널티, 애니메이션 상태, 치료 아이템을 분리된 컴포넌트로 관리하는 방향이 적합하다.
+
+### Notion 정리 후보
+
+- 캐릭터 외형 커스터마이징은 `PlayerState` 또는 별도 외형 저장 데이터에 저장하고, 실제 적용은 캐릭터의 외형 컴포넌트가 담당한다.
+- 부상 시스템은 체력과 별도로 `BodyPartCondition` 데이터를 두고 머리, 팔, 다리, 몸통 상태에 따라 시야, 공격, 이동, 스태미나 회복 등에 영향을 주는 방식으로 설계한다.
+
+---
+
+## 작업: Unarmed 공격 DataAsset 이동 완료 확인
+
+### 작업 내용
+
+- 사용자가 에디터에서 `DA_Attack_Unarmed_*` DataAsset을 `Content/DataAsset/AttackSkill/Unarmed` 폴더로 이동한 것을 확인했다.
+- 새 폴더에 주먹 공격 DataAsset 8개가 모두 존재하는 것을 확인했다.
+- 기존 `Content/DataAsset` 루트의 `DA_Attack_Unarmed_*` 파일은 삭제 상태로 잡히는 것을 확인했다.
+- C++ 기본 로드 경로와 기본 공격 연결 보조 스크립트가 새 경로를 바라보는 것을 확인했다.
+
+### 확인된 파일
+
+- `DA_Attack_Unarmed_Primary`
+- `DA_Attack_Unarmed_Primary_Combo2`
+- `DA_Attack_Unarmed_Primary_Combo3`
+- `DA_Attack_Unarmed_Special`
+- `DA_Attack_Unarmed_JumpPrimary`
+- `DA_Attack_Unarmed_JumpSpecial`
+- `DA_Attack_Unarmed_ChargedPrimary`
+- `DA_Attack_Unarmed_ChargedSpecial`
+
+### 확인 필요
+
+- 에디터에서 `BP_FirstPersonCharacter` 기본 공격 DataAsset 참조가 새 경로 기준으로 정상 유지되는지 플레이 테스트한다.
+- 콤보 연결이 `Primary -> Combo2 -> Combo3` 순서로 유지되는지 확인한다.
+
+## 2026-07-08 작업 로그 - DataAsset 경로 및 메인 HUD 바인딩 점검
+
+### 작업 요약
+- 주먹 공격 DataAsset 참조 경로를 `/Game/DataAsset/AttackSkill/Unarmed` 기준으로 점검했다.
+- 기본 주먹 공격 생성/연동 스크립트가 새 DataAsset 폴더를 사용하도록 정리했다.
+- 메인 HUD 위젯에서 스킬 슬롯, 아이템 슬롯, 시스템 로그, 아이템 획득 로그, 미니맵 마커를 Blueprint 컨테이너와 바인딩할 수 있도록 보강했다.
+- 현재 임포트된 UI 후보 에셋을 점검하고, 커밋 대상과 보류할 대량 에셋 후보를 분리했다.
+
+### Git 점검
+- 주먹 공격 DataAsset은 `Content/DataAsset/AttackSkill/Unarmed/` 하위 폴더로 이동된 상태다.
+- `Content/MonsterForSurvivalGame/`는 신규 임포트 에셋으로 확인했으며, 개별 파일은 GitHub 100MB 제한을 넘지 않았다.
+- `Content/UI_SFX_Free_Pack/Wavs/` 변경분은 UI 효과음 후보로 확인했으나, 에셋 대량 저장 변경이므로 별도 커밋 대상으로 분리하는 것이 적절하다.
+
+### Main UI 에셋 후보
+- `Content/UI/Icons/T_Identity_StoneFist`: 권/주먹 아이덴티티 및 스킬 아이콘 후보.
+- `Content/UI_SFX_Free_Pack/Wavs/Buttons`: 버튼 클릭 효과음 후보.
+- `Content/UI_SFX_Free_Pack/Wavs/Ok`: 확인/성공 피드백 효과음 후보.
+- `Content/UI_SFX_Free_Pack/Wavs/Cancel`: 취소/뒤로가기 효과음 후보.
+- `Content/UI_SFX_Free_Pack/Wavs/Warning_Popup`: 잠금 스킬, 실패 액션, 경고 팝업 효과음 후보.
+- `Content/UI_SFX_Free_Pack/Wavs/Sliders`: 설정 패널 슬라이더 효과음 후보.
+- `Content/UI_SFX_Free_Pack/Wavs/Purchase`: 아이템 획득 및 재화 획득 효과음 후보.
+- `Content/MonsterForSurvivalGame`: 몬스터 정보창 및 미니맵 마커용 썸네일 후보.
+
+### Notion 정리 후보
+- 메인 HUD 위젯은 Designer에서 배치한 `SkillSlotContainer`, `ItemSlotContainer`, `SystemLogContainer`, `ItemAcquisitionContainer`, `MinimapMarkerContainer`를 C++이 자동 감지하고, 지정된 Widget Class를 통해 자식 위젯을 동적으로 생성하도록 설계했다.
+- 주먹 공격 DataAsset은 무기별 폴더 구조의 첫 기준으로 `AttackSkill/Unarmed`를 사용한다.

@@ -1,0 +1,12 @@
+2026-06-24 Development Log
+==========================
+
+[Game Over / Death Event]
+- Connected the prototype run timer defeat flow to the player character death event.
+- ARogue10mGameMode now listens to ARogue10mGameState run phase changes and calls the player character's Die() when the run enters Defeat.
+- ARogue10mCharacter now tracks a dead state, blocks movement/jump/attack/inventory input after death, closes inventory UI, stops movement, disables movement mode, and exposes BP_OnDeath for future Blueprint death animations or effects.
+- ARogue10mHUD now displays GAME OVER when the 30-second prototype timer expires.
+
+[Notes]
+- The current 30-second timer remains a prototype validation setting for the intended 20-minute roguelike run.
+- Animation-driven death presentation should be added later through BP_OnDeath once final character animation assets are imported.

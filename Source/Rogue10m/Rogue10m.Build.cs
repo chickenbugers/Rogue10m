@@ -14,31 +14,25 @@ public class Rogue10m : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks",
 			"AIModule",
-			"StateTreeModule",
-			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
+			"Slate",
+			"SlateCore"
 		});
-
-		PrivateDependencyModuleNames.AddRange(new string[] { });
-
 		PublicIncludePaths.AddRange(new string[] {
 			"Rogue10m",
-			"Rogue10m/Variant_Horror",
-			"Rogue10m/Variant_Horror/UI",
-			"Rogue10m/Variant_Shooter",
-			"Rogue10m/Variant_Shooter/AI",
-			"Rogue10m/Variant_Shooter/UI",
-			"Rogue10m/Variant_Shooter/Weapons"
+			"Rogue10m/Ability",
+			"Rogue10m/Core",
+			"Rogue10m/Character",
+			"Rogue10m/Components",
+			"Rogue10m/Data",
+			"Rogue10m/Enemy",
+			"Rogue10m/UI",
+			"Rogue10m/UI/Widgets",
+			"Rogue10m/World"
 		});
-
-		// Uncomment if you are using Slate UI
-		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
-
-		// Uncomment if you are using online features
-		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
-
-		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
 	}
 }
