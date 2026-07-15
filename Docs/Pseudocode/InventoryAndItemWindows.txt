@@ -1,0 +1,19 @@
+# 인벤토리와 장비창 의사코드
+
+Input:
+  PlayerController가 I 또는 B 입력 처리
+  인벤토리/아이템창 상태 토글
+  열린 패널이 있으면 GameAndUI 입력 모드와 마우스 활성화
+  Character 이동과 Combat 입력 차단
+
+Widget Blueprint:
+  GetPanelStateView로 표시 상태 확인
+  InventoryComponent의 ItemSlots와 EquipmentSlots 조회
+  드래그 시작 시 원본 슬롯과 ItemStack 저장
+  슬롯 드롭 시 TryMoveItemSlot 또는 TryEquipItemToSlot 호출
+  장비를 아이템 슬롯에 드롭하면 TryUnequipItemFromSlotToItemSlot 호출
+  창 밖 드롭은 DroppedItem 생성 요청
+
+종료:
+  패널 상태 false
+  차단 패널이 없으면 GameOnly 입력 모드와 마우스 비활성화

@@ -1,0 +1,28 @@
+# 기본 몬스터 전투 의사코드
+
+## 초기화
+
+Monster:
+  AbilitySystemComponent 생성
+  Rogue10mAttributeSet 생성
+  BeginPlay에서 AbilityActorInfo 초기화
+  MaxHealth 설정 후 Health 회복
+  플레이어를 대상에 등록
+
+## 추적과 공격
+
+Tick:
+  사망 상태면 종료
+  대상이 없거나 사망했으면 다시 탐색
+  감지 거리 안이면 대상 방향으로 이동
+  공격 거리 안이고 AttackInterval이 지났으면 피해 적용
+
+TakeDamage:
+  AttributeSet.Health에서 피해 차감
+  PlayerController에 데미지 숫자와 전투 로그 전달
+  Health가 0이면 Die 호출
+
+Die:
+  이동 중지
+  충돌 비활성화
+  설정에 따라 Actor 제거

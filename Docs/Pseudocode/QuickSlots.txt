@@ -1,0 +1,20 @@
+# 퀵슬롯 의사코드
+
+CombatComponent:
+  현재 무기에 연결되고 해금된 AttackSkillData 배열 생성
+  최소 기본 스킬은 일반 좌클릭과 점프 좌클릭
+  스킬 해금 시 배열 수 갱신
+  ActivateQuickSlot은 배열의 스킬을 GAS로 실행
+
+RunHUD:
+  GetSkillQuickSlotViews 호출
+  스킬 이름, 아이콘, 쿨타임, 해금 상태 View 생성
+  콤보 대기 중이면 다음 콤보 Data Asset 아이콘 표시
+  콤보 전체는 루트 스킬의 공유 쿨타임 사용
+
+MainHUDWidget:
+  배열 수가 달라지면 SkillSlotContainer 자식 재생성
+  배열 수가 같으면 기존 자식의 View만 갱신
+
+PlayerController:
+  숫자 입력은 Character를 통해 CombatComponent에 전달

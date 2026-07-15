@@ -1,0 +1,153 @@
+First Person Character And Basic Combat
+======================================
+
+[Purpose]
+- Start the game with an unarmed first-person character.
+- Allow WASD movement, camera look, jump, inventory toggles, and a basic fist attack.
+- Keep weapon type expansion open for dagger, great sword, dual blades, bow, staff, and knuckle actions.
+- Split combat input into left-click basic attack, right-click special attack, jump attack, and charged attack variants.
+- Show combat input logs on the HUD for prototype verification.
+
+[Runtime State]
+- Character owns:
+  - FirstPersonMesh
+  - FirstPersonCameraComponent
+  - InventoryComponent
+  - EquippedWeaponType
+  - bIsDead
+  - UnarmedDamage
+  - UnarmedRange
+  - UnarmedTraceRadius
+  - UnarmedAttackInterval
+  - LastAttackTime
+
+[Input Flow]
+Pseudo:
+  On SetupPlayerInputComponent:
+    Bind JumpAction started -> DoJumpStart
+    Bind JumpAction completed -> DoJumpEnd
+    Bind MoveAction triggered -> MoveInput
+    Bind LookAction triggered -> LookInput
+    Bind MouseLookAction triggered -> LookInput
+    Bind LeftMouseButton pressed -> DoPrimaryAttackPressed
+    Bind LeftMouseButton released -> DoPrimaryAttackReleased
+    Bind RightMouseButton pressed -> DoSpecialAttackPressed
+    Bind RightMouseButton released -> DoSpecialAttackReleased
+    Bind I pressed -> DoToggleInventory
+    Bind P pressed -> DoToggleItemWindow
+    Bind K pressed -> DoToggleSkillTree
+
+  MoveInput(Value):
+    MovementVector = Value as Vector2D
+    DoMove(MovementVector.X, MovementVector.Y)
+
+  LookInput(Value):
+    LookVector = Value as Vector2D
+    DoAim(LookVector.X, LookVector.Y)
+
+  DoMove(Right, Forward):
+    If character is dead:
+      Return
+    If controller exists:
+      Add right movement input
+      Add forward movement input
+
+  DoAim(Yaw, Pitch):
+    If character is dead:
+      Return
+    If controller exists:
+      Add yaw input
+      Add pitch input
+
+[Combat Flow]
+Pseudo:
+  DoPrimaryAttackPressed:
+    BeginCombatAttack(primary)
+
+  DoPrimaryAttackReleased:
+    EndCombatAttack(primary)
+
+  DoSpecialAttackPressed:
+    BeginCombatAttack(special)
+
+  DoSpecialAttackReleased:
+    EndCombatAttack(special)
+
+  BeginCombatAttack(primary or special):
+    If character is dead:
+      Return
+    If inventory or item window is visible:
+      Return
+    Store press time for left or right mouse button
+    Add HUD combat log that charging has started
+
+  EndCombatAttack(primary or special):
+    If character is dead or UI is blocking:
+      Return
+    HeldTime = current world time - stored press time
+    Charged = HeldTime >= ChargeAttackThreshold
+    ExecuteCombatAttack(primary or special, Charged)
+
+  ExecuteCombatAttack(primary or special, Charged):
+    JumpAttack = CharacterMovement is falling
+    Build action text:
+      Left click -> Basic Attack
+      Right click -> Special Attack
+      Falling -> Jump prefix
+      Held beyond threshold -> Charged prefix
+    Add HUD combat log
+    Run current weapon attack branch
+
+    Switch EquippedWeaponType:
+      Unarmed:
+        DoUnarmedAttack
+      Dagger:
+        Run dagger action later
+      GreatSword:
+        Run great sword action later
+      DualBlades:
+        Run dual blades action later
+      Bow:
+        Run bow action later
+      Staff:
+        Run staff action later
+      Knuckle:
+        Run knuckle action later
+
+  DoUnarmedAttack:
+    If character is dead:
+      Return
+    If world or camera is missing:
+      Return
+    If current time - LastAttackTime < attack interval:
+      Add HUD combat log for cooldown
+      Return
+
+    LastAttackTime = current time
+    TraceStart = camera location
+    TraceEnd = camera forward * unarmed range
+    Sweep sphere from TraceStart to TraceEnd against pawn channel
+
+    If hit actor exists:
+      ApplyDamage(hit actor, UnarmedDamage, controller, self)
+      Log hit
+      Add HUD combat log for hit
+    Else:
+      Log miss
+      Add HUD combat log for miss
+
+[HUD Combat Log Flow]
+Pseudo:
+  HUD.AddCombatLogMessage:
+    Store message, color, and expiration time
+    Keep only recent messages
+
+  HUD.DrawCombatLog:
+    Remove expired messages
+    Draw recent combat messages on the left side of the screen
+
+[Expansion Notes]
+- Weapon-specific actions should branch from ExecuteCombatAttack.
+- Current equippable weapon types are dagger, great sword, dual blades, bow, staff, and knuckle.
+- Weapon proficiency can be awarded after confirmed hit or kill events.
+- Animation montages can be triggered before the trace once animation assets are imported.

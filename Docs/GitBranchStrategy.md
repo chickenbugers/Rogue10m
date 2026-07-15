@@ -10,13 +10,14 @@
 
 ## Work Branches
 
-Create short-lived branches from `develop`.
+Create short-lived branches from `develop` using `Sprint#<sprint>-<work>-<short-description>`.
 
-- `feature/<name>`: Gameplay systems, UI, AI, combat, progression, tools.
-- `content/<name>`: Art, audio, animation, VFX, materials, imported assets.
-- `level/<name>`: Maps, rooms, blockouts, lighting, encounter layout.
-- `balance/<name>`: Tuning values, enemy stats, item tables, spawn pacing.
-- `fix/<name>`: Bugs found during development or playtesting.
+- `Sprint#<sprint>-<work>-<short-description>`: Short-lived work branch for every feature, content, level, balance, and fix task.
+- Keep the Sprint number fixed while work is promoted through `develop` and `test`.
+- Increment only the work number for independent work branches in the current Sprint.
+- Increment the Sprint number only after that Sprint is successfully merged into `main`; then reset the work number to `1`.
+- Use a short English kebab-case description.
+- Examples: `Sprint#1-1-item-quick-slot`, `Sprint#1-2-sprint-postprocess`, `Sprint#2-1-monster-ai`.
 
 ## Default Flow
 
@@ -25,6 +26,7 @@ Create short-lived branches from `develop`.
 3. Promote `develop` into `test` for playable test builds.
 4. Test and fix on branches made from `develop`.
 5. Merge `test` into `main` only when the build is stable.
+6. After the successful `main` merge, close the current Sprint; the next work branch uses the next Sprint number and work number `1`.
 
 ## Promotion Rules
 
@@ -36,63 +38,38 @@ Create short-lived branches from `develop`.
 
 ## Commands
 
-Create a gameplay feature branch:
+Create a work branch:
 
 ```powershell
 git switch develop
 git pull
-git switch -c feature/player-combat
+git switch -c "Sprint#1-1-item-quick-slot"
 ```
 
-Create a content branch:
+Push a work branch:
 
 ```powershell
-git switch develop
-git pull
-git switch -c content/weapon-placeholders
-```
-
-Create a level branch:
-
-```powershell
-git switch develop
-git pull
-git switch -c level/prototype-arena
-```
-
-Push a new work branch:
-
-```powershell
-git push -u origin feature/player-combat
-```
-
-Promote daily integration to playtest:
-
-```powershell
-git switch test
-git pull
-git merge develop
-git push
-```
-
-Promote a tested build to stable:
-
-```powershell
-git switch main
-git pull
-git merge test
-git push
+git push -u origin "Sprint#1-1-item-quick-slot"
 ```
 
 ## Naming Examples
 
-- `feature/run-hud`
-- `feature/player-combat`
-- `feature/enemy-spawner`
-- `feature/upgrade-selection`
-- `content/first-weapon-set`
-- `content/temp-audio`
-- `level/prototype-arena`
-- `level/room-blockouts`
-- `balance/early-run-pacing`
-- `fix/timer-expiry`
+- `Sprint#1-1-item-quick-slot`
+- `Sprint#1-2-sprint-postprocess`
+- `Sprint#2-1-monster-ai`
+- `Sprint#2-2-boss-balance`
+
+## Sprint Change Records
+
+Update Docs/SprintChangeLog.md whenever a Sprint work item is completed or receives a material scope change.
+
+Each entry records:
+
+- Sprint/work identifier and branch name
+- Status
+- Goal
+- Major player-facing and architectural changes
+- Build or QA verification
+- Related architecture and result documents
+
+Daily implementation details remain in DevLog/. The Sprint changelog is the milestone-level summary.

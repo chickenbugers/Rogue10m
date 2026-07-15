@@ -1,0 +1,43 @@
+[개발 작업] Sprint#1-14 인벤토리 Tint 아이콘 가림 수정
+
+- 열린 Unreal Editor에서 WBP_InventoryItem의 Grid 자식 Layer를 확인했다.
+- UI_InventoryItemPreviewBorder, UI_InventoryItemIconScale, UI_InventoryItemQuantityText가 모두 Layer 0이라 InventoryTint Border가 아이콘을 덮는 원인을 확인했다.
+- GridSlot Layer를 PreviewBorder 0, IconScale 1, QuantityText 2로 명시해 Tint는 배경으로만 보이고 아이콘과 수량은 위에 그려지도록 수정했다.
+- 현재 Editor에서 WBP_InventoryItem을 컴파일하고 저장했다.
+- ValidateMenuWidgetAssets.py에 0/1/2 Layer 회귀 검사를 추가했다.
+- UE5.8 commandlet 전체 메뉴 Widget Blueprint 검증을 통과했고 오류와 경고는 0건이었다.
+
+[Notion 정리 후보]
+제목: InventoryTint가 아이콘을 덮는 GridPanel Layer 문제 수정
+
+요약: WBP_InventoryItem의 Border, Icon ScaleBox, Quantity Text가 모두 같은 GridSlot Layer 0을 사용해 Tint Border가 아이콘 위에 렌더링됐다. Layer를 0/1/2로 명시해 Tint를 배경으로 고정하고 아이콘과 수량 표시를 보존했다.
+검증: 열린 Editor에서 Layer 0/1/2 재조회, WBP 컴파일·저장 성공, UE5.8 전체 메뉴 commandlet 0 errors/0 warnings.
+
+[개발 작업] Sprint#1-14 프로젝트 경고 정리
+
+- 삭제된 Rogue10mVitalsComponent가 BP_BaseMonster와 배치 External Actor에 직렬화되어 Linker 경고를 내는 원인을 확인했다.
+- BP_BaseMonster를 현재 Rogue10mBasicMonster 부모와 GAS 구성으로 컴파일·저장하고 External Actor 패키지도 다시 저장해 구형 컴포넌트 참조를 제거했다.
+- DefaultGame.ini에 GameplayCueNotifyPaths=/Game/GameplayCues를 지정해 Ability System의 /Game 전체 검색 fallback을 제거했다.
+- Blueprint 부모, External Actor 컴포넌트, GameplayCue 설정을 검사하는 ValidateWarningFixes.py를 추가했다.
+- 새 UE5.8 commandlet 검증은 0 errors / 0 warnings로 성공했으며 두 프로젝트 경고가 재발하지 않았다.
+- r.MotionVectorSimulation 경고는 UE 5.8 엔진 등록 플래그와 TSR Render Thread 조회의 불일치로 판정했다. 렌더링 기능 비활성화나 설치 엔진 수정은 적용하지 않았다.
+
+[Notion 정리 후보]
+제목: 몬스터 구형 Vitals 직렬화와 GameplayCue 전역 검색 경고 정리
+요약: GAS 마이그레이션 뒤 자산에 남은 Rogue10mVitalsComponent 참조를 Blueprint와 External Actor 재저장으로 제거하고, GameplayCue 검색 위치를 /Game/GameplayCues로 제한했다. MotionVector 경고는 프로젝트가 아닌 UE 5.8 엔진 측 CVar 플래그 문제로 분리했다.
+검증: 새 UnrealEditor-Cmd 프로세스에서 ValidateWarningFixes.py 성공, 0 errors / 0 warnings.
+
+[개발 작업] Sprint#1-14 인벤토리 아이콘 런타임 표시 수정
+
+- 증상: Item Data Asset과 UImage Brush에는 Texture가 연결되어 있었지만 PIE에서는 InventoryTint 배경만 보이고 실제 아이콘 픽셀이 표시되지 않았다.
+- 진단: Unreal에서 다시 Export한 PNG의 RGB/Alpha 데이터와 런타임 Brush resource_object는 정상이었다.
+- 원인: InitializeGridItem()이 위젯을 Canvas에 추가하기 전에 호출되며, UE5.8의 UImage::SetDesiredSizeOverride()는 내부 SImage가 생성된 뒤에만 값을 적용하므로 계산한 크기가 버려졌다. 원본 256~768px Brush가 44px 셀 영역에서 잘려 아이콘이 사실상 보이지 않았다.
+- 수정: ScaleBox 의존성을 제거하고 Texture 크기, InventorySize, 44px CellSize, InventoryIconScale로 Fit 크기를 계산한 뒤 FSlateBrush::SetImageSize()와 UImage::SetBrush()로 생성 전에도 유지되는 크기를 저장했다.
+- 추가: Tint Border 안에 UImage를 직접 배치하고, 아이콘이 있는 일반 상태의 Tint Alpha를 최대 0.18로 낮췄다. 스타터 Texture는 프로젝트에서 검증된 TC_DEFAULT + TEXTUREGROUP_UI + FROM_TEXTURE_GROUP 설정으로 통일했다.
+- 검증: Rogue10mEditor Win64 Development 빌드 성공, 메뉴 Widget Blueprint 7종 컴파일/필수 위젯/클래스 참조 검증 성공.
+- PIE 캡처 검증: 포션(수량 5), 장검, 투구, 갑옷, 부츠, 반지 아이콘이 각각 NxM 슬롯 내부에 원본 종횡비로 표시되는 것을 확인했다.
+
+[Notion 정리 후보]
+제목: UE5.8 UImage 생성 전 DesiredSizeOverride 유실로 인한 인벤토리 아이콘 미표시 수정
+요약: CreateWidget 직후 Canvas에 추가하기 전에 호출한 SetDesiredSizeOverride는 내부 SImage가 없어 적용되지 않았다. 계산된 Fit 크기를 FSlateBrush ImageSize에 저장하고 SetBrush로 반영해 NxM 인벤토리 아이콘을 정상 표시했다.
+검증: Editor Target 빌드 성공, WBP 자동 검증 통과, PIE에서 스타터 아이콘 6종과 프로토타입 아이콘 표시 확인.

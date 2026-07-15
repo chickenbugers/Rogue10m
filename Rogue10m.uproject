@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.7",
+	"EngineAssociation": "5.8",
 	"Category": "",
 	"Description": "First-person single-player roguelike prototype with a 20-minute run timer.",
 	"Modules": [
@@ -17,18 +17,37 @@
 	],
 	"Plugins": [
 		{
-			"Name": "ModelingToolsEditorMode",
+			"Name": "GameplayAbilities",
+			"Enabled": true
+		},
+		{
+			"Name": "ModelContextProtocol",
 			"Enabled": true,
 			"TargetAllowList": [
 				"Editor"
 			]
 		},
 		{
-			"Name": "StateTree",
+			"Name": "MCPClientToolset",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
+			"Name": "EditorToolset",
 			"Enabled": true
 		},
 		{
-			"Name": "GameplayStateTree",
+			"Name": "UMGToolSet",
+			"Enabled": true
+		},
+		{
+			"Name": "GASToolsets",
+			"Enabled": true
+		},
+		{
+			"Name": "AIAssistant",
 			"Enabled": true
 		}
 	]

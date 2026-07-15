@@ -1,0 +1,33 @@
+# 캐릭터 수치 데이터 의사코드
+
+## 소유권
+
+PlayerState:
+  AbilitySystemComponent 생성
+  Rogue10mAttributeSet 생성
+
+AttributeSet:
+  Health / MaxHealth
+  Stamina / MaxStamina
+  Mana / MaxMana
+  Identity / MaxIdentity
+  PlayerLevel
+  Experience
+  ExperienceToNextLevel
+
+Character:
+  PlayerState의 AttributeSet 조회
+  피해를 받으면 Health 감소
+  Health가 0이면 Die 호출
+
+CombatComponent:
+  공격 Data Asset의 ResourceCosts 검사
+  Health 비용은 현재 체력보다 작을 때만 소비
+  Stamina, Mana, Identity 비용은 현재 수치 이상일 때 소비
+  모든 비용을 결제한 뒤 공격 실행
+
+RunHUD:
+  PlayerState의 AttributeSet에서 현재값/최대값 조회
+  Current / Max로 Normalized 계산
+  체력은 빨간색, 스테미나는 파란색
+  마나는 PlayerState의 ManaEnabled가 true일 때만 표시

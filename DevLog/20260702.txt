@@ -1,0 +1,448 @@
+# 2026-07-02 개발 로그
+
+## 작업: 아이덴티티 UI 이미지 구조 보강
+
+### 작업 배경
+
+- 아이덴티티 UI를 기존 설명 텍스트 중심 자리표시에서 User Widget에 어울리는 이미지 중심 구조로 변경하기로 했다.
+- 현재 기본 전투 흐름은 주먹/권을 사용하므로, 기본 아이덴티티 아이콘으로 회색 돌주먹 이미지를 준비했다.
+- 아이덴티티 이미지 아래에는 앞으로 무기별 기력, 마력, 특수 자원 같은 전용 게이지가 배치될 예정이다.
+
+### 작업 내용
+
+- `FRogue10mHudIdentityView`에 Widget Blueprint에서 사용할 아이덴티티 표시 데이터를 추가했다.
+  - 무기 타입
+  - 숙련도 레벨
+  - 숙련도 정규화 값
+  - 외곽선 색
+  - 외곽선 굵기
+  - 특수 자원 라벨
+  - 아이콘 텍스처 참조
+- `URogue10mRunHUD::GetIdentityView()`에서 현재 무기 숙련도에 비례해 외곽선 색과 굵기를 계산하도록 했다.
+- 권 또는 기본 주먹 상태에서는 `/Game/UI/Icons/T_Identity_StoneFist` 경로의 아이콘 텍스처를 사용하도록 준비했다.
+- 기본 아이콘 원본으로 `Content/UI/Icons/T_Identity_StoneFist.png`를 추가했다.
+  - 생성된 회색 돌주먹 이미지를 프로젝트에 복사했다.
+  - UI에서 쓰기 쉽도록 배경을 알파 처리했다.
+- `Docs/WidgetBlueprintHUDGuide.md`에 `WBP_Identity` 내부 권장 구조와 바인딩 값을 추가했다.
+- Lazy Codex 하네스 규칙에 맞춰 `Feature/architect/2026-07-02_identity-ui.md`, `Feature/doc/2026-07-02_identity-ui.md`를 작성했다.
+
+### Widget Blueprint 작업 메모
+
+- `WBP_Identity` 내부 권장 구조는 다음과 같다.
+
+```text
+CanvasPanel Root
+├─ Border_IdentityOutline
+│  └─ Overlay
+│     ├─ Image_IdentityIcon
+│     └─ Text_MasteryLabel
+└─ ProgressBar_IdentityResource
+```
+
+- `Image_IdentityIcon`은 `GetIdentityView().IconTexture`를 사용한다.
+- `Border_IdentityOutline`은 `GetIdentityView().OutlineColor`, `GetIdentityView().OutlineThickness`를 사용한다.
+- `Text_MasteryLabel`은 `GetIdentityView().Label`을 사용한다.
+- `ProgressBar_IdentityResource`는 `GetIdentityView().Normalized`를 사용한다.
+
+### 남은 확인 사항
+
+- `T_Identity_StoneFist.png`는 PNG 원본이므로 Unreal Editor에서 Texture Asset으로 import해야 한다.
+- import 시 경로와 이름을 `/Game/UI/Icons/T_Identity_StoneFist`로 맞추면 C++의 기본 아이콘 참조와 연결하기 쉽다.
+- 실제 UI 배치와 크기 조정은 `WBP_Identity` Designer에서 확인한다.
+
+### 검증 결과
+
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1` 실행 결과 C++ 빌드가 성공했다.
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\CheckGeneratedChanges.ps1` 실행 결과 하네스 경로 검사가 통과했다.
+- 생성물 검사에서 `Content/Widget/Parts/*.uasset` 변경 경고가 표시되었지만, 해당 변경은 작업 시작 전부터 존재하던 Widget Blueprint 바이너리 변경이다.
+
+### Notion 정리 후보
+
+- 아이덴티티 UI는 무기 숙련도와 무기별 특수 자원을 보여주는 하단 중앙 UI 요소로 정의한다.
+- 기본 주먹/권 아이덴티티는 회색 돌주먹 아이콘을 사용한다.
+- 숙련도가 오르면 아이덴티티 외곽선의 색과 굵기가 강화되는 방향으로 시각 피드백을 제공한다.
+- 아이콘 아래에는 무기별 기력, 마력, 충전량 같은 특수 자원 게이지를 배치한다.
+
+## 작업: HUD를 Widget Blueprint 바인딩 중심 구조로 정리
+
+### 작업 배경
+
+- 기존 HUD는 `DrawRect`, `DrawText`를 이용한 Canvas 직접 그리기 원형 UI가 남아 있었다.
+- 앞으로 UI 배치와 디자인은 Unreal Editor의 Widget Blueprint에서 직접 진행할 예정이므로, C++는 데이터를 제공하고 Widget Blueprint가 Bind하는 방식으로 정리했다.
+
+### 작업 내용
+
+- Canvas 원형 HUD의 기본 표시 값을 껐다.
+  - `ARogue10mHUD::bDrawCanvasPrototypeHUD` 기본값을 `false`로 변경했다.
+  - Canvas 원형 HUD가 꺼진 상태에서는 피격 효과와 드래그 아이템도 C++ Canvas로 직접 그리지 않도록 했다.
+- 자동 Prototype UI 생성 기본값을 껐다.
+  - `URogue10mMainHUDWidget::bCreatePrototypeLayoutWhenEmpty` 기본값을 `false`로 변경했다.
+  - `URogue10mHudPartWidget::bCreatePrototypeDesignScaffold` 기본값을 `false`로 변경했다.
+- Widget Blueprint에서 직접 사용할 수 있는 View Getter를 추가했다.
+  - `GetRunTimerView`
+  - `GetRunResultView`
+  - `GetAimCrossLineView`
+  - `GetDamageFeedbackView`
+  - `GetAttackCooldownView`
+- 공격 쿨타임 View에는 현재 공격 스킬 이름, 아이콘, 아이콘 라벨, 아이콘 색, 남은 쿨타임, 전체 쿨타임, 쿨타임 비율을 담았다.
+- 에임 View에는 표시 여부, 색상, 라인 길이, 간격, 굵기를 담았다.
+- 피격 효과 View에는 표시 여부, 알파, 강도를 담았다.
+- `Docs/WidgetBlueprintHUDGuide.md` 상단에 현재 기준의 Widget Blueprint 직접 배치/바인딩 가이드를 추가했다.
+
+### 검증 결과
+
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1` 실행 결과 C++ 빌드가 성공했다.
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\CheckGeneratedChanges.ps1` 실행 결과 하네스 경로 검사가 통과했다.
+- 생성물 검사에서 `Content/Widget/Parts/*.uasset` 변경 경고가 표시되었지만, 해당 변경은 작업 시작 전부터 존재하던 Widget Blueprint 바이너리 변경이다.
+
+### Notion 정리 후보
+
+- 메인 HUD는 Widget Blueprint가 UI 요소를 직접 배치하고 C++ Getter로 데이터를 가져오는 구조를 기본으로 한다.
+- C++ Canvas HUD는 임시/디버그 원형으로만 남겨두며 기본값은 비활성화한다.
+- 주요 런타임 UI 데이터는 `URogue10mRunHUD`의 `Get*View` 함수로 접근한다.
+- `BindWidgetOptional` 자동 연결은 하위 위젯 인스턴스 이름을 C++ 변수명과 정확히 맞췄을 때만 사용한다.
+## 작업: 사용하지 않는 템플릿 C++ 클래스 및 Variant 콘텐츠 정리
+
+### 작업 배경
+
+- 프로젝트 생성 시 포함된 Shooter/Horror Variant 템플릿 클래스와 전용 콘텐츠가 현재 Rogue10m 플레이 흐름에서 사용되지 않는 상태였다.
+- 사용하지 않는 C++ 클래스와 관련 템플릿 에셋을 제거해 프로젝트 구조를 가볍게 만들고, 앞으로 실제 게임 기능 중심으로 관리하기 쉽도록 정리했다.
+
+### 작업 내용
+
+- `Source/Rogue10m/Variant_Shooter/**` C++ 클래스를 제거했다.
+- `Source/Rogue10m/Variant_Horror/**` C++ 클래스를 제거했다.
+- 제거한 클래스에만 연결된 템플릿 전용 콘텐츠도 함께 정리했다.
+  - `Content/Variant_Shooter/**`
+  - `Content/Variant_Horror/**`
+  - `Content/__ExternalActors__/Variant_Shooter/**`
+  - `Content/__ExternalActors__/Variant_Horror/**`
+  - `Content/__ExternalObjects__/Variant_Shooter/**`
+  - `Content/__ExternalObjects__/Variant_Horror/**`
+- 총 311개 추적 파일을 제거했다.
+- 대략 5.66MB 규모의 템플릿 전용 파일이 작업 트리에서 줄었다.
+
+### 남겨둔 항목
+
+- `Content/Weapons` 및 Mannequin 계열 무기 애니메이션은 바로 삭제하지 않았다.
+- 해당 리소스는 이후 실제 주먹/무기 전투 애니메이션과 충돌 여부를 확인한 뒤 별도 콘텐츠 최적화 작업에서 정리하는 편이 안전하다.
+
+### 검증 결과
+
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1` 실행 결과 성공했다.
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\CheckGeneratedChanges.ps1` 실행 결과 Harness 경로 체크를 통과했다.
+- CheckGeneratedChanges에서 삭제된 `.uasset/.umap`에 대한 바이너리 에셋 경고가 표시되었지만, 이번 작업에서 의도적으로 Variant 전용 콘텐츠를 제거했기 때문에 기록 가능한 경고로 판단했다.
+
+### Notion 정리 후보
+
+- 사용하지 않는 UE 템플릿 Shooter/Horror Variant C++ 클래스와 전용 콘텐츠를 제거했다.
+- 현재 Rogue10m 메인 플레이, UI, 전투, 인벤토리, 스킬 데이터 흐름은 별도 구조를 사용하므로 해당 Variant 클래스는 빌드 의존성이 없다.
+- 삭제 후 Editor 타깃 빌드는 성공했으며, 프로젝트 경로 규칙 체크도 통과했다.
+## 작업: UE 5.8 전환 및 MCP 플러그인 장착
+
+### 작업 배경
+
+- UE 5.8 다운로드가 완료되어 Rogue10m 프로젝트를 UE 5.7 기반 설정에서 UE 5.8 기반 설정으로 전환했다.
+- UE 5.8에 포함된 실험 기능인 MCP 플러그인을 프로젝트에서 사용할 수 있도록 활성화했다.
+
+### 작업 내용
+
+- `Rogue10m.uproject`의 `EngineAssociation`을 `5.8`로 변경했다.
+- 프로젝트 플러그인 목록에 다음 플러그인을 추가했다.
+  - `ModelContextProtocol`
+  - `MCPClientToolset`
+- `Scripts/BuildEditor.ps1`, `Scripts/PackageWindows.ps1`, `Scripts/PackageAndroid.ps1`의 엔진 경로를 `D:\Program Files\UE_5.8`로 변경했다.
+- `Rogue10m.Target.cs`, `Rogue10mEditor.Target.cs`의 빌드 설정을 UE 5.8 기준으로 변경했다.
+  - `DefaultBuildSettings = BuildSettingsVersion.V7`
+  - `IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8`
+- 이전 Variant 템플릿 정리로 삭제된 폴더가 `Rogue10m.Build.cs` include path에 남아 있어 경고가 발생하던 부분을 제거했다.
+- `AGENTS.md`, `Docs/HarnessPipeline.md`, `Docs/UnrealEngineeringRules.md`, `Docs/Rogue10m_PrototypePlan.md`의 엔진 버전 및 경로 설명을 UE 5.8 기준으로 갱신했다.
+- `Docs/UE58MCPSetup.md`를 추가해 MCP 플러그인 위치, 기본 서버 설정, Rogue10m 적용 후보를 정리했다.
+
+### 검증 결과
+
+- UE 5.8 `Build.bat -projectfiles`로 프로젝트 파일 재생성을 완료했다.
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1` 실행 결과 성공했다.
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\CheckGeneratedChanges.ps1` 실행 결과 Harness 경로 체크를 통과했다.
+
+### 확인된 사항
+
+- 프로젝트 파일 생성 중 Android SDK 설정이 없어 Android 플랫폼이 스킵되었다. Android 패키징 검증은 SDK 세팅 후 별도 진행이 필요하다.
+- `CheckGeneratedChanges.ps1`에서 Variant 템플릿 삭제분에 대한 바이너리 에셋 경고가 표시되었지만, 이전 최적화 작업의 의도된 삭제 항목이다.
+- MCP 서버 자동 시작과 포트 설정은 `EditorPerProjectUserSettings` 성격이 있으므로 저장소에는 플러그인 활성화만 반영했다.
+- 에디터에서 `Project Settings > Model Context Protocol`을 열어 서버 자동 시작, 포트, 도구 검색 설정을 확인하면 된다.
+
+### Notion 정리 후보
+
+- Rogue10m 프로젝트를 UE 5.8 기준으로 전환했다.
+- UE 5.8의 실험 MCP 플러그인 `ModelContextProtocol`과 `MCPClientToolset`을 활성화했다.
+- MCP는 C++/Widget/Data Asset 상태 점검, 미사용 에셋 탐색, 빌드 로그 분석, DevLog 정리 자동화에 우선 활용할 예정이다.
+- Editor 빌드는 성공했으며 Android 패키징은 SDK 환경 세팅 후 별도 검증이 필요하다.
+## 작업: 스킬 시스템 GAS 전환 1단계 기반 추가
+
+### 작업 배경
+
+- 기존 공격과 스킬은 `Rogue10mCombatComponent`와 `Rogue10mAttackSkillData` 중심으로 직접 처리되고 있었다.
+- 앞으로 무기별 스킬, 숙련도, 자원 비용, 쿨타임, 버프/디버프가 늘어날 예정이므로 Unreal Gameplay Ability System 기반으로 점진 전환하기로 했다.
+
+### 작업 내용
+
+- `GameplayAbilities` 플러그인을 프로젝트에 활성화했다.
+- `Rogue10m.Build.cs`에 `GameplayAbilities`, `GameplayTags`, `GameplayTasks` 모듈 의존성을 추가했다.
+- `Source/Rogue10m/Ability` 폴더를 추가하고 GAS 전용 클래스를 만들었다.
+  - `URogue10mAbilitySystemComponent`
+  - `URogue10mAttributeSet`
+  - `URogue10mGameplayAbility_Attack`
+- `Rogue10mPlayerState`가 `IAbilitySystemInterface`를 구현하도록 변경했다.
+- `Rogue10mPlayerState`에 `AbilitySystemComponent`와 `AttributeSet`을 배치했다.
+- `Rogue10mCharacter`가 PlayerState의 ASC를 사용하도록 `IAbilitySystemInterface`를 구현했다.
+- 캐릭터 소유 시점과 PlayerState 복제 시점에 ASC ActorInfo를 초기화하도록 연결했다.
+- 기본 공격 Ability를 캐릭터가 보유하도록 grant하는 흐름을 추가했다.
+- `Rogue10mAttackSkillData`에 스킬별 `GameplayAbilityClass`를 지정할 수 있는 필드를 추가했다.
+- 공격 실행 시 먼저 GAS Ability 활성화를 시도하고, 실패하면 기존 공격 실행 로직으로 전환하도록 브리지 구조를 만들었다.
+
+### 현재 구조
+
+- 현재 GAS Ability는 기존 공격 로직을 대체하지 않고 호출하는 전환용 브리지다.
+- 기존 콤보, 공격 판정, 데미지 적용, 자원 소비, 쿨타임 UI는 그대로 유지된다.
+- 비용과 쿨타임은 아직 GameplayEffect가 아니라 기존 로직을 사용한다.
+
+### 검증 결과
+
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1` 실행 결과 성공했다.
+- `powershell -ExecutionPolicy Bypass -File .\Scripts\CheckGeneratedChanges.ps1` 실행 결과 Harness 경로 체크를 통과했다.
+- CheckGeneratedChanges에서 Variant 템플릿 삭제분에 대한 바이너리 에셋 경고가 표시되었지만, 이전 최적화 작업의 의도된 삭제 항목이다.
+
+### 다음 작업 후보
+
+- `AttributeSet`의 체력, 스테미나, 마나를 기존 `VitalsComponent`와 동기화한다.
+- 공격 비용과 쿨타임을 `GameplayEffect`로 분리한다.
+- 스킬 해금 상태를 GameplayTag 또는 ASC Granted Ability로 연결한다.
+- 몬스터도 ASC/AttributeSet 기반 데미지 처리로 확장한다.
+
+### Notion 정리 후보
+
+- Rogue10m 스킬 시스템 GAS 전환 1단계를 적용했다.
+- PlayerState가 ASC와 AttributeSet을 소유하고 Character는 PlayerState ASC를 사용한다.
+- 공격 Data Asset은 선택적으로 GameplayAbilityClass를 지정할 수 있으며, 미지정 시 기본 공격 Ability가 사용된다.
+- 현재는 기존 공격 판정 로직을 GAS Ability가 호출하는 브리지 단계이며, GameplayEffect 기반 비용/쿨타임은 다음 단계에서 진행한다.
+## 작업: UE 5.8 MCP Toolset 기반 메인 HUD 위젯 배치 연결
+
+### 작업 배경
+
+- UE 5.8 MCP 서버가 `8010` 포트에서 정상 응답하는지 확인했다.
+- 기존에는 `ModelContextProtocol`, `MCPClientToolset`만 노출되어 UserWidget 편집 도구를 사용할 수 없었다.
+- `EditorToolset`, `UMGToolSet`, `GASToolsets` 플러그인 활성화 후 `ModelContextProtocol.RefreshTools`를 실행하여 추가 toolset 노출을 확인했다.
+
+### 작업 내용
+
+- MCP `list_toolsets` 호출로 다음 toolset이 노출되는 것을 확인했다.
+  - `EditorToolset.EditorAppToolset`
+  - `editor_toolset.toolsets.asset.AssetTools`
+  - `editor_toolset.toolsets.object.ObjectTools`
+  - `UMGToolSet.UMGToolSet`
+  - `GASToolsets.GameplayCueToolset`
+  - `GASToolsets.AttributeSetToolset`
+  - `GASToolsets.AbilitySystemInspectorToolset`
+- `UW_Rogue10mMainWidget`의 부모 클래스가 `Rogue10mMainHUDWidget`이고 루트가 `CanvasPanel`인 것을 확인했다.
+- `UW_Rogue10mMainWidget` 루트 Canvas에 C++ `BindWidgetOptional` 이름과 동일한 실제 하위 위젯을 배치했다.
+  - `HealthBarWidget`
+  - `StaminaBarWidget`
+  - `ManaBarWidget`
+  - `ProgressionWidget`
+  - `IdentityWidget`
+  - `MonsterInfoWidget`
+  - `EquipmentShortcutWidget`
+  - `ItemWindowShortcutWidget`
+  - `SkillTreeShortcutWidget`
+  - `SettingsShortcutWidget`
+- 각 하위 위젯은 기존 `Content/Widget/Parts`의 파트 위젯 블루프린트를 사용하도록 연결했다.
+  - 생명력/스테미나/마나: `WBP_VitalBar`
+  - 진행도: `WBP_Progression`
+  - 아이덴티티: `WBP_Identity`
+  - 몬스터 정보: `WBP_MonsterInfo`
+  - 단축키 힌트: `WBP_ShortcutHint`
+
+### 검증 결과
+
+- `UMGToolSet.UMGToolSet.CompileWidgetBlueprint`로 `UW_Rogue10mMainWidget` 컴파일에 성공했다.
+- `AssetTools.save_assets`로 `/Game/Widget/UW_Rogue10mMainWidget` 저장에 성공했다.
+- `GetWidgets` 확인 결과 추가된 하위 위젯들이 실제 위젯 트리에 존재하며 `bInherited=true`로 C++ 바인딩 대상과 연결되는 것을 확인했다.
+
+### 다음 작업 후보
+
+- Unreal Editor Designer에서 각 하위 위젯의 위치와 크기를 직접 조정한다.
+- 각 파트 위젯 내부 디자인을 제작한다.
+- 필요 시 `ObjectTools.list_properties`와 `ObjectTools.set_properties`를 활용해 Canvas Slot 기본 위치와 크기를 MCP로 자동 배치한다.
+
+### Notion 정리 후보
+
+- UE 5.8 MCP Toolset 활성화를 통해 Rogue10m의 UMG 위젯 블루프린트 편집 자동화 기반을 확보했다.
+- `UW_Rogue10mMainWidget`에 C++ 바인딩 이름과 동일한 실제 하위 위젯 인스턴스를 배치하여, C++ HUD 데이터와 Widget Blueprint Designer 작업을 연결할 수 있는 구조를 마련했다.
+- 이후 UI 시각 디자인은 Widget Blueprint Designer에서 진행하고, 데이터 갱신과 기본 구조는 C++ 및 MCP 기반 자동화로 관리한다.
+
+## 작업: 메인 UI 기획서 기반 파트 UserWidget 골격 구현
+
+### 작업 배경
+
+- 메인 UI 기획서 기준으로 체력/스테미나, 스킬, 사용 아이템, 아이덴티티, 몬스터 정보, 미니맵, 시스템 로그, 아이템 획득 알림 영역을 Widget Blueprint에서 직접 조정할 수 있어야 한다.
+- 기존 파트 위젯들은 대부분 루트 `CanvasPanel`만 존재해 Designer에서 배치할 실제 내부 요소가 부족했다.
+- UE 5.8 MCP `UMGToolSet`과 `ProgrammaticToolset`을 활용해 에디터 내부에서 위젯 구조를 생성했다.
+
+### 작업 내용
+
+- 기존 파트 위젯 내부에 Designer 수정용 기본 요소를 추가했다.
+  - `WBP_VitalBar`: 배경, 수치 진행 바, 수치 텍스트
+  - `WBP_Progression`: 레벨 텍스트, 경험치 바, 경험치 텍스트
+  - `WBP_Identity`: 아이덴티티 프레임, 무기/권 이미지 영역, 이름 텍스트, 특수 자원 바
+  - `WBP_MonsterInfo`: 배경, 몬스터 이름, 속성/상태 텍스트, 체력 바, 체력 퍼센트 텍스트
+  - `WBP_QuickSlot`: 슬롯 프레임, 아이콘, 키 텍스트, 쿨타임 텍스트
+  - `WBP_ShortcutHint`: 단축키 프레임, 키 텍스트, 라벨 텍스트
+  - `WBP_LogLine`: 로그 타입/시간 텍스트, 메시지 텍스트
+  - `WBP_ItemAcquisitionLine`: 획득 알림 배경, 아이템 아이콘, 아이템명, 개수 텍스트
+  - `WBP_MinimapMarker`: 마커 아이콘, 마커 라벨
+- 기획서의 영역형 UI를 별도 UserWidget Blueprint로 추가했다.
+  - `WBP_SystemLogPanel`
+  - `WBP_ItemAcquisitionFeed`
+  - `WBP_MinimapPanel`
+  - `WBP_SkillSlotPanel`
+  - `WBP_ItemSlotPanel`
+- `UW_Rogue10mMainWidget`에 위 영역형 위젯을 추가 배치했다.
+  - `SystemLogPanelWidget`
+  - `ItemAcquisitionFeedWidget`
+  - `MinimapPanelWidget`
+  - `SkillSlotPanelWidget`
+  - `ItemSlotPanelWidget`
+- 내부 디자인 요소 이름은 C++ 바인딩 이름과 충돌하지 않도록 `UI_` 접두사를 사용했다.
+
+### 검증 결과
+
+- MCP `UMGToolSet.CompileWidgetBlueprint`로 모든 수정/생성 위젯 컴파일에 성공했다.
+- MCP `AssetTools.save_assets`로 파트 위젯과 `UW_Rogue10mMainWidget` 저장에 성공했다.
+- `UW_Rogue10mMainWidget`의 최종 위젯 수는 16개로 확인했다.
+- 각 파트 위젯의 주요 내부 요소 Canvas Slot 기본 위치와 크기를 설정했다.
+- `UW_Rogue10mMainWidget`에 배치된 주요 HUD 영역 14개의 Canvas Slot 기본 위치와 크기를 설정했다.
+
+### 다음 작업 후보
+
+- Unreal Editor Designer에서 각 파트 위젯 내부 요소 위치와 크기를 기획서 이미지에 맞게 조정한다.
+- 텍스트/이미지/프로그레스 바를 Blueprint 이벤트 또는 C++ 바인딩으로 실제 데이터와 연결한다.
+- 시스템 로그와 아이템 획득 피드는 추후 리스트/풀링 구조로 확장한다.
+
+### Notion 정리 후보
+
+- 메인 HUD를 Widget Blueprint 중심으로 편집할 수 있도록 주요 UI 파트를 UserWidget으로 분리했다.
+- C++는 데이터 공급과 바인딩을 담당하고, 시각 배치와 세부 디자인은 Widget Blueprint Designer에서 조정하는 구조를 유지한다.
+- 스킬 슬롯과 사용 아이템 슬롯을 별도 패널로 분리하여 로스트아크형 하단 HUD 구성에 맞춰 확장할 수 있게 했다.
+
+## 작업: 마나 바를 아이덴티티 바로 전환
+
+### 작업 배경
+
+- 메인 HUD 하단 중앙에는 일반 마나 바가 아니라 무기 숙련도/기력/마력 등 아이덴티티 계열 자원을 표시해야 한다.
+- 기존 `ManaBarWidget`은 `GetManaView()`를 받아 마나 수치처럼 동작하고 있었다.
+
+### 작업 내용
+
+- C++ 바인딩 필드명을 `ManaBarWidget`에서 `IdentityBarWidget`으로 변경했다.
+- `IdentityBarWidget`은 `GetIdentityView()`의 `Current`, `Max`, `Normalized` 값을 받아 `URogue10mVitalBarWidget` 형태로 표시하도록 변경했다.
+- 표시 라벨은 `아이덴티티`로 설정했다.
+- 파트 위젯 설명 문구에서도 `ManaBarWidget` 대신 `IdentityBarWidget`을 사용하도록 정리했다.
+
+### 확인 필요
+
+- 현재 UE MCP 서버가 내려가 있어 `UW_Rogue10mMainWidget` 안의 실제 Widget Blueprint 인스턴스 이름 변경과 위치 조정은 아직 적용하지 못했다.
+- MCP 서버를 다시 시작한 뒤 `ManaBarWidget` 인스턴스를 `IdentityBarWidget`으로 변경하고, `IdentityWidget` 하단부에 배치해야 한다.
+
+## 작업: 아이덴티티 바 표시 조건 변수 추가
+
+### 작업 배경
+
+- 아이덴티티 바는 모든 캐릭터/무기에서 항상 표시되는 UI가 아니라, 아이덴티티 자원이 존재하는 경우에만 활성화되어야 한다.
+- 추후 무기, 직업, 스킬 해금 상태에 따라 아이덴티티 자원 사용 여부가 달라질 수 있다.
+
+### 작업 내용
+
+- `Rogue10mPlayerState`에 `bHasIdentityResource` 변수를 추가했다.
+- Blueprint와 C++에서 사용할 수 있도록 `HasIdentityResource()`, `SetHasIdentityResource()` 함수를 추가했다.
+- `FRogue10mHudIdentityView`에 `bHasIdentityResource` 값을 추가했다.
+- `URogue10mRunHUD::GetIdentityView()`가 PlayerState의 아이덴티티 보유 여부를 HUD View로 전달하도록 변경했다.
+- `IdentityBarWidget`은 `bHasIdentityResource`가 true일 때만 `HitTestInvisible`로 표시되고, false일 때는 `Collapsed` 상태가 되도록 변경했다.
+- `IdentityBarWidget`에 전달되는 Vital View의 `bVisible`도 `bHasIdentityResource` 값을 따르도록 변경했다.
+
+### 확인 필요
+
+- `bHasIdentityResource` 기본값은 false로 두었다. 권/기본 주먹 상태에서 아이덴티티 바를 바로 보여야 한다면 PlayerState 기본값 또는 시작 세팅에서 true로 설정해야 한다.
+- 현재 빌드 명령이 UBT 시작 직후 상세 로그 없이 실패 코드만 반환하고 있어, 에디터 상태 또는 UBT 로그 확인이 추가로 필요하다.
+- UE MCP 서버가 다시 열리면 `UW_Rogue10mMainWidget` 안의 실제 위젯 인스턴스 이름을 `IdentityBarWidget`으로 맞추고 `IdentityWidget` 하단에 배치해야 한다.
+
+## 작업: `URogue10mMainHUDWidget` 한국어 깨짐 수정
+
+### 작업 배경
+
+- `URogue10mMainHUDWidget`의 런타임 라벨과 프로토타입 HUD 안내 문구 일부가 깨진 한국어로 표시되고 있었다.
+- 일부 깨진 문자열은 따옴표가 어긋난 것처럼 보여 C++ 빌드 실패 원인이 될 가능성이 있었다.
+
+### 작업 내용
+
+- 체력, 스테미나, 장비, 아이템, 스킬, 설정 라벨을 정상 한국어로 복구했다.
+- 프로토타입 HUD 안내 문구를 정상 한국어로 복구했다.
+  - 몬스터 정보
+  - 미니맵
+  - 아이템 획득 알림
+  - 시스템 로그
+  - 하단 HUD 안내 텍스트
+  - 단축키 힌트
+- 깨진 주석을 정상 한국어 문장으로 교체했다.
+
+### 검증 결과
+
+- `Rogue10mMainHUDWidget.cpp`, `Rogue10mMainHUDWidget.h`에서 깨진 한국어 패턴을 재검색했으며, 남은 검색 결과는 C++ 삼항 연산자와 정상 코드였다.
+- `BuildEditor.ps1`와 `BuildEditor.ps1 -NoHotReload`를 실행했지만 UBT가 상세 로그 없이 실패 코드만 반환했다. 빌드 실패 원인 추적은 별도 확인이 필요하다.
+## 작업: 아이덴티티 타입 enum 및 HUD 바인딩 확장
+
+### 작업 배경
+
+- 아이덴티티 UI는 단순 표시 여부 boolean보다, 어떤 아이덴티티를 사용하는지에 따라 아이콘과 특수 자원 라벨이 달라져야 한다.
+- 향후 권, 지팡이, 활, 분노형 무기 등에서 서로 다른 아이덴티티 리소스를 사용할 수 있도록 enum 기반 확장이 필요하다.
+
+### 작업 내용
+
+- `ERogue10mIdentityType` enum을 추가했다.
+  - `None`: 아이덴티티 비활성 상태
+  - `StoneFist`: 기본 권/주먹 계열 아이덴티티
+  - `Vigor`: 기력 계열 아이덴티티
+  - `Mana`: 마력 계열 아이덴티티
+  - `Focus`: 집중 계열 아이덴티티
+  - `Rage`: 분노 계열 아이덴티티
+- `ARogue10mPlayerState`의 아이덴티티 활성 조건을 enum 기반으로 변경했다.
+  - `GetIdentityType()`으로 현재 아이덴티티 타입을 조회한다.
+  - `SetIdentityType()`으로 Blueprint/C++에서 아이덴티티 타입을 변경한다.
+  - `HasIdentityResource()`는 `IdentityType != None`일 때 true를 반환한다.
+- `FRogue10mHudIdentityView`에 `IdentityType` 값을 추가했다.
+- `URogue10mRunHUD::GetIdentityView()`가 아이덴티티 타입에 따라 특수 자원 라벨과 아이콘 경로를 결정하도록 연결했다.
+- `StoneFist` 아이덴티티는 기존 `T_Identity_StoneFist` 아이콘을 사용하도록 유지했다.
+- 다른 아이덴티티 타입은 추후 에셋을 추가할 수 있도록 아래 경로 규칙을 예약했다.
+  - `/Game/UI/Icons/T_Identity_Vigor`
+  - `/Game/UI/Icons/T_Identity_Mana`
+  - `/Game/UI/Icons/T_Identity_Focus`
+  - `/Game/UI/Icons/T_Identity_Rage`
+
+### 검증 결과
+
+- MCP HTTP 서버는 현재 8000, 8010, 8123 포트에서 Listen 상태가 아니어서 `UW_Rogue10mMainWidget` 자산의 실제 Widget Blueprint 배치 변경은 진행하지 못했다.
+- `BuildEditor.ps1` 실행 시 UnrealHeaderTool 단계는 통과했지만, Unreal Editor Live Coding이 활성화되어 전체 C++ 빌드는 중단되었다.
+- 전체 빌드를 완료하려면 에디터에서 `Ctrl+Alt+F11`로 Live Coding 컴파일을 실행하거나, 에디터를 닫은 뒤 빌드를 다시 실행해야 한다.
+
+### 다음 작업 후보
+
+- Unreal Editor 콘솔에서 `ModelContextProtocol.StartServer 8010`과 `ModelContextProtocol.RefreshTools`를 실행한 뒤 MCP 연결을 재확인한다.
+- `UW_Rogue10mMainWidget` 안의 기존 `ManaBarWidget` 인스턴스를 `IdentityBarWidget`으로 교체하거나 새로 배치한다.
+- `IdentityWidget` 내부 Blueprint에서 `GetIdentityView().IdentityType`, `IconTexture`, `ResourceLabel`, `OutlineColor`, `OutlineThickness`를 Bind하여 디자인을 구성한다.
+- `StoneFist` 외 아이덴티티 아이콘 PNG를 제작하거나 임시 플레이스홀더를 추가한다.
+
+### Notion 정리 후보
+
+- 아이덴티티 시스템은 `ERogue10mIdentityType`을 기준으로 활성 여부와 아이콘/자원 라벨을 결정한다.
+- PlayerState가 현재 아이덴티티 타입을 보관하고, HUD View가 이를 Widget Blueprint로 전달한다.
+- `None`은 UI 비활성 상태이며, 각 무기/스킬/숙련도 시스템이 해금 시 적절한 아이덴티티 타입으로 변경하는 구조를 목표로 한다.
