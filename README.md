@@ -69,6 +69,20 @@
 - 장비창, 아이템창, 스킬 트리, 설정 UI 골격
 - 런 타이머와 몬스터 정보 표시
 
+### 메뉴 UI와 NxM 인벤토리
+
+- Inventory, Equipment, SkillTree 메뉴를 기능별 Widget Blueprint 폴더로 분리
+- 10×10 기본 인벤토리 하나로 고정하며 가방 탭은 표시하지 않음
+- 아이템 Data Asset의 InventorySize를 이용한 1×1부터 NxM까지의 공간 점유
+- Canvas 좌표 기반 드래그 앤 드롭, 경계·아이템 충돌 프리뷰
+- 회전 없이 Item Data Asset의 `InventorySize`를 고정 점유 크기로 사용
+- 44px 셀 배수의 정확한 footprint와 ScaleToFit 기반 아이콘 원본 종횡비 보존
+- 장비 카테고리는 보유 개수 미표시, 중첩 가능한 비장비 아이템만 수량 표시
+- 셀은 WBP_InventoryCell UserWidget으로 GridSize X×Y만큼 자동 생성
+- 하단에 Gold와 현재 무게 / 최대 무게 표시
+- 아이콘이 없는 초기 아이템은 InventoryTint 색상으로 구분
+
+프로토타입 Data Asset은 Content/DataAsset/Item/Prototype에 있으며 1×1, 2×3, 4×3 크기를 제공합니다. 기본 인벤토리가 비어 있으면 게임 시작 시 한 번만 자동 배치됩니다. Inventory Component의 bAddPrototypeStartingItems와 PrototypeStartingItems에서 자동 배치 여부와 목록을 조정할 수 있습니다.
 ### 성장과 장비 방향
 
 - 무기 종류: 권갑, 단검, 대검, 쌍검, 활, 지팡이
@@ -124,6 +138,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1
 - [월드 구조](Docs/WorldStructure.md)
 - [애니메이션 연동 가이드](Docs/AnimationIntegrationGuide.md)
 - [공격 스킬 Data Asset 가이드](Docs/AttackSkillDataAssetGuide.md)
+- [Grid Inventory와 메뉴 창 가이드](Docs/GridInventoryAndMenuWindowsGuide.md)
+- [달리기와 화면 피드백 설정 가이드](Docs/SprintAndFeedbackGuide.md)
 - [캐릭터 데이터 소유권](Docs/CharacterDataOwnership.md)
 - [브랜치 전략](Docs/GitBranchStrategy.md)
 - [Harness 파이프라인](Docs/HarnessPipeline.md)
@@ -140,3 +156,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Scripts\BuildEditor.ps1
 ## 저장소
 
 - GitHub: https://github.com/chickenbugers/Rogue10m
+
+- [Grid Inventory and Menu Windows Guide](Docs/GridInventoryAndMenuWindowsGuide.md)
+
+- [Sprint 변경 이력](Docs/SprintChangeLog.md)
+
+- [스킬트리 Loadout과 무기별 회피 설정](Docs/SkillTreeLoadoutGuide.md)

@@ -13,6 +13,8 @@ class UAbilitySystemComponent;
 class URogue10mAbilitySystemComponent;
 class URogue10mAttributeSet;
 class URogue10mAttackSkillData;
+class URogue10mMonsterDataAsset;
+class URogue10mVitalRegenerationComponent;
 
 UCLASS(Blueprintable)
 class ROGUE10M_API ARogue10mBasicMonster : public ACharacter, public IAbilitySystemInterface, public IRogue10mAttackTargetInterface
@@ -35,6 +37,9 @@ public:
 	FText GetMonsterDisplayName() const { return MonsterDisplayName; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
+	const URogue10mMonsterDataAsset* GetMonsterData() const { return MonsterData; }
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
 	int32 GetMonsterLevel() const { return MonsterLevel; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
@@ -51,6 +56,12 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rogue10m|GAS")
 	TObjectPtr<URogue10mAttributeSet> AttributeSet;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster")
+	TObjectPtr<URogue10mVitalRegenerationComponent> VitalRegenerationComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Data")
+	TObjectPtr<URogue10mMonsterDataAsset> MonsterData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster")
 	FText MonsterDisplayName = FText::FromString(TEXT("기본 몬스터"));
@@ -95,6 +106,8 @@ private:
 	void Die();
 
 	TWeakObjectPtr<ARogue10mCharacter> TargetCharacter;
+	TWeakObjectPtr<AController> LastDamageInstigator;
+	int32 ExperienceReward = 0;
 	float LastAttackTime = -1000.0f;
 	FTimerHandle AttackSequenceTimer;
 	TWeakObjectPtr<ARogue10mCharacter> LockedAttackTarget;

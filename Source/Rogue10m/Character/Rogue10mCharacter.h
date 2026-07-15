@@ -16,6 +16,7 @@ class URogue10mAttributeSet;
 class URogue10mCombatComponent;
 class URogue10mInventoryComponent;
 class URogue10mPlayerFeedbackComponent;
+class URogue10mVitalRegenerationComponent;
 class USkeletalMeshComponent;
 struct FInputActionValue;
 
@@ -57,6 +58,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|GAS")
 	URogue10mAttributeSet* GetRogueAttributeSet() const;
 
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Movement")
+	bool IsSprinting() const { return bIsSprinting; }
+
 	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; }
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 	URogue10mInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
@@ -77,11 +81,20 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoMove(float Right, float Forward);
 
-	UFUNCTION(BlueprintCallable, Category="Input")
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Movement")
 	virtual void DoJumpStart();
 
-	UFUNCTION(BlueprintCallable, Category="Input")
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Movement")
 	virtual void DoJumpEnd();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Movement|Dodge")
+	virtual void DoDodge();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Movement")
+	virtual void DoSprintStart();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Movement")
+	virtual void DoSprintEnd();
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat")
 	virtual void DoPrimaryAttackPressed();
@@ -143,6 +156,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<URogue10mPlayerFeedbackComponent> PlayerFeedbackComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<URogue10mVitalRegenerationComponent> VitalRegenerationComponent;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
 	TObjectPtr<UInputAction> JumpAction;
 
@@ -155,10 +171,39 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
 	TObjectPtr<UInputAction> MouseLookAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Movement|Sprint", meta=(ClampMin="0.0", Units="cm/s"))
+	float SprintWalkSpeed = 900.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Movement|Sprint", meta=(ClampMin="0.0"))
+	float SprintStaminaCostPerSecond = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Movement|Sprint", meta=(ClampMin="0.05", ClampMax="1.0", Units="s"))
+	float SprintStaminaDrainInterval = 0.1f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Movement|Dodge", meta=(ClampMin="0.0", Units="cm"))
+	float DodgeDistance = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Movement|Dodge", meta=(ClampMin="0.05", ClampMax="1.0", Units="s"))
+	float DodgeDuration = 0.16f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Movement|Dodge", meta=(ClampMin="0.0", Units="s"))
+	float DodgeCooldown = 0.45f;
+
 private:
 	void MoveInput(const FInputActionValue& Value);
 	void LookInput(const FInputActionValue& Value);
+	void SetSprinting(bool bNewSprinting);
+	void ConsumeSprintStamina();
+	void FinishDodge();
 	bool IsBlockingWindowVisible() const;
 	void ActivateQuickSlot(int32 SlotNumber);
 	void InitializeAbilityActorInfo();
+
+	FTimerHandle SprintStaminaTimerHandle;
+	FTimerHandle DodgeTimerHandle;
+	FVector2D CachedMovementInput = FVector2D::ZeroVector;
+	float NormalWalkSpeed = 600.0f;
+	float NextDodgeAllowedTime = 0.0f;
+	bool bIsSprinting = false;
+	bool bIsDodging = false;
 };

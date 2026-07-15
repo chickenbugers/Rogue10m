@@ -58,6 +58,7 @@ void URogue10mPlayerFeedbackComponent::EnsurePostProcessComponent()
 	EffectPostProcess->Settings.bOverride_ColorSaturation = true;
 	EffectPostProcess->Settings.bOverride_VignetteIntensity = true;
 	EffectPostProcess->Settings.bOverride_SceneFringeIntensity = true;
+	EffectPostProcess->Settings.bOverride_MotionBlurAmount = true;
 	EffectPostProcess->RegisterComponent();
 }
 
@@ -104,6 +105,17 @@ void URogue10mPlayerFeedbackComponent::NotifyInsufficientStamina()
 	InsufficientStaminaPulse = 1.0f;
 	ApplyPostProcess();
 	StartFeedbackTimer();
+}
+
+void URogue10mPlayerFeedbackComponent::SetSprinting(bool bNewSprinting)
+{
+	if (bSprinting == bNewSprinting)
+	{
+		return;
+	}
+
+	bSprinting = bNewSprinting;
+	ApplyPostProcess();
 }
 
 void URogue10mPlayerFeedbackComponent::UnbindAbilitySystem()
@@ -191,10 +203,12 @@ void URogue10mPlayerFeedbackComponent::ApplyPostProcess()
 	}
 
 	const float StaminaIntensity = FMath::Max(LowStaminaIntensity, InsufficientStaminaPulse);
-	const float CombinedIntensity = FMath::Max(DamagePulse, StaminaIntensity);
+	const float SprintIntensity = bSprinting ? 1.0f : 0.0f;
+	const float CombinedIntensity = FMath::Max3(DamagePulse, StaminaIntensity, SprintIntensity);
 	EffectPostProcess->BlendWeight = CombinedIntensity > KINDA_SMALL_NUMBER ? 1.0f : 0.0f;
 
 	FLinearColor Tint = FLinearColor::White;
+	Tint = FMath::Lerp(Tint, SprintTint, SprintIntensity * 0.18f);
 	Tint = FMath::Lerp(Tint, StaminaTint, StaminaIntensity * 0.45f);
 	Tint = FMath::Lerp(Tint, DamageTint, DamagePulse * 0.65f);
 	EffectPostProcess->Settings.SceneColorTint = Tint;
@@ -203,8 +217,12 @@ void URogue10mPlayerFeedbackComponent::ApplyPostProcess()
 		1.0f - StaminaIntensity * StaminaDesaturationStrength - DamagePulse * 0.1f,
 		0.25f, 1.0f);
 	EffectPostProcess->Settings.ColorSaturation = FVector4(Saturation, Saturation, Saturation, 1.0f);
-	EffectPostProcess->Settings.VignetteIntensity = FMath::Max(
+	EffectPostProcess->Settings.VignetteIntensity = FMath::Max3(
 		DamagePulse * DamageVignetteIntensity,
-		StaminaIntensity * StaminaVignetteIntensity);
-	EffectPostProcess->Settings.SceneFringeIntensity = DamagePulse * DamageChromaticAberration;
+		StaminaIntensity * StaminaVignetteIntensity,
+		SprintIntensity * SprintVignetteIntensity);
+	EffectPostProcess->Settings.SceneFringeIntensity = FMath::Max(
+		DamagePulse * DamageChromaticAberration,
+		SprintIntensity * SprintChromaticAberration);
+	EffectPostProcess->Settings.MotionBlurAmount = SprintIntensity * SprintMotionBlurAmount;
 }

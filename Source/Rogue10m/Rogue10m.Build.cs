@@ -18,15 +18,10 @@ public class Rogue10m : ModuleRules
 			"GameplayTags",
 			"GameplayTasks",
 			"AIModule",
-			"StateTreeModule",
-			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
 			"SlateCore"
 		});
-
-		PrivateDependencyModuleNames.AddRange(new string[] { });
-
 		PublicIncludePaths.AddRange(new string[] {
 			"Rogue10m",
 			"Rogue10m/Ability",
@@ -39,13 +34,5 @@ public class Rogue10m : ModuleRules
 			"Rogue10m/UI/Widgets",
 			"Rogue10m/World"
 		});
-
-		// Uncomment if you are using Slate UI
-		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
-
-		// Uncomment if you are using online features
-		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
-
-		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
 	}
 }

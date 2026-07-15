@@ -37,6 +37,9 @@ protected:
 	TObjectPtr<URogue10mProgressionWidget> ProgressionWidget;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Bound Widgets")
+	TObjectPtr<URogue10mSkillSlotPanelWidget> SkillSlotPanelWidget;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Bound Widgets")
 	TObjectPtr<URogue10mIdentityWidget> IdentityWidget;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Bound Widgets")
@@ -67,17 +70,11 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Bound Containers")
 	TObjectPtr<UPanelWidget> ItemAcquisitionContainer;
 
-	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|HUD|Bound Containers")
-	TObjectPtr<UPanelWidget> MinimapMarkerContainer;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Widget Classes")
 	TSubclassOf<URogue10mQuickSlotWidget> QuickSlotWidgetClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Widget Classes")
 	TSubclassOf<URogue10mLogLineWidget> LogLineWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|HUD|Widget Classes")
-	TSubclassOf<URogue10mMinimapMarkerWidget> MinimapMarkerWidgetClass;
 	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|HUD", meta=(DisplayName="Bound Widget Data Refreshed"))
 	void BP_OnBoundWidgetDataRefreshed();
 
@@ -90,7 +87,6 @@ private:
 	void EnsurePrototypeLayout();
 	void RefreshQuickSlotContainer(UPanelWidget* Container, const TArray<FRogue10mHudQuickSlotView>& Views);
 	void RefreshLogContainer(UPanelWidget* Container, const TArray<FRogue10mHudLogEntryView>& Views);
-	void RefreshMinimapMarkerContainer();
 	void RefreshFrequentWidgetData();
 	void RefreshSlowWidgetData();
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Rogue10mGameState.h"
+#include "Rogue10mAttackSkillData.h"
 #include "Rogue10mIdentityTypes.h"
 #include "Rogue10mWeaponTypes.h"
 #include "Rogue10mRunHUD.generated.h"
@@ -31,8 +32,8 @@ struct FRogue10mHudProgressionView
 {
 	GENERATED_BODY()
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") int32 Level = 1;
-	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") int32 CurrentExperience = 0;
-	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") int32 ExperienceToNextLevel = 1;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") float CurrentExperience = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") float ExperienceToNextLevel = 1.0f;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") float ExperienceNormalized = 0.0f;
 };
 
@@ -61,12 +62,16 @@ struct FRogue10mHudQuickSlotView
 	GENERATED_BODY()
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") int32 SlotNumber = 0;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") FText DisplayName;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") FText InputText;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") FLinearColor IconColor = FLinearColor::White;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") TObjectPtr<UTexture2D> SkillIcon = nullptr;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") float CooldownRemaining = 0.0f;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") float CooldownDuration = 0.0f;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") float CooldownNormalized = 0.0f;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") bool bUnlocked = true;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") TObjectPtr<URogue10mAttackSkillData> SkillData = nullptr;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") ERogue10mAttackInputSlot InputSlot;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") bool bDodgeSlot = false;
 };
 
 USTRUCT(BlueprintType)
@@ -76,6 +81,9 @@ struct FRogue10mHudLogEntryView
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") FText Message;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") FLinearColor Color = FLinearColor::White;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") float RemainingSeconds = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") TObjectPtr<UTexture2D> ItemIcon = nullptr;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") int32 Quantity = 0;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") bool bItemAcquisition = false;
 };
 
 USTRUCT(BlueprintType)

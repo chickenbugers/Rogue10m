@@ -39,21 +39,21 @@ int32 ARogue10mPlayerState::GetPlayerLevel() const
 	return AttributeSet ? FMath::Max(1, FMath::RoundToInt(AttributeSet->GetPlayerLevel())) : 1;
 }
 
-int32 ARogue10mPlayerState::GetCurrentExperience() const
+float ARogue10mPlayerState::GetCurrentExperience() const
 {
-	return AttributeSet ? FMath::Max(0, FMath::RoundToInt(AttributeSet->GetExperience())) : 0;
+	return AttributeSet ? FMath::Max(0.0f, AttributeSet->GetExperience()) : 0.0f;
 }
 
-int32 ARogue10mPlayerState::GetExperienceToNextLevel() const
+float ARogue10mPlayerState::GetExperienceToNextLevel() const
 {
-	return AttributeSet ? FMath::Max(1, FMath::RoundToInt(AttributeSet->GetExperienceToNextLevel())) : 100;
+	return AttributeSet ? FMath::Max(1.0f, AttributeSet->GetExperienceToNextLevel()) : 100.0f;
 }
 
 float ARogue10mPlayerState::GetExperienceNormalized() const
 {
-	const int32 RequiredExperience = GetExperienceToNextLevel();
-	return RequiredExperience > 0
-		? FMath::Clamp(static_cast<float>(GetCurrentExperience()) / static_cast<float>(RequiredExperience), 0.0f, 1.0f)
+	const float RequiredExperience = GetExperienceToNextLevel();
+	return RequiredExperience > 0.0f
+		? FMath::Clamp(GetCurrentExperience() / RequiredExperience, 0.0f, 1.0f)
 		: 0.0f;
 }
 
@@ -64,20 +64,20 @@ void ARogue10mPlayerState::AddExperience(int32 ExperienceAmount)
 		return;
 	}
 
-	int32 CurrentExperience = GetCurrentExperience() + ExperienceAmount;
-	int32 RequiredExperience = GetExperienceToNextLevel();
+	float CurrentExperience = GetCurrentExperience() + static_cast<float>(ExperienceAmount);
+	float RequiredExperience = GetExperienceToNextLevel();
 	int32 Level = GetPlayerLevel();
 
 	while (CurrentExperience >= RequiredExperience)
 	{
 		CurrentExperience -= RequiredExperience;
 		++Level;
-		RequiredExperience = FMath::Max(100, FMath::RoundToInt(RequiredExperience * 1.18f));
+		RequiredExperience = FMath::Max(100.0f, RequiredExperience * 1.18f);
 	}
 
 	AttributeSet->SetPlayerLevel(static_cast<float>(Level));
-	AttributeSet->SetExperience(static_cast<float>(CurrentExperience));
-	AttributeSet->SetExperienceToNextLevel(static_cast<float>(RequiredExperience));
+	AttributeSet->SetExperience(CurrentExperience);
+	AttributeSet->SetExperienceToNextLevel(RequiredExperience);
 }
 
 int32 ARogue10mPlayerState::GetWeaponMasteryLevel(ERogue10mWeaponType WeaponType) const

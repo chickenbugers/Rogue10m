@@ -12,7 +12,8 @@ It adapts the harness engineering ideas from `BaeJongHo/Unreal_Harness` to this 
 - Project file: `D:\Project\Rogue10m\Rogue10m.uproject`
 - Runtime module: `Source/Rogue10m`
 - Module API macro: `ROGUE10M_API`
-- Primary branch flow: `feature/*`, `content/*`, `level/*`, `balance/*`, `fix/*` -> `develop` -> `test` -> `main`
+- Primary branch flow: `Sprint#<sprint>-<work>-<short-description>` -> `develop` -> `test` -> `main`
+- Sprint numbering rule: a Sprint closes and the Sprint number increments only after a successful merge into `main`. Work branches created before that merge keep the same Sprint number and increment only `<work>`; the first work after the merge starts at `<next-sprint>-1`.
 
 ## Harness Pipeline
 
@@ -58,6 +59,7 @@ Check this list on every user command before finishing:
 - Append to the existing daily file instead of replacing prior entries.
 - Write DevLog entries in a Tistory-friendly format.
 - When a feature is developed, add a clearly marked Notion summary candidate inside the DevLog.
+- When a Sprint work item is completed or materially changed, update Docs/SprintChangeLog.md with its goal, major changes, validation, status, and related documents.
 - Before any GitHub commit or push summary, list the changed files and a short explanation.
 - Do not commit unless the user explicitly confirms.
 - Write every new DevLog entry in Korean.

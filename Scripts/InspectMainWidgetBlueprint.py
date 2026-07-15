@@ -2,7 +2,7 @@ import os
 import unreal
 
 
-ASSET_PATH = "/Game/Widget/UW_Rogue10mMainWidget"
+ASSET_PATH = "/Game/Widget/WBP_Rogue10mMainHUD"
 OUTPUT_PATH = "D:/Project/Rogue10m/Saved/MainWidgetBlueprintInspect.txt"
 
 

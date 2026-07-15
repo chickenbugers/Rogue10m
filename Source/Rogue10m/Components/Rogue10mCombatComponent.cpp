@@ -15,39 +15,24 @@
 #include "Rogue10mAttributeSet.h"
 #include "Rogue10mAttackTargetInterface.h"
 #include "Rogue10mCharacter.h"
+#include "Rogue10mCharacterDataAsset.h"
 #include "Rogue10mGameplayAbility_Attack.h"
 #include "Rogue10mPlayerController.h"
 #include "Rogue10mPlayerFeedbackComponent.h"
+#include "Rogue10mSkillLoadoutDataAsset.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
 
 URogue10mCombatComponent::URogue10mCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	DefaultAttackAbilityClass = URogue10mGameplayAbility_Attack::StaticClass();
-	UnlockedAttackSkillNames = {
-		FName(TEXT("DA_Attack_Unarmed_Primary")),
-		FName(TEXT("DA_Attack_Unarmed_JumpPrimary"))
-	};
-
-	static ConstructorHelpers::FObjectFinder<URogue10mAttackSkillData> PrimaryAsset(
-		TEXT("/Game/DataAsset/AttackSkill/Unarmed/DA_Attack_Unarmed_Primary"));
-	if (PrimaryAsset.Succeeded())
-	{
-		PrimaryAttackSkill = PrimaryAsset.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<URogue10mAttackSkillData> JumpPrimaryAsset(
-		TEXT("/Game/DataAsset/AttackSkill/Unarmed/DA_Attack_Unarmed_JumpPrimary"));
-	if (JumpPrimaryAsset.Succeeded())
-	{
-		JumpPrimaryAttackSkill = JumpPrimaryAsset.Object;
-	}
 }
 
 void URogue10mCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	ApplyCharacterData();
+	ApplyActiveWeaponProfile();
 }
 
 void URogue10mCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -138,13 +123,25 @@ bool URogue10mCombatComponent::ActivateQuickSlot(int32 SlotNumber)
 		return false;
 	}
 
-	const TArray<const URogue10mAttackSkillData*> Skills = GetWeaponQuickSlotSkills();
-	if (!Skills.IsValidIndex(SlotNumber - 1) || !Skills[SlotNumber - 1])
+	static constexpr ERogue10mAttackInputSlot Slots[] = {
+		ERogue10mAttackInputSlot::Primary,
+		ERogue10mAttackInputSlot::Special,
+		ERogue10mAttackInputSlot::ChargedPrimary,
+		ERogue10mAttackInputSlot::ChargedSpecial,
+		ERogue10mAttackInputSlot::JumpPrimary,
+		ERogue10mAttackInputSlot::JumpSpecial
+	};
+	if (!FMath::IsWithinInclusive(SlotNumber, 1, static_cast<int32>(UE_ARRAY_COUNT(Slots))))
 	{
 		return false;
 	}
 
-	const URogue10mAttackSkillData& SkillData = *Skills[SlotNumber - 1];
+	const URogue10mAttackSkillData* EquippedSkill = GetEquippedSkill(Slots[SlotNumber - 1]);
+	if (!EquippedSkill)
+	{
+		return false;
+	}
+	const URogue10mAttackSkillData& SkillData = *EquippedSkill;
 	return TryActivateAttackAbility(SkillData, false) || ExecuteAttackSkill(SkillData, false);
 }
 
@@ -174,6 +171,133 @@ TArray<URogue10mAttackSkillData*> URogue10mCombatComponent::GetUnlockedWeaponSki
 	return Result;
 }
 
+
+bool URogue10mCombatComponent::AssignSkillToInputSlot(
+	URogue10mAttackSkillData* SkillData, ERogue10mAttackInputSlot InputSlot)
+{
+	if (!IsAttackSkillUnlocked(SkillData))
+	{
+		return false;
+	}
+
+	for (TPair<ERogue10mAttackInputSlot, TObjectPtr<URogue10mAttackSkillData>>& Pair : EquippedSkillBindings)
+	{
+		if (Pair.Value == SkillData)
+		{
+			Pair.Value = nullptr;
+		}
+	}
+	EquippedSkillBindings.Add(InputSlot, SkillData);
+	return true;
+}
+
+bool URogue10mCombatComponent::UnassignSkillFromInputSlot(ERogue10mAttackInputSlot InputSlot)
+{
+	return EquippedSkillBindings.Remove(InputSlot) > 0;
+}
+
+URogue10mAttackSkillData* URogue10mCombatComponent::GetEquippedSkill(ERogue10mAttackInputSlot InputSlot) const
+{
+	if (const TObjectPtr<URogue10mAttackSkillData>* Skill = EquippedSkillBindings.Find(InputSlot))
+	{
+		return Skill->Get();
+	}
+
+	switch (InputSlot)
+	{
+	case ERogue10mAttackInputSlot::Primary: return PrimaryAttackSkill;
+	case ERogue10mAttackInputSlot::Special: return SpecialAttackSkill;
+	case ERogue10mAttackInputSlot::JumpPrimary: return JumpPrimaryAttackSkill;
+	case ERogue10mAttackInputSlot::JumpSpecial: return JumpSpecialAttackSkill;
+	case ERogue10mAttackInputSlot::ChargedPrimary: return ChargedPrimaryAttackSkill;
+	case ERogue10mAttackInputSlot::ChargedSpecial: return ChargedSpecialAttackSkill;
+	default: return nullptr;
+	}
+}
+
+TArray<URogue10mAttackSkillData*> URogue10mCombatComponent::GetActiveSkillTreeSkills() const
+{
+	TArray<URogue10mAttackSkillData*> Result;
+	if (const URogue10mWeaponSkillProfileDataAsset* Profile = FindActiveWeaponProfile())
+	{
+		for (URogue10mAttackSkillData* Skill : Profile->SkillTreeSkills)
+		{
+			if (Skill)
+			{
+				Result.AddUnique(Skill);
+			}
+		}
+	}
+	return Result;
+}
+
+const URogue10mDodgeSkillDataAsset* URogue10mCombatComponent::GetActiveDodgeSkill() const
+{
+	const URogue10mWeaponSkillProfileDataAsset* Profile = FindActiveWeaponProfile();
+	return Profile ? Profile->DefaultDodgeSkill : nullptr;
+}
+
+void URogue10mCombatComponent::HandleEquippedWeaponChanged()
+{
+	ApplyActiveWeaponProfile();
+}
+
+const URogue10mWeaponSkillProfileDataAsset* URogue10mCombatComponent::FindActiveWeaponProfile() const
+{
+	const ARogue10mCharacter* Character = GetOwnerCharacter();
+	const ERogue10mWeaponType WeaponType = Character
+		? Character->GetEquippedWeaponType()
+		: ERogue10mWeaponType::Unarmed;
+
+	for (const URogue10mWeaponSkillProfileDataAsset* Profile : WeaponSkillProfiles)
+	{
+		if (Profile && Profile->WeaponType == WeaponType)
+		{
+			return Profile;
+		}
+	}
+	return nullptr;
+}
+
+void URogue10mCombatComponent::ApplyCharacterData()
+{
+	if (CharacterData && !CharacterData->WeaponSkillProfiles.IsEmpty())
+	{
+		WeaponSkillProfiles = CharacterData->WeaponSkillProfiles;
+		if (ARogue10mCharacter* Character = GetOwnerCharacter())
+		{
+			Character->SetEquippedWeaponType(CharacterData->DefaultWeaponType);
+		}
+	}
+}
+void URogue10mCombatComponent::ApplyActiveWeaponProfile()
+{
+	EquippedSkillBindings.Reset();
+	const URogue10mWeaponSkillProfileDataAsset* Profile = FindActiveWeaponProfile();
+	if (!Profile)
+	{
+		return;
+	}
+
+	AppliedProfileWeaponType = Profile->WeaponType;
+	if (ARogue10mCharacter* Character = GetOwnerCharacter())
+	{
+		Character->JumpMaxCount = FMath::Max(1, Profile->MaxJumpCount);
+	}
+	for (const TPair<ERogue10mAttackInputSlot, TObjectPtr<URogue10mAttackSkillData>>& Pair
+		: Profile->DefaultSkillBindings)
+	{
+		if (Pair.Value)
+		{
+			EquippedSkillBindings.Add(Pair.Key, Pair.Value);
+			UnlockedAttackSkillNames.Add(Pair.Value->GetFName());
+		}
+	}
+	for (URogue10mAttackSkillData* Skill : Profile->InitiallyUnlockedSkills)
+	{
+		UnlockAttackSkill(Skill);
+	}
+}
 const URogue10mAttackSkillData* URogue10mCombatComponent::ResolveAttackSkill(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
 {
 	if (bChargedAttack)
@@ -182,14 +306,18 @@ const URogue10mAttackSkillData* URogue10mCombatComponent::ResolveAttackSkill(boo
 	}
 	if (bJumpAttack)
 	{
-		return bPrimaryAttack ? JumpPrimaryAttackSkill : JumpSpecialAttackSkill;
+		return GetEquippedSkill(bPrimaryAttack
+			? ERogue10mAttackInputSlot::JumpPrimary
+			: ERogue10mAttackInputSlot::JumpSpecial);
 	}
-	return bPrimaryAttack ? PrimaryAttackSkill : SpecialAttackSkill;
+	return GetEquippedSkill(bPrimaryAttack
+		? ERogue10mAttackInputSlot::Primary
+		: ERogue10mAttackInputSlot::Special);
 }
 
 const URogue10mAttackSkillData* URogue10mCombatComponent::ResolveChargedAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const
 {
-	return bJumpAttack ? nullptr : (bPrimaryAttack ? ChargedPrimaryAttackSkill : ChargedSpecialAttackSkill);
+	return bJumpAttack ? nullptr : GetEquippedSkill(bPrimaryAttack ? ERogue10mAttackInputSlot::ChargedPrimary : ERogue10mAttackInputSlot::ChargedSpecial);
 }
 
 const URogue10mAttackSkillData* URogue10mCombatComponent::ResolveComboAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const
@@ -217,21 +345,27 @@ const URogue10mAttackSkillData* URogue10mCombatComponent::ResolveComboAttackSkil
 TArray<const URogue10mAttackSkillData*> URogue10mCombatComponent::GetWeaponQuickSlotSkills() const
 {
 	TArray<const URogue10mAttackSkillData*> Skills;
-	const URogue10mAttackSkillData* Candidates[] = {
-		PrimaryAttackSkill, JumpPrimaryAttackSkill, SpecialAttackSkill,
-		ChargedPrimaryAttackSkill, ChargedSpecialAttackSkill,
-		JumpSpecialAttackSkill
+	static constexpr ERogue10mAttackInputSlot Slots[] = {
+		ERogue10mAttackInputSlot::Primary,
+		ERogue10mAttackInputSlot::Special,
+		ERogue10mAttackInputSlot::ChargedPrimary,
+		ERogue10mAttackInputSlot::ChargedSpecial,
+		ERogue10mAttackInputSlot::JumpPrimary,
+		ERogue10mAttackInputSlot::JumpSpecial
 	};
-	for (const URogue10mAttackSkillData* Skill : Candidates)
+	for (ERogue10mAttackInputSlot Slot : Slots)
 	{
-		if (IsAttackSkillUnlocked(Skill))
+		if (const URogue10mAttackSkillData* Skill = GetEquippedSkill(Slot))
 		{
 			Skills.AddUnique(Skill);
 		}
 	}
 	return Skills;
 }
-
+const URogue10mAttackSkillData* URogue10mCombatComponent::GetSkillForInputSlot(ERogue10mAttackInputSlot InputSlot) const
+{
+	return GetEquippedSkill(InputSlot);
+}
 ERogue10mAttackInputSlot URogue10mCombatComponent::GetAttackInputSlot(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const
 {
 	if (bChargedAttack)

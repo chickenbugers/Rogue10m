@@ -51,10 +51,10 @@ public:
 	int32 GetPlayerLevel() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Progression")
-	int32 GetCurrentExperience() const;
+	float GetCurrentExperience() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Progression")
-	int32 GetExperienceToNextLevel() const;
+	float GetExperienceToNextLevel() const;
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Progression")
 	float GetExperienceNormalized() const;

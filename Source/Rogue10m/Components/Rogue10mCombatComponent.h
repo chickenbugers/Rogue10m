@@ -5,10 +5,14 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Rogue10mAttackSkillData.h"
+#include "Rogue10mWeaponTypes.h"
 #include "Rogue10mCombatComponent.generated.h"
 
 class ARogue10mCharacter;
 class URogue10mAttributeSet;
+class URogue10mCharacterDataAsset;
+class URogue10mDodgeSkillDataAsset;
+class URogue10mWeaponSkillProfileDataAsset;
 
 struct FRogue10mActiveAttackExecution
 {
@@ -45,10 +49,30 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Combat")
 	TArray<URogue10mAttackSkillData*> GetUnlockedWeaponSkills() const;
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat|Loadout")
+	bool AssignSkillToInputSlot(URogue10mAttackSkillData* SkillData, ERogue10mAttackInputSlot InputSlot);
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Combat|Loadout")
+	bool UnassignSkillFromInputSlot(ERogue10mAttackInputSlot InputSlot);
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Combat|Loadout")
+	URogue10mAttackSkillData* GetEquippedSkill(ERogue10mAttackInputSlot InputSlot) const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Combat|Skill Tree")
+	TArray<URogue10mAttackSkillData*> GetActiveSkillTreeSkills() const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Combat|Dodge")
+	const URogue10mDodgeSkillDataAsset* GetActiveDodgeSkill() const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Combat|Character Data")
+	const URogue10mCharacterDataAsset* GetCharacterData() const { return CharacterData; }
+
+	void HandleEquippedWeaponChanged();
 	const URogue10mAttackSkillData* ResolveAttackSkill(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
 	const URogue10mAttackSkillData* ResolveChargedAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const;
 	const URogue10mAttackSkillData* ResolveComboAttackSkill(bool bPrimaryAttack, bool bJumpAttack) const;
 	TArray<const URogue10mAttackSkillData*> GetWeaponQuickSlotSkills() const;
+	const URogue10mAttackSkillData* GetSkillForInputSlot(ERogue10mAttackInputSlot InputSlot) const;
 	ERogue10mAttackInputSlot GetAttackInputSlot(bool bPrimaryAttack, bool bChargedAttack, bool bJumpAttack) const;
 
 	bool IsAttackOnCooldown(float CurrentTime) const;
@@ -84,6 +108,9 @@ private:
 	void DrawAttackDebug(const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius, const FLinearColor& Color, bool bHit, const FHitResult& Hit) const;
 	void AddCombatLog(const FString& Message, const FLinearColor& Color = FLinearColor::White) const;
 	FString GetAttackInputText(bool bPrimaryAttack, bool bJumpAttack) const;
+	const URogue10mWeaponSkillProfileDataAsset* FindActiveWeaponProfile() const;
+	void ApplyCharacterData();
+	void ApplyActiveWeaponProfile();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Data", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<URogue10mAttackSkillData> PrimaryAttackSkill;
@@ -118,6 +145,18 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Tree", meta=(AllowPrivateAccess="true"))
 	TSet<FName> UnlockedAttackSkillNames;
 
+	/** 캐릭터의 기본 전투 프로필을 묶는 GDD Character Data Asset입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Character Data", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<URogue10mCharacterDataAsset> CharacterData;
+
+	/** CharacterData가 비어 있을 때 사용할 수 있는 직접 지정 fallback입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Combat|Skill Loadout", meta=(AllowPrivateAccess="true"))
+	TArray<TObjectPtr<URogue10mWeaponSkillProfileDataAsset>> WeaponSkillProfiles;
+
+	UPROPERTY(Transient)
+	TMap<ERogue10mAttackInputSlot, TObjectPtr<URogue10mAttackSkillData>> EquippedSkillBindings;
+
+	ERogue10mWeaponType AppliedProfileWeaponType = ERogue10mWeaponType::Unarmed;
 	float LeftAttackPressedTime = -1.0f;
 	float RightAttackPressedTime = -1.0f;
 	TWeakObjectPtr<const URogue10mAttackSkillData> ActiveComboSourceSkill;

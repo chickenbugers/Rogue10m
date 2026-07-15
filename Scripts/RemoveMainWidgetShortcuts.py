@@ -1,7 +1,7 @@
 import unreal
 
 
-ASSET_PATH = "/Game/Widget/UW_Rogue10mMainWidget"
+ASSET_PATH = "/Game/Widget/WBP_Rogue10mMainHUD"
 WIDGET_NAMES = [
     "EquipmentShortcutWidget",
     "ItemWindowShortcutWidget",

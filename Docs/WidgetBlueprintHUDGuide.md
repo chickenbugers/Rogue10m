@@ -7,7 +7,7 @@ Rogue10m의 화면 UI는 Canvas HUD를 사용하지 않고 UMG Widget Blueprint�
 - 생성 담당: ARogue10mPlayerController::InitializeRunHUD
 - 메인 C++ 부모: URogue10mMainHUDWidget
 - View 데이터 부모: URogue10mRunHUD
-- 기본 Widget Blueprint: Content/Widget/UW_Rogue10mMainWidget
+- 기본 Widget Blueprint: Content/Widget/WBP_Rogue10mMainHUD
 - 파트 Widget Blueprint: Content/Widget/Parts
 - 패널/설정/로그 상태 소유자: ARogue10mPlayerController
 - 체력과 자원 데이터: ARogue10mPlayerState가 소유한 URogue10mAttributeSet
@@ -16,7 +16,7 @@ ARogue10mHUD는 기존 BP_Rogue10mHUD 에셋의 부모 참조를 유지하기 �
 
 ## 메인 Widget Blueprint
 
-UW_Rogue10mMainWidget의 부모는 Rogue10mMainHUDWidget이어야 한다.
+WBP_Rogue10mMainHUD의 부모는 Rogue10mMainHUDWidget이어야 한다.
 
 자동 바인딩이 필요한 파트 이름:
 
@@ -99,7 +99,7 @@ LogLineWidgetClass에 로그 파트 Blueprint를 지정하면 컨테이너 자�
 
 ## 점검 순서
 
-1. UW_Rogue10mMainWidget 부모가 Rogue10mMainHUDWidget인지 확인한다.
+1. WBP_Rogue10mMainHUD 부모가 Rogue10mMainHUDWidget인지 확인한다.
 2. 자동 바인딩 이름과 파트 부모 클래스를 확인한다.
 3. QuickSlotWidgetClass, LogLineWidgetClass, MinimapMarkerWidgetClass를 지정한다.
 4. Compile과 Save를 실행한다.

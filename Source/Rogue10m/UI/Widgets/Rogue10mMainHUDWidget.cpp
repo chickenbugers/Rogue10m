@@ -14,7 +14,6 @@
 namespace
 {
 	const FLinearColor PrototypePanelColor(0.02f, 0.025f, 0.03f, 0.68f);
-	const FLinearColor PrototypeAccentColor(0.72f, 0.58f, 0.28f, 1.0f);
 	const FLinearColor PrototypeTextColor(0.92f, 0.90f, 0.84f, 1.0f);
 
 	FRogue10mHudVitalView MakeIdentityResourceVitalView(const FRogue10mHudIdentityView& IdentityView)
@@ -169,13 +168,20 @@ void URogue10mMainHUDWidget::RefreshFrequentWidgetData()
 	{
 		MonsterInfoWidget->SetMonsterInfoView(GetLookedAtMonsterInfoView());
 	}
-	RefreshMinimapMarkerContainer();
+	// MiniMap is intentionally disabled until its revised UI is ready.
 	BP_OnBoundWidgetDataRefreshed();
 }
 
 void URogue10mMainHUDWidget::RefreshSlowWidgetData()
 {
-	RefreshQuickSlotContainer(SkillSlotContainer, GetSkillQuickSlotViews());
+	if (SkillSlotPanelWidget)
+	{
+		SkillSlotPanelWidget->SetSkillSlotViews(GetSkillQuickSlotViews(), QuickSlotWidgetClass);
+	}
+	else
+	{
+		RefreshQuickSlotContainer(SkillSlotContainer, GetSkillQuickSlotViews());
+	}
 	RefreshQuickSlotContainer(ItemSlotContainer, GetItemQuickSlotViews());
 	RefreshLogContainer(SystemLogContainer, GetSystemLogEntries());
 	RefreshLogContainer(ItemAcquisitionContainer, GetItemAcquisitionEntries());
@@ -200,6 +206,11 @@ void URogue10mMainHUDWidget::AssignOwningMainHUDToBoundWidgets()
 	if (ProgressionWidget)
 	{
 		ProgressionWidget->SetOwningMainHUD(this);
+	}
+
+	if (SkillSlotPanelWidget)
+	{
+		SkillSlotPanelWidget->SetOwningMainHUD(this);
 	}
 
 	if (IdentityWidget)
@@ -291,40 +302,6 @@ void URogue10mMainHUDWidget::RefreshLogContainer(UPanelWidget* Container, const 
 		}
 	}
 }
-void URogue10mMainHUDWidget::RefreshMinimapMarkerContainer()
-{
-	if (!MinimapMarkerContainer || !MinimapMarkerWidgetClass)
-	{
-		return;
-	}
-
-	const TArray<FRogue10mHudMinimapMarkerView> Views = GetPrototypeMinimapMarkers();
-	if (MinimapMarkerContainer->GetChildrenCount() != Views.Num())
-	{
-		MinimapMarkerContainer->ClearChildren();
-		for (const FRogue10mHudMinimapMarkerView& View : Views)
-		{
-			URogue10mMinimapMarkerWidget* MarkerWidget = CreateWidget<URogue10mMinimapMarkerWidget>(GetOwningPlayer(), MinimapMarkerWidgetClass);
-			if (!MarkerWidget)
-			{
-				continue;
-			}
-
-			MarkerWidget->SetOwningMainHUD(this);
-			MarkerWidget->SetMinimapMarkerView(View);
-			MinimapMarkerContainer->AddChild(MarkerWidget);
-		}
-		return;
-	}
-
-	for (int32 Index = 0; Index < Views.Num(); ++Index)
-	{
-		if (URogue10mMinimapMarkerWidget* MarkerWidget = Cast<URogue10mMinimapMarkerWidget>(MinimapMarkerContainer->GetChildAt(Index)))
-		{
-			MarkerWidget->SetMinimapMarkerView(Views[Index]);
-		}
-	}
-}
 void URogue10mMainHUDWidget::EnsurePrototypeLayout()
 {
 	if (!bCreatePrototypeLayoutWhenEmpty || !WidgetTree)
@@ -357,12 +334,6 @@ void URogue10mMainHUDWidget::EnsurePrototypeLayout()
 		AddCanvasChild(RootCanvas, MonsterPanel, FVector2D(0.5f, 0.0f), FVector2D(0.5f, 0.0f), FVector2D(0.0f, 24.0f), FVector2D(420.0f, 52.0f), FVector2D(0.5f, 0.0f));
 	}
 
-	UBorder* MinimapPanel = CreatePrototypePanel(WidgetTree, TEXT("Panel_Minimap"));
-	if (MinimapPanel)
-	{
-		MinimapPanel->SetContent(CreatePrototypeText(WidgetTree, TEXT("Text_MinimapPlaceholder"), TEXT("미니맵 / NPC / 몬스터 / 포탈"), 12.0f));
-		AddCanvasChild(RootCanvas, MinimapPanel, FVector2D(1.0f, 0.0f), FVector2D(1.0f, 0.0f), FVector2D(-24.0f, 24.0f), FVector2D(260.0f, 180.0f), FVector2D(1.0f, 0.0f));
-	}
 
 	UBorder* ItemAcquisitionPanel = CreatePrototypePanel(WidgetTree, TEXT("Panel_ItemAcquisition"));
 	if (ItemAcquisitionPanel)

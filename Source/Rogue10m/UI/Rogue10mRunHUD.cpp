@@ -8,6 +8,7 @@
 #include "Rogue10mCharacter.h"
 #include "Rogue10mCombatComponent.h"
 #include "Rogue10mPlayerController.h"
+#include "Rogue10mSkillLoadoutDataAsset.h"
 #include "Rogue10mPlayerState.h"
 
 namespace
@@ -184,40 +185,71 @@ TArray<FRogue10mHudQuickSlotView> URogue10mRunHUD::GetSkillQuickSlotViews() cons
 		return Views;
 	}
 
-	const TArray<const URogue10mAttackSkillData*> Skills = Combat->GetWeaponQuickSlotSkills();
-	Views.Reserve(FMath::Max(1, Skills.Num()));
-	for (int32 Index = 0; Index < Skills.Num(); ++Index)
+	struct FSkillSlotDefinition
 	{
-		const URogue10mAttackSkillData* Skill = Skills[Index];
-		if (!Skill)
-		{
-			continue;
-		}
+		ERogue10mAttackInputSlot InputSlot;
+		const TCHAR* InputLabel;
+	};
+	const FSkillSlotDefinition Definitions[] = {
+		{ ERogue10mAttackInputSlot::Primary, TEXT("좌클릭") },
+		{ ERogue10mAttackInputSlot::Special, TEXT("우클릭") },
+		{ ERogue10mAttackInputSlot::ChargedPrimary, TEXT("좌클릭 차징") },
+		{ ERogue10mAttackInputSlot::ChargedSpecial, TEXT("우클릭 차징") }
+	};
+
+	Views.Reserve(5);
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Definitions); ++Index)
+	{
+		const FSkillSlotDefinition& Definition = Definitions[Index];
+		const URogue10mAttackSkillData* Skill = Combat->GetEquippedSkill(Definition.InputSlot);
 
 		FRogue10mHudQuickSlotView View;
 		View.SlotNumber = Index + 1;
-		View.DisplayName = Skill->SkillName;
-		View.IconColor = Skill->IconTint;
-		View.SkillIcon = Skill->SkillIcon;
-		View.CooldownRemaining = Combat->GetAttackCooldownRemaining();
-		View.CooldownDuration = Combat->GetAttackCooldownDuration();
-		View.CooldownNormalized = View.CooldownDuration > 0.0f
-			? FMath::Clamp(View.CooldownRemaining / View.CooldownDuration, 0.0f, 1.0f)
-			: 0.0f;
-		View.bUnlocked = true;
+		View.InputSlot = Definition.InputSlot;
+		View.InputText = FText::FromString(Definition.InputLabel);
+		View.SkillData = const_cast<URogue10mAttackSkillData*>(Skill);
+		View.bUnlocked = Skill && Combat->IsAttackSkillUnlocked(Skill);
+		View.IconColor = View.bUnlocked ? Skill->IconTint : FLinearColor(0.18f, 0.18f, 0.2f, 1.0f);
+		View.SkillIcon = Skill ? Skill->SkillIcon : nullptr;
+
+		if (View.bUnlocked)
+		{
+			TArray<FString> UnlockedComboNames;
+			const URogue10mAttackSkillData* ComboSkill = Skill;
+			while (ComboSkill && Combat->IsAttackSkillUnlocked(ComboSkill))
+			{
+				UnlockedComboNames.Add(ComboSkill->SkillName.ToString());
+				ComboSkill = ComboSkill->bEnableCombo ? ComboSkill->NextComboSkill : nullptr;
+			}
+			View.DisplayName = FText::FromString(FString::Join(UnlockedComboNames, TEXT(" → ")));
+			View.CooldownRemaining = Combat->GetAttackCooldownRemaining();
+			View.CooldownDuration = Combat->GetAttackCooldownDuration();
+			View.CooldownNormalized = View.CooldownDuration > 0.0f
+				? FMath::Clamp(View.CooldownRemaining / View.CooldownDuration, 0.0f, 1.0f)
+				: 0.0f;
+		}
 		Views.Add(View);
 	}
 
-	if (Views.IsEmpty())
+	FRogue10mHudQuickSlotView DodgeView;
+	DodgeView.SlotNumber = 5;
+	DodgeView.InputText = FText::FromString(TEXT("E"));
+	DodgeView.bDodgeSlot = true;
+	DodgeView.bUnlocked = true;
+	if (const URogue10mDodgeSkillDataAsset* DodgeSkill = Combat->GetActiveDodgeSkill())
 	{
-		FRogue10mHudQuickSlotView EmptyView;
-		EmptyView.SlotNumber = 1;
-		EmptyView.bUnlocked = false;
-		Views.Add(EmptyView);
+		DodgeView.DisplayName = DodgeSkill->DisplayName;
+		DodgeView.SkillIcon = DodgeSkill->Icon;
+		DodgeView.IconColor = FLinearColor(0.32f, 0.68f, 1.0f, 1.0f);
 	}
+	else
+	{
+		DodgeView.DisplayName = FText::FromString(TEXT("기본 회피"));
+		DodgeView.IconColor = FLinearColor(0.32f, 0.68f, 1.0f, 1.0f);
+	}
+	Views.Add(DodgeView);
 	return Views;
 }
-
 TArray<FRogue10mHudQuickSlotView> URogue10mRunHUD::GetItemQuickSlotViews() const
 {
 	TArray<FRogue10mHudQuickSlotView> Views;
@@ -270,7 +302,7 @@ TArray<FRogue10mHudLogEntryView> URogue10mRunHUD::GetItemAcquisitionEntries() co
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
 	for (const FRogue10mRuntimeLogEntry& Entry : Controller->GetItemAcquisitionEntries())
 	{
-		if (Entry.ExpireTime <= CurrentTime)
+		if (Entry.ExpireTime <= CurrentTime || Entry.Quantity <= 0)
 		{
 			continue;
 		}
@@ -278,6 +310,9 @@ TArray<FRogue10mHudLogEntryView> URogue10mRunHUD::GetItemAcquisitionEntries() co
 		View.Message = FText::FromString(Entry.Message);
 		View.Color = Entry.Color;
 		View.RemainingSeconds = Entry.ExpireTime - CurrentTime;
+		View.ItemIcon = Entry.ItemIcon.Get();
+		View.Quantity = Entry.Quantity;
+		View.bItemAcquisition = true;
 		Views.Add(View);
 	}
 	return Views;
