@@ -13,9 +13,10 @@
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "Components/HorizontalBox.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
+#include "Components/SizeBox.h"
+#include "Engine/Texture2D.h"
 #include "Components/TextBlock.h"
 #include "Components/UniformGridPanel.h"
 #include "InputCoreTypes.h"
@@ -63,16 +64,57 @@ void URogue10mInventoryItemWidget::InitializeGridItem(
 	InstanceId = InEntry.InstanceId;
 	ItemData = InEntry.ItemData;
 	Quantity = InEntry.Quantity;
-	bRotatedClockwise = InEntry.bRotatedClockwise;
 	CellSize = InCellSize;
+
+	const FIntPoint Footprint = ItemData ? ItemData->GetClampedInventorySize() : FIntPoint(1, 1);
+	if (UI_InventoryItemSize)
+	{
+		UI_InventoryItemSize->SetWidthOverride(Footprint.X * CellSize);
+		UI_InventoryItemSize->SetHeightOverride(Footprint.Y * CellSize);
+		UI_InventoryItemSize->SetClipping(EWidgetClipping::ClipToBoundsAlways);
+	}
+	UTexture2D* Icon = ItemData ? ItemData->InventoryIcon.LoadSynchronous() : nullptr;
 
 	if (UI_InventoryItemIcon)
 	{
-		UI_InventoryItemIcon->SetBrushFromTexture(ItemData ? ItemData->InventoryIcon.LoadSynchronous() : nullptr);
+		// Compute the fitted size explicitly so the icon always receives non-zero paint geometry.
+		UI_InventoryItemIcon->SetBrushFromTexture(Icon, true);
+		UI_InventoryItemIcon->SetBrushTintColor(FSlateColor(FLinearColor::White));
+		UI_InventoryItemIcon->SetColorAndOpacity(FLinearColor::White);
+		UI_InventoryItemIcon->SetRenderOpacity(1.0f);
+		if (Icon)
+		{
+			const float AvailableWidth = FMath::Max(1.0f, Footprint.X * CellSize - 8.0f);
+			const float AvailableHeight = FMath::Max(1.0f, Footprint.Y * CellSize - 8.0f);
+			const float TextureWidth = FMath::Max(1.0f, static_cast<float>(Icon->GetSizeX()));
+			const float TextureHeight = FMath::Max(1.0f, static_cast<float>(Icon->GetSizeY()));
+			const float FitScale = FMath::Min(AvailableWidth / TextureWidth, AvailableHeight / TextureHeight);
+			const float IconScale = ItemData ? FMath::Clamp(ItemData->InventoryIconScale, 0.1f, 2.0f) : 1.0f;
+			FSlateBrush IconBrush = UI_InventoryItemIcon->GetBrush();
+			IconBrush.SetImageSize(FVector2D(TextureWidth, TextureHeight) * FitScale * IconScale);
+			UI_InventoryItemIcon->SetBrush(IconBrush);
+		}
+		UI_InventoryItemIcon->SetRenderScale(FVector2D::UnitVector);
+		UI_InventoryItemIcon->SetVisibility(Icon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	if (UI_InventoryItemQuantityText)
 	{
-		UI_InventoryItemQuantityText->SetText(Quantity > 1 ? FText::AsNumber(Quantity) : FText::GetEmpty());
+		const bool bShowQuantity = ItemData
+			&& ItemData->Category != ERogue10mItemCategory::Equipment
+			&& Quantity > 1;
+		FText Label = FText::GetEmpty();
+		if (Icon)
+		{
+			Label = bShowQuantity ? FText::AsNumber(Quantity) : FText::GetEmpty();
+		}
+		else
+		{
+			const FString FallbackLabel = bShowQuantity
+				? FString::Printf(TEXT("%d×%d · %d"), Footprint.X, Footprint.Y, Quantity)
+				: FString::Printf(TEXT("%d×%d"), Footprint.X, Footprint.Y);
+			Label = FText::FromString(FallbackLabel);
+		}
+		UI_InventoryItemQuantityText->SetText(Label);
 	}
 	SetPlacementPreview(false, true);
 }
@@ -81,17 +123,17 @@ void URogue10mInventoryItemWidget::SetPlacementPreview(bool bPreviewing, bool bC
 {
 	if (UI_InventoryItemPreviewBorder)
 	{
+		FLinearColor ItemTint = ItemData ? ItemData->InventoryTint : FLinearColor(0.05f, 0.05f, 0.05f, 0.35f);
+		if (!bPreviewing && ItemData && ItemData->InventoryIcon.IsValid())
+		{
+			ItemTint.A = FMath::Min(ItemTint.A, 0.18f);
+		}
 		UI_InventoryItemPreviewBorder->SetBrushColor(bPreviewing
 			? (bCanPlace ? FLinearColor(0.1f, 0.8f, 0.2f, 0.45f) : FLinearColor(0.9f, 0.08f, 0.05f, 0.55f))
-			: (ItemData ? ItemData->InventoryTint : FLinearColor(0.05f, 0.05f, 0.05f, 0.35f)));
+			: ItemTint);
 	}
 }
 
-void URogue10mInventoryItemWidget::SetPreviewSize(FIntPoint GridSize, float InCellSize)
-{
-	SetRenderScale(FVector2D(FMath::Max(1, GridSize.X), FMath::Max(1, GridSize.Y)));
-	CellSize = InCellSize;
-}
 
 FReply URogue10mInventoryItemWidget::NativeOnMouseButtonDown(
 	const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -99,8 +141,7 @@ FReply URogue10mInventoryItemWidget::NativeOnMouseButtonDown(
 	if (ItemData && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		const FVector2D Local = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
-		const FIntPoint BaseSize = ItemData->GetClampedInventorySize();
-		const FIntPoint Size = bRotatedClockwise ? FIntPoint(BaseSize.Y, BaseSize.X) : BaseSize;
+		const FIntPoint Size = ItemData->GetClampedInventorySize();
 		DragGrabOffset = FIntPoint(
 			FMath::Clamp(FMath::FloorToInt(Local.X / CellSize), 0, Size.X - 1),
 			FMath::Clamp(FMath::FloorToInt(Local.Y / CellSize), 0, Size.Y - 1));
@@ -122,7 +163,7 @@ void URogue10mInventoryItemWidget::NativeOnDragDetected(
 
 	URogue10mItemDragDropOperation* Operation = NewObject<URogue10mItemDragDropOperation>(this);
 	Operation->InitializeGridItemDrag(Inventory, InventoryWindow, ContainerIndex, InstanceId,
-		ItemData, bRotatedClockwise, CellSize);
+		ItemData, CellSize);
 	Operation->Pivot = EDragPivot::MouseDown;
 	Operation->GrabCellOffset = DragGrabOffset;
 
@@ -134,10 +175,8 @@ void URogue10mInventoryItemWidget::NativeOnDragDetected(
 		PreviewEntry.InstanceId = InstanceId;
 		PreviewEntry.ItemData = ItemData;
 		PreviewEntry.Quantity = Quantity;
-		PreviewEntry.bRotatedClockwise = bRotatedClockwise;
 		Preview->InitializeGridItem(Inventory, InventoryWindow, ContainerIndex, PreviewEntry, CellSize);
 		Preview->SetPlacementPreview(true, true);
-		Preview->SetPreviewSize(Operation->GetFootprint(), CellSize);
 		Preview->SetVisibility(ESlateVisibility::HitTestInvisible);
 		Operation->PreviewWidget = Preview;
 		Operation->DefaultDragVisual = Preview;
@@ -172,10 +211,7 @@ void URogue10mBagTabWidget::InitializeBagTab(
 
 void URogue10mBagTabWidget::HandleBagTabClicked()
 {
-	if (InventoryWindow)
-	{
-		InventoryWindow->SelectInventoryContainer(ContainerIndex);
-	}
+	// 현재 인벤토리 화면은 기본 컨테이너 하나로 고정되어 있습니다.
 }
 void URogue10mInventoryWindowWidget::InitializeMenuWindow(
 	URogue10mInventoryComponent* InInventoryComponent)
@@ -241,37 +277,6 @@ void URogue10mInventoryWindowWidget::EndGridItemDrag(URogue10mItemDragDropOperat
 	}
 }
 
-void URogue10mInventoryWindowWidget::SelectInventoryContainer(int32 ContainerIndex)
-{
-	const URogue10mInventoryComponent* Inventory = GetInventoryComponent();
-	if (Inventory && Inventory->GetInventoryContainers().IsValidIndex(ContainerIndex))
-	{
-		DisplayedContainerIndex = ContainerIndex;
-		CachedGridSize = FIntPoint::ZeroValue;
-		RefreshInventoryDisplay();
-	}
-}
-
-FReply URogue10mInventoryWindowWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
-{
-	URogue10mItemDragDropOperation* Operation = ActiveGridDragOperation.Get();
-	if (Operation && InKeyEvent.GetKey() == EKeys::R)
-	{
-		Operation->RotateClockwise();
-		if (URogue10mInventoryComponent* Inventory = GetInventoryComponent())
-		{
-			const FGuid IgnoredId = Operation->SourceContainerIndex == DisplayedContainerIndex ? Operation->InstanceId : FGuid();
-			Operation->bPreviewCanPlace = Inventory->CanPlaceGridItem(DisplayedContainerIndex, Operation->ItemData,
-				Operation->PreviewGridPosition, IgnoredId, Operation->bRotatedClockwise);
-			if (Operation->PreviewWidget)
-			{
-				Operation->PreviewWidget->SetPlacementPreview(true, Operation->bPreviewCanPlace);
-			}
-		}
-		return FReply::Handled();
-	}
-	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
-}
 
 bool URogue10mInventoryWindowWidget::NativeOnDragOver(const FGeometry& InGeometry,
 	const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
@@ -293,7 +298,7 @@ bool URogue10mInventoryWindowWidget::NativeOnDrop(const FGeometry& InGeometry,
 	}
 	UpdateGridDropPreview(InDragDropEvent, Operation);
 	const bool bMoved = Operation->bPreviewCanPlace && Inventory->TryMoveGridItem(Operation->SourceContainerIndex,
-		Operation->InstanceId, DisplayedContainerIndex, Operation->PreviewGridPosition, Operation->bRotatedClockwise);
+		Operation->InstanceId, PrimaryContainerIndex, Operation->PreviewGridPosition);
 	if (bMoved)
 	{
 		Operation->MarkDropHandled();
@@ -321,9 +326,9 @@ bool URogue10mInventoryWindowWidget::UpdateGridDropPreview(const FDragDropEvent&
 	Operation->PreviewGridPosition = FIntPoint(
 		FMath::FloorToInt(Local.X / InventoryCellSize) - Operation->GrabCellOffset.X,
 		FMath::FloorToInt(Local.Y / InventoryCellSize) - Operation->GrabCellOffset.Y);
-	const FGuid IgnoredId = Operation->SourceContainerIndex == DisplayedContainerIndex ? Operation->InstanceId : FGuid();
-	Operation->bPreviewCanPlace = Inventory->CanPlaceGridItem(DisplayedContainerIndex, Operation->ItemData,
-		Operation->PreviewGridPosition, IgnoredId, Operation->bRotatedClockwise);
+	const FGuid IgnoredId = Operation->SourceContainerIndex == PrimaryContainerIndex ? Operation->InstanceId : FGuid();
+	Operation->bPreviewCanPlace = Inventory->CanPlaceGridItem(PrimaryContainerIndex, Operation->ItemData,
+		Operation->PreviewGridPosition, IgnoredId);
 	if (Operation->PreviewWidget)
 	{
 		Operation->PreviewWidget->SetPlacementPreview(true, Operation->bPreviewCanPlace);
@@ -355,14 +360,9 @@ void URogue10mInventoryWindowWidget::RefreshInventoryDisplay()
 		return;
 	}
 	const TArray<FRogue10mInventoryContainer>& Containers = Inventory->GetInventoryContainers();
-	if (!Containers.IsValidIndex(DisplayedContainerIndex))
+	if (Containers.IsValidIndex(PrimaryContainerIndex))
 	{
-		DisplayedContainerIndex = 0;
-	}
-	if (Containers.IsValidIndex(DisplayedContainerIndex))
-	{
-		RebuildInventoryCells(Containers[DisplayedContainerIndex].GridSize);
-		RebuildBagTabs();
+		RebuildInventoryCells(Containers[PrimaryContainerIndex].GridSize);
 		RebuildInventoryItems();
 	}
 	if (UI_InventoryMoneyText)
@@ -428,11 +428,11 @@ void URogue10mInventoryWindowWidget::RebuildInventoryItems()
 	}
 	UI_InventoryItemCanvas->ClearChildren();
 	URogue10mInventoryComponent* Inventory = GetInventoryComponent();
-	if (!Inventory || !InventoryItemWidgetClass || !Inventory->GetInventoryContainers().IsValidIndex(DisplayedContainerIndex))
+	if (!Inventory || !InventoryItemWidgetClass || !Inventory->GetInventoryContainers().IsValidIndex(PrimaryContainerIndex))
 	{
 		return;
 	}
-	const FRogue10mInventoryContainer& Container = Inventory->GetInventoryContainers()[DisplayedContainerIndex];
+	const FRogue10mInventoryContainer& Container = Inventory->GetInventoryContainers()[PrimaryContainerIndex];
 	for (const FRogue10mInventoryGridEntry& Entry : Container.Entries)
 	{
 		if (!Entry.ItemData)
@@ -444,37 +444,121 @@ void URogue10mInventoryWindowWidget::RebuildInventoryItems()
 		{
 			continue;
 		}
-		ItemWidget->InitializeGridItem(Inventory, this, DisplayedContainerIndex, Entry, InventoryCellSize);
+		ItemWidget->InitializeGridItem(Inventory, this, PrimaryContainerIndex, Entry, InventoryCellSize);
 		UCanvasPanelSlot* CanvasSlot = UI_InventoryItemCanvas->AddChildToCanvas(ItemWidget);
-		const FIntPoint BaseSize = Entry.ItemData->GetClampedInventorySize();
-		const FIntPoint Size = Entry.bRotatedClockwise ? FIntPoint(BaseSize.Y, BaseSize.X) : BaseSize;
+		const FIntPoint Size = Entry.ItemData->GetClampedInventorySize();
+		CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f));
+		CanvasSlot->SetAlignment(FVector2D::ZeroVector);
+		CanvasSlot->SetAutoSize(false);
 		CanvasSlot->SetPosition(FVector2D(Entry.Position.X * InventoryCellSize, Entry.Position.Y * InventoryCellSize));
 		CanvasSlot->SetSize(FVector2D(Size.X * InventoryCellSize, Size.Y * InventoryCellSize));
 	}
 }
 
-void URogue10mInventoryWindowWidget::RebuildBagTabs()
+
+void URogue10mEquipmentWindowWidget::InitializeMenuWindow(URogue10mInventoryComponent* InInventoryComponent)
 {
-	if (!UI_BagTabContainer)
+	if (URogue10mInventoryComponent* PreviousInventory = GetInventoryComponent())
+	{
+		PreviousInventory->OnEquipmentChanged.RemoveDynamic(
+			this, &URogue10mEquipmentWindowWidget::HandleEquipmentChanged);
+	}
+	Super::InitializeMenuWindow(InInventoryComponent);
+	if (URogue10mInventoryComponent* Inventory = GetInventoryComponent())
+	{
+		Inventory->OnEquipmentChanged.AddUniqueDynamic(
+			this, &URogue10mEquipmentWindowWidget::HandleEquipmentChanged);
+	}
+	RefreshEquipmentDisplay();
+}
+
+void URogue10mEquipmentWindowWidget::SetWindowOpen(bool bOpen)
+{
+	Super::SetWindowOpen(bOpen);
+	if (bOpen)
+	{
+		RefreshEquipmentDisplay();
+	}
+}
+
+void URogue10mEquipmentWindowWidget::NativeDestruct()
+{
+	if (URogue10mInventoryComponent* Inventory = GetInventoryComponent())
+	{
+		Inventory->OnEquipmentChanged.RemoveDynamic(
+			this, &URogue10mEquipmentWindowWidget::HandleEquipmentChanged);
+	}
+	Super::NativeDestruct();
+}
+
+void URogue10mEquipmentWindowWidget::HandleEquipmentChanged()
+{
+	RefreshEquipmentDisplay();
+}
+
+void URogue10mEquipmentWindowWidget::RefreshEquipmentDisplay()
+{
+	URogue10mInventoryComponent* Inventory = GetInventoryComponent();
+	if (!Inventory)
 	{
 		return;
 	}
-	UI_BagTabContainer->ClearChildren();
-	const URogue10mInventoryComponent* Inventory = GetInventoryComponent();
-	if (!Inventory || !BagTabWidgetClass)
+
+	const auto FindSlot = [Inventory](ERogue10mInventorySlotType SlotType) -> const FRogue10mInventorySlot*
 	{
-		return;
-	}
-	const TArray<FRogue10mInventoryContainer>& Containers = Inventory->GetInventoryContainers();
-	for (int32 Index = 0; Index < Containers.Num(); ++Index)
-	{
-		URogue10mBagTabWidget* Tab = CreateWidget<URogue10mBagTabWidget>(GetOwningPlayer(), BagTabWidgetClass);
-		if (Tab)
+		for (const FRogue10mInventorySlot& Slot : Inventory->GetLeftEquipmentSlots())
 		{
-			Tab->InitializeBagTab(this, Index, Containers[Index].DisplayName, Index == DisplayedContainerIndex);
-			UI_BagTabContainer->AddChild(Tab);
+			if (Slot.SlotType == SlotType)
+			{
+				return &Slot;
+			}
 		}
+		for (const FRogue10mInventorySlot& Slot : Inventory->GetRightEquipmentSlots())
+		{
+			if (Slot.SlotType == SlotType)
+			{
+				return &Slot;
+			}
+		}
+		return nullptr;
+	};
+
+	const auto SetSlotIcon = [](UImage* Image, const FRogue10mInventorySlot* EquipmentSlot)
+	{
+		if (!Image)
+		{
+			return;
+		}
+		const URogue10mItemDataAsset* ItemData = EquipmentSlot && EquipmentSlot->bHasEquippedItem
+			? EquipmentSlot->EquippedItem.ItemData.Get()
+			: nullptr;
+		UTexture2D* Icon = ItemData ? ItemData->InventoryIcon.LoadSynchronous() : nullptr;
+		Image->SetBrushFromTexture(Icon, true);
+		if (!Icon)
+		{
+			Image->SetVisibility(ESlateVisibility::Collapsed);
+			return;
+		}
+
+		const float IconScale = FMath::Clamp(ItemData->InventoryIconScale, 0.1f, 2.0f);
+		Image->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		Image->SetRenderScale(FVector2D(IconScale, IconScale));
+		Image->SetVisibility(ESlateVisibility::HitTestInvisible);
+	};
+
+	const FRogue10mInventorySlot* AccessorySlot = FindSlot(ERogue10mInventorySlotType::Ring);
+	if (!AccessorySlot || !AccessorySlot->bHasEquippedItem)
+	{
+		AccessorySlot = FindSlot(ERogue10mInventorySlotType::Earring);
 	}
+
+	SetSlotIcon(UI_WeaponSlotIcon, FindSlot(ERogue10mInventorySlotType::MainWeapon));
+	SetSlotIcon(UI_HeadSlotIcon, FindSlot(ERogue10mInventorySlotType::Head));
+	SetSlotIcon(UI_ChestSlotIcon, FindSlot(ERogue10mInventorySlotType::Armor));
+	SetSlotIcon(UI_HandsSlotIcon, FindSlot(ERogue10mInventorySlotType::Hands));
+	SetSlotIcon(UI_LegsSlotIcon, FindSlot(ERogue10mInventorySlotType::Legs));
+	SetSlotIcon(UI_FeetSlotIcon, FindSlot(ERogue10mInventorySlotType::Shoes));
+	SetSlotIcon(UI_AccessorySlotIcon, AccessorySlot);
 }
 void URogue10mSkillTreeEntryWidget::SetSkillData(URogue10mAttackSkillData* InSkillData, bool bInUnlocked)
 {

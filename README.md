@@ -72,10 +72,12 @@
 ### 메뉴 UI와 NxM 인벤토리
 
 - Inventory, Equipment, SkillTree 메뉴를 기능별 Widget Blueprint 폴더로 분리
-- 10×10 기본 인벤토리와 가방별 가변 GridSize 지원
+- 10×10 기본 인벤토리 하나로 고정하며 가방 탭은 표시하지 않음
 - 아이템 Data Asset의 InventorySize를 이용한 1×1부터 NxM까지의 공간 점유
 - Canvas 좌표 기반 드래그 앤 드롭, 경계·아이템 충돌 프리뷰
-- 드래그 중 R키를 이용한 시계 방향 90도 회전
+- 회전 없이 Item Data Asset의 `InventorySize`를 고정 점유 크기로 사용
+- 44px 셀 배수의 정확한 footprint와 ScaleToFit 기반 아이콘 원본 종횡비 보존
+- 장비 카테고리는 보유 개수 미표시, 중첩 가능한 비장비 아이템만 수량 표시
 - 셀은 WBP_InventoryCell UserWidget으로 GridSize X×Y만큼 자동 생성
 - 하단에 Gold와 현재 무게 / 최대 무게 표시
 - 아이콘이 없는 초기 아이템은 InventoryTint 색상으로 구분

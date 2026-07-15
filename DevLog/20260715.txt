@@ -122,3 +122,120 @@
 
 - README에 메뉴 Widget Blueprint 구조, 10x10/NxM 인벤토리, 드래그·회전·충돌 프리뷰, 프로토타입 Data Asset 위치와 조정 항목을 추가했다.
 - 같은 Sprint에서 누적된 C++, Config, Editor Python, Widget Blueprint, Data Asset, 문서 변경을 하나의 게시 범위로 확정했다.
+
+[개발 작업] Sprint#1-14 인벤토리 아이템 Footprint 비율 수정
+
+- 1x1, 2x3, 4x3 아이템의 내부 SizeBox와 Canvas 슬롯을 동일한 44px 셀 배수로 맞췄다.
+- 아이템 회전 상태, R키 입력, 회전된 footprint 계산을 제거하고 Data Asset의 InventorySize를 고정 점유 크기로 사용하도록 변경했다.
+- 아이콘이 없는 프로토타입에서 흰 이미지가 크기와 색상을 가리지 않도록 아이콘을 숨기고 InventoryTint를 표시하도록 수정했다.
+- 각 프로토타입에 1×1, 2×3, 4×3 크기 텍스트를 표시해 점유 칸을 즉시 구분할 수 있게 했다.
+- WBP_InventoryItem을 commandlet으로 재구성하고 필수 UI_InventoryItemSize 바인딩과 저장을 확인했다.
+- Rogue10mEditor Win64 Development 빌드에 성공했다.
+
+[Notion 정리 후보]
+제목: NxM 인벤토리 아이템 고정 Footprint와 셀 비율 정렬
+요약: 아이템 회전 규칙을 제거하고 Data Asset의 InventorySize를 단일 기준으로 사용한다. Canvas 슬롯과 내부 SizeBox를 셀당 44px 비율로 동기화해 1×1, 2×3, 4×3 아이템이 그리드 칸에 정확히 맞도록 했다. 아이콘이 없는 테스트 아이템은 InventoryTint와 크기 텍스트로 구분한다.
+후속 확인: PIE에서 세 프로토타입의 외곽선이 셀 경계와 일치하는지, 드래그 충돌 프리뷰와 재배치가 정상인지 확인한다.
+
+
+[개발 작업] Sprint#1-14 장비 아이템 수량 표시 규칙 보완
+
+- 장비 카테고리 아이템은 수량 값과 관계없이 NxM 점유 크기만 표시하도록 변경했다.
+- 소비·재료 등 중첩 가능한 비장비 아이템만 수량이 2개 이상일 때 `크기 · 수량` 형식으로 표시한다.
+- 장비와 일반 아이템의 표시 정책은 Data Asset의 Category를 기준으로 판정한다.
+
+[Notion 정리 후보]
+제목: 인벤토리 장비 아이템 수량 표시 정책
+요약: 장비 아이템은 개념상 개별 인스턴스이므로 수량을 표시하지 않고 NxM 점유 크기만 노출한다. 중첩 가능한 비장비 아이템만 2개 이상일 때 크기와 수량을 함께 표시한다.
+
+
+[개발 작업] Sprint#1-14 인벤토리 아이템 Widget 전체 영역 Fill 보정
+
+- Canvas 슬롯 크기만 NxM으로 확장되고 내부 Border는 텍스트 Desired Size로 축소되던 원인을 확인했다.
+- WBP_InventoryItem의 SizeBox 자식 Grid, Preview Border, Icon 슬롯을 가로·세로 Fill 정렬로 변경했다.
+- 크기 텍스트는 전체 아이템 영역 중앙 정렬로 유지했다.
+- 열린 Unreal Editor의 Remote Execution으로 WBP_InventoryItem을 재구성·컴파일·저장했다.
+- 결과적으로 1x1은 44x44, 2x3은 88x132, 4x3은 176x132의 실제 Widget 표시 영역을 사용한다.
+
+[Notion 정리 후보]
+제목: NxM 인벤토리 Item Widget Fill 정렬 보정
+요약: Canvas 슬롯과 SizeBox의 크기가 맞아도 SizeBox 자식 슬롯이 Fill이 아니면 Border가 텍스트 크기로 축소된다. Grid와 Border 슬롯을 가로·세로 Fill로 강제해 전체 NxM footprint가 색상 및 상호작용 영역이 되도록 수정했다.
+
+
+[개발 작업] Sprint#1-14 단일 NxM 인벤토리 아이콘 비율 보정
+
+- Diablo II의 단일 고정 그리드와 마비노기의 다칸 아이템 표현을 기준으로 현재 인벤토리 표시 계약을 다시 정리했다.
+- Inventory Window에서 UI_BagTabContainer와 BagTabWidgetClass 연결을 제거하고 기본 컨테이너 인덱스 0 하나만 표시하도록 고정했다.
+- 아이템의 Canvas 슬롯과 내부 SizeBox를 InventorySize의 가로·세로 셀 수에 44px를 곱한 크기로 동일하게 유지했다.
+- 아이콘을 4px 안전 여백이 있는 ScaleBox 안에 배치하고 ScaleToFit을 적용해 세로형·가로형 텍스처의 원본 종횡비를 보존했다.
+- SetBrushFromTexture의 MatchSize를 활성화해 ScaleBox가 실제 텍스처 크기를 기준으로 계산하도록 했다.
+- 아이콘이 있는 아이템은 크기 문자열을 숨기고 비장비 스택의 수량만 우하단에 표시하도록 정리했다.
+- 아이콘이 없는 프로토타입은 InventoryTint와 W×H 표기를 유지해 테스트 크기를 식별할 수 있게 했다.
+- 가방 탭이 빠진 공간에 맞춰 Grid Frame, Grid, ItemCanvas 중심을 (0,-12)로 통일했다.
+- Rogue10mEditor 빌드에 성공했고, WBP_InventoryItem과 WBP_InventoryWindow를 Editor Python으로 재구성했다.
+- 새 commandlet에서 메뉴 WBP 7종과 내부 클래스 참조를 다시 검증했으며 최종 Blueprint/Python 오류는 없었다.
+
+[Notion 정리 후보]
+제목: 단일 NxM 인벤토리의 아이콘 종횡비 보존
+요약: 기본 10×10 인벤토리 하나로 UI를 고정하고, 아이템 점유 영역과 그림 영역을 분리했다. 점유 영역은 W×44, H×44로 셀과 정확히 맞추고 아이콘은 4px 여백의 ScaleBox에서 ScaleToFit되어 원본 비율을 유지한다. 장비 수량과 아이콘이 있는 아이템의 크기 문자열은 숨기고 필요한 스택 수량만 우하단에 표시한다.
+검증: Rogue10mEditor 빌드 성공, Inventory Item/Window WBP 재구성 성공, 새 commandlet에서 메뉴 WBP 7종 컴파일 및 참조 검증 성공, 최종 Blueprint/Python 오류 0건.
+후속 확인: PIE에서 실제 정사각형·세로형·가로형 아이콘과 1×1·2×3·4×3 footprint를 16:9/16:10 및 UI DPI 환경에서 시각 확인한다.
+
+[개발 작업] Sprint#1-14 Inventory Item Designer 기준 크기 수정
+
+- 열린 Unreal Editor에서 WBP_InventoryItem의 실제 Designer 속성을 직접 점검했다.
+- UI_InventoryItemSize의 Width Override와 Height Override가 모두 0이라 런타임 초기화 전 기준 크기와 Designer 프리뷰가 없는 문제를 확인했다.
+- Designer 및 1×1 fallback 기준을 44×44로 명시하고, 런타임에는 기존대로 InventorySize에 CellSize를 곱한 값으로 덮어쓰도록 유지했다.
+- UI_InventoryItemPreviewBorder의 기본 Content Padding 4/2를 0으로 변경해 footprint 계층의 여백 기준을 명확하게 했다.
+- Root와 Preview Border는 Fill, Icon ScaleBox는 4px Padding과 ScaleToFit, Quantity Text는 우하단 정렬임을 열린 Editor에서 재확인했다.
+- WBP_InventoryItem을 열린 Editor에서 컴파일하고 저장했으며 재생성 스크립트에도 동일한 설정을 반영했다.
+
+[Notion 정리 후보]
+제목: Inventory Item Designer 44×44 기준 크기 보정
+요약: 동적 NxM 런타임 크기만 고려해 비어 있던 WBP_InventoryItem SizeBox 기본값을 44×44로 설정했다. Border Padding은 0, Icon ScaleBox는 4px/ScaleToFit으로 분리해 Designer 프리뷰와 런타임 footprint 계약을 일치시켰다.
+검증: 열린 Unreal Editor에서 SizeBox 44×44, Border Padding 0, Root/Border Fill, Icon ScaleBox 4px/ScaleToFit을 재조회하고 WBP 컴파일·저장에 성공했다.
+[개발 작업] Sprint#1-14 인벤토리 수량 우측 상단 표시
+
+- 참고 이미지처럼 중첩 가능한 아이템의 수량을 아이콘 우측 상단에 표시하도록 변경했다.
+- UI_InventoryItemQuantityText를 16pt, 우측 상단 정렬로 설정했다.
+- 숫자가 밝은 아이콘에서도 읽히도록 (1,1) 검은 그림자와 알파 0.9를 적용했다.
+- 수량 텍스트 여백은 Top 1px, Right 3px로 설정해 footprint 외곽선과 직접 맞닿지 않게 했다.
+- 아이콘이 있는 장비는 기존 정책대로 수량을 표시하지 않고, 비장비 스택 수량이 2개 이상일 때만 표시한다.
+- 열린 Unreal Editor에서 변경값을 적용해 WBP_InventoryItem을 컴파일·저장하고 실제 속성을 재조회했다.
+
+[Notion 정리 후보]
+제목: 인벤토리 스택 수량 우측 상단 표시
+요약: 스택 수량을 아이콘 우측 상단에 16pt 흰색 숫자로 배치하고 1px 검은 그림자를 추가했다. 3px 우측 여백으로 셀 외곽선과 분리했으며 장비 수량 미표시 정책은 유지한다.
+검증: 열린 Editor에서 Font 16, Right/Top 정렬, Padding 0/1/3/0, Shadow 1/1·Alpha 0.9를 확인하고 WBP 컴파일·저장에 성공했다.
+
+[개발 작업] Sprint#1-14 Item Data Asset 아이콘 표시 배율
+
+- URogue10mItemDataAsset의 Display 분류에 InventoryIconScale 속성을 추가했다.
+- 기본값은 1.0이며 0.1부터 2.0까지 아이템별로 조절할 수 있다.
+- ScaleToFit으로 원본 종횡비를 보존한 뒤 이미지 중앙을 기준으로 균일 배율을 적용한다.
+- 확대된 아이콘은 아이템 footprint 경계에서 클리핑해 인접 셀을 가리지 않게 했다.
+- 표시 배율은 InventorySize, 충돌, 드래그와 점유 셀 계산에는 영향을 주지 않는다.
+- Rogue10mEditor Win64 Development 빌드에 성공했다.
+
+[Notion 정리 후보]
+제목: Item Data Asset 기반 인벤토리 아이콘 크기 조절
+요약: 아이템마다 InventoryIconScale을 0.1~2.0 범위로 설정할 수 있게 했다. ScaleToFit과 중앙 균일 배율을 함께 사용해 텍스처 비율을 유지하고, 확대 아이콘은 footprint에서 클리핑해 배치 크기와 시각 크기를 안전하게 분리했다.
+검증: Rogue10mEditor 빌드 성공. 배율은 표시 전용이며 InventorySize 기반 배치·충돌 계약은 유지된다.
+
+[개발 작업] Sprint#1-14 스타터 아이템 아이콘 및 장비창 연결
+
+- 회복 포션, 철제 장검, 철제 투구, 가죽 갑옷, 가죽 부츠, 초심자의 반지 아이콘 6종을 동일한 다크 판타지 스타일로 제작했다.
+- 녹색 크로마 배경 원본을 투명화하고 아이템 한 칸당 256px 기준으로 1×1, 1×3, 2×2, 2×3 캔버스를 구성했다.
+- UI Texture 6개와 Item Data Asset 6개를 `/Game/Texture/Item/Starter`, `/Game/DataAsset/Item/Starter`에 생성했다.
+- Texture는 UI 압축, TextureGroup UI, No Mipmaps, sRGB로 설정했다.
+- 포션은 시작 수량 5개로 인벤토리에 배치해 우측 상단 수량 표시를 확인할 수 있게 했다.
+- 장검, 투구, 갑옷, 부츠, 반지는 프로토타입 시작 시 대응 슬롯에 자동 장착되며 `bEquipPrototypeStarterEquipment`로 끌 수 있다.
+- 장비창 슬롯 7개에 BindWidget Image와 ScaleBox를 추가하고 장착/해제 Delegate로 아이콘을 즉시 갱신한다.
+- Rogue10mEditor 빌드에 성공했고 메뉴 WBP 전체 commandlet 검증 결과 오류와 경고가 0건이었다.
+- 현재 열린 Editor에서도 Data Asset 6개, 시작 아이템 참조 9개, 장비 아이콘 7개와 누락 0개를 확인했다.
+
+[Notion 정리 후보]
+제목: M×N 스타터 아이템 아이콘과 인벤토리·장비창 연결
+요약: 아이템 한 칸당 256px 규칙으로 포션과 기본 장비 아이콘 6종을 제작하고 Item Data Asset의 InventorySize와 원본 캔버스 비율을 일치시켰다. 인벤토리는 44px 셀 점유 영역에서 ScaleToFit으로 원본 비율을 보존하며 포션 수량은 우측 상단에 표시한다. 장비 5종은 프로토타입 시작 시 자동 장착되고 장비창 7개 슬롯은 장착 변경 Delegate로 갱신된다.
+검증: Texture/Data Asset 6종 생성 및 크기 검증, Rogue10mEditor 빌드 성공, 메뉴 WBP commandlet 0 errors/0 warnings, 열린 Editor readback 누락 0개.
+후속 확인: PIE에서 인벤토리의 1×3 검과 2×3 갑옷 점유 영역, 포션 수량 5, 장비창 자동 장착 아이콘을 최종 시각 확인한다.

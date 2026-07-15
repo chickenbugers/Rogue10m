@@ -16,7 +16,12 @@ ASSETS = {
 }
 REQUIRED_WIDGETS = {
     "inventory_cell": {"UI_InventoryCellFrame"},
-    "inventory_item": {"UI_InventoryItemIcon", "UI_InventoryItemQuantityText", "UI_InventoryItemPreviewBorder"},
+    "inventory_item": {
+        "UI_InventoryItemSize",
+        "UI_InventoryItemIcon",
+        "UI_InventoryItemQuantityText",
+        "UI_InventoryItemPreviewBorder",
+    },
     "bag_tab": {"UI_BagTabButton", "UI_BagNameText"},
     "inventory": {
         "UI_InventoryGridFrame",
@@ -24,12 +29,18 @@ REQUIRED_WIDGETS = {
         "UI_InventoryItemCanvas",
         "UI_InventoryMoneyText",
         "UI_InventoryWeightText",
-        "UI_BagTabContainer",
     },
     "equipment": {
         "UI_EquipmentSlotContainer",
         "UI_CharacterPreviewImage",
         "UI_EquipmentStatsContainer",
+        "UI_WeaponSlotIcon",
+        "UI_HeadSlotIcon",
+        "UI_ChestSlotIcon",
+        "UI_HandsSlotIcon",
+        "UI_LegsSlotIcon",
+        "UI_FeetSlotIcon",
+        "UI_AccessorySlotIcon",
     },
     "entry": {
         "UI_SkillIconImage",
@@ -43,6 +54,7 @@ FORBIDDEN_WIDGETS = {
     "inventory": {
         "UI_InventoryCapacityText",
         "UI_InventoryHintText",
+        "UI_BagTabContainer",
     },
 }
 FRAME_COLOR = unreal.LinearColor(0.02, 0.025, 0.03, 0.96)
@@ -169,6 +181,15 @@ def set_canvas_layout(
     slot.set_z_order(z_order)
 
 
+def set_fill_alignment(slot):
+    if not slot:
+        return
+    if hasattr(slot, "set_horizontal_alignment"):
+        slot.set_horizontal_alignment(unreal.HorizontalAlignment.H_ALIGN_FILL)
+    if hasattr(slot, "set_vertical_alignment"):
+        slot.set_vertical_alignment(unreal.VerticalAlignment.V_ALIGN_FILL)
+
+
 def set_padding(slot, value=4.0):
     if slot and hasattr(slot, "set_padding"):
         slot.set_padding(unreal.Margin(value, value, value, value))
@@ -209,15 +230,46 @@ def build_inventory_cell(widget_blueprint) -> None:
 
 def build_inventory_item(widget_blueprint) -> None:
     clear_tree(widget_blueprint)
-    size_box, _ = add(widget_blueprint, unreal.SizeBox, "UI_InventoryItemSize")
+    size_box, _ = add(
+        widget_blueprint, unreal.SizeBox, "UI_InventoryItemSize", variable=True
+    )
+    # Designer와 1x1 fallback 기준 크기입니다. 런타임에는 C++가 W*CellSize, H*CellSize로 덮어씁니다.
     size_box.set_width_override(44.0)
     size_box.set_height_override(44.0)
-    grid, _ = add(widget_blueprint, unreal.GridPanel, "UI_InventoryItemRoot", size_box)
-    border, _ = add(widget_blueprint, unreal.Border, "UI_InventoryItemPreviewBorder", grid, variable=True)
+    grid, size_box_slot = add(widget_blueprint, unreal.GridPanel, "UI_InventoryItemRoot", size_box)
+    set_fill_alignment(size_box_slot)
+    border, border_slot = add(widget_blueprint, unreal.Border, "UI_InventoryItemPreviewBorder", grid, variable=True)
+    set_fill_alignment(border_slot)
+    border_slot.set_layer(0)
+    border.set_padding(unreal.Margin(0.0, 0.0, 0.0, 0.0))
     border.set_brush_color(unreal.LinearColor(0.05, 0.05, 0.05, 0.35))
-    icon, _ = add(widget_blueprint, unreal.Image, "UI_InventoryItemIcon", grid, variable=True)
-    icon.set_desired_size_override(unreal.Vector2D(40.0, 40.0))
-    quantity, _ = make_text(widget_blueprint, "UI_InventoryItemQuantityText", "1", grid, variable=True)
+    # Border paints its brush first and then its Image content. C++ computes an
+    # aspect-ratio-preserving desired size from the texture and NxM footprint.
+    icon, icon_slot = add(
+        widget_blueprint, unreal.Image, "UI_InventoryItemIcon", border, variable=True
+    )
+    set_padding(icon_slot, 4.0)
+    icon_slot.set_horizontal_alignment(unreal.HorizontalAlignment.H_ALIGN_CENTER)
+    icon_slot.set_vertical_alignment(unreal.VerticalAlignment.V_ALIGN_CENTER)
+
+    quantity, quantity_slot = make_text(
+        widget_blueprint,
+        "UI_InventoryItemQuantityText",
+        "1",
+        grid,
+        variable=True,
+        font_size=16,
+    )
+    quantity.set_shadow_offset(unreal.Vector2D(1.0, 1.0))
+    quantity.set_shadow_color_and_opacity(unreal.LinearColor(0.0, 0.0, 0.0, 0.9))
+    if quantity_slot and hasattr(quantity_slot, "set_padding"):
+        quantity_slot.set_padding(unreal.Margin(0.0, 1.0, 3.0, 0.0))
+    if quantity_slot and hasattr(quantity_slot, "set_layer"):
+        quantity_slot.set_layer(1)
+    if quantity_slot and hasattr(quantity_slot, "set_horizontal_alignment"):
+        quantity_slot.set_horizontal_alignment(unreal.HorizontalAlignment.H_ALIGN_RIGHT)
+    if quantity_slot and hasattr(quantity_slot, "set_vertical_alignment"):
+        quantity_slot.set_vertical_alignment(unreal.VerticalAlignment.V_ALIGN_TOP)
 
 
 def build_bag_tab(widget_blueprint) -> None:
@@ -246,27 +298,23 @@ def build_inventory(widget_blueprint) -> None:
     )
     set_canvas_layout(title_slot, (-220, -276), (440, 32), alignment=(0, 0.5), z_order=2)
 
-    bag_tabs, bag_tabs_slot = add(
-        widget_blueprint, unreal.HorizontalBox, "UI_BagTabContainer", root, variable=True
-    )
-    set_canvas_layout(bag_tabs_slot, (-220, -230), (440, 38), alignment=(0, 0.5), z_order=2)
 
     _, grid_frame_slot = make_border(
         widget_blueprint, "UI_InventoryGridFrame", root, GRID_RECESS_COLOR, 4.0
     )
-    set_canvas_layout(grid_frame_slot, (0, 16), (448, 448), z_order=1)
+    set_canvas_layout(grid_frame_slot, (0, -12), (448, 448), z_order=1)
 
     grid, grid_slot = add(
         widget_blueprint, unreal.UniformGridPanel, "UI_InventoryGrid", root, variable=True
     )
     grid.set_min_desired_slot_width(44.0)
     grid.set_min_desired_slot_height(44.0)
-    set_canvas_layout(grid_slot, (0, 16), (440, 440), z_order=2)
+    set_canvas_layout(grid_slot, (0, -12), (440, 440), z_order=2)
 
     _, item_slot = add(
         widget_blueprint, unreal.CanvasPanel, "UI_InventoryItemCanvas", root, variable=True
     )
-    set_canvas_layout(item_slot, (0, 16), (440, 440), z_order=3)
+    set_canvas_layout(item_slot, (0, -12), (440, 440), z_order=3)
 
     bottom, bottom_slot = add(
         widget_blueprint, unreal.HorizontalBox, "UI_InventoryBottomInfo", root
@@ -306,20 +354,49 @@ def build_equipment(widget_blueprint) -> None:
         widget_blueprint, unreal.VerticalBox, "UI_EquipmentSlotContainer", root, variable=True
     )
     set_canvas_layout(slots_slot, (235, -60), (210, 390), z_order=1)
-    for frame_name, label in (
-        ("UI_WeaponSlotFrame", "무기"),
-        ("UI_HeadSlotFrame", "머리"),
-        ("UI_ChestSlotFrame", "상의"),
-        ("UI_HandsSlotFrame", "장갑"),
-        ("UI_LegsSlotFrame", "하의"),
-        ("UI_FeetSlotFrame", "신발"),
-        ("UI_AccessorySlotFrame", "장신구"),
+    for frame_name, icon_name, label in (
+        ("UI_WeaponSlotFrame", "UI_WeaponSlotIcon", "무기"),
+        ("UI_HeadSlotFrame", "UI_HeadSlotIcon", "머리"),
+        ("UI_ChestSlotFrame", "UI_ChestSlotIcon", "상의"),
+        ("UI_HandsSlotFrame", "UI_HandsSlotIcon", "장갑"),
+        ("UI_LegsSlotFrame", "UI_LegsSlotIcon", "하의"),
+        ("UI_FeetSlotFrame", "UI_FeetSlotIcon", "신발"),
+        ("UI_AccessorySlotFrame", "UI_AccessorySlotIcon", "장신구"),
     ):
         slot_frame, outer_slot = make_border(
-            widget_blueprint, frame_name, slots, CELL_COLOR, 8.0
+            widget_blueprint, frame_name, slots, CELL_COLOR, 2.0
         )
         set_padding(outer_slot, 3.0)
-        make_text(widget_blueprint, f"{frame_name}_Text", label, slot_frame)
+        slot_grid, frame_content_slot = add(
+            widget_blueprint, unreal.GridPanel, f"{frame_name}_Grid", slot_frame
+        )
+        set_fill_alignment(frame_content_slot)
+        icon_scale, icon_scale_slot = add(
+            widget_blueprint, unreal.ScaleBox, f"{frame_name}_IconScale", slot_grid
+        )
+        set_fill_alignment(icon_scale_slot)
+        set_padding(icon_scale_slot, 4.0)
+        icon_scale.set_stretch(unreal.Stretch.SCALE_TO_FIT)
+        icon_scale.set_stretch_direction(unreal.StretchDirection.BOTH)
+        _, icon_slot = add(
+            widget_blueprint, unreal.Image, icon_name, icon_scale, variable=True
+        )
+        set_fill_alignment(icon_slot)
+        label_widget, label_slot = make_text(
+            widget_blueprint,
+            f"{frame_name}_Text",
+            label,
+            slot_grid,
+            font_size=12,
+        )
+        label_widget.set_shadow_offset(unreal.Vector2D(1.0, 1.0))
+        label_widget.set_shadow_color_and_opacity(
+            unreal.LinearColor(0.0, 0.0, 0.0, 0.9)
+        )
+        if label_slot and hasattr(label_slot, "set_horizontal_alignment"):
+            label_slot.set_horizontal_alignment(unreal.HorizontalAlignment.H_ALIGN_CENTER)
+        if label_slot and hasattr(label_slot, "set_vertical_alignment"):
+            label_slot.set_vertical_alignment(unreal.VerticalAlignment.V_ALIGN_BOTTOM)
 
     stats, stats_slot = add(
         widget_blueprint, unreal.VerticalBox, "UI_EquipmentStatsContainer", root, variable=True
@@ -460,9 +537,7 @@ def main() -> None:
     inventory_cdo.set_editor_property(
         "inventory_item_widget_class", load_blueprint_class(ASSETS["inventory_item"])
     )
-    inventory_cdo.set_editor_property(
-        "bag_tab_widget_class", load_blueprint_class(ASSETS["bag_tab"])
-    )
+
     inventory_blueprint = require_asset(ASSETS["inventory"])
     compile_and_save(inventory_blueprint, ASSETS["inventory"])
     unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)

@@ -12,10 +12,10 @@ class URogue10mInventoryComponent;
 class URogue10mItemDataAsset;
 class URogue10mItemDragDropOperation;
 class UImage;
+class USizeBox;
 class UCanvasPanel;
 class UBorder;
 class UButton;
-class UHorizontalBox;
 class UPanelWidget;
 class UTextBlock;
 class UUniformGridPanel;
@@ -77,11 +77,11 @@ public:
 	void InitializeGridItem(URogue10mInventoryComponent* InInventory, class URogue10mInventoryWindowWidget* InInventoryWindow,
 		int32 InContainerIndex, const struct FRogue10mInventoryGridEntry& InEntry, float InCellSize);
 	void SetPlacementPreview(bool bPreviewing, bool bCanPlace);
-	void SetPreviewSize(FIntPoint GridSize, float InCellSize);
 protected:
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
 		UDragDropOperation*& OutOperation) override;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<USizeBox> UI_InventoryItemSize;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<UImage> UI_InventoryItemIcon;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<UTextBlock> UI_InventoryItemQuantityText;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<UBorder> UI_InventoryItemPreviewBorder;
@@ -92,7 +92,6 @@ private:
 	int32 ContainerIndex = INDEX_NONE;
 	FGuid InstanceId;
 	int32 Quantity = 0;
-	bool bRotatedClockwise = false;
 	float CellSize = 44.0f;
 	FIntPoint DragGrabOffset = FIntPoint::ZeroValue;
 };
@@ -125,12 +124,11 @@ public:
 
 	void BeginGridItemDrag(URogue10mItemDragDropOperation* Operation);
 	void EndGridItemDrag(URogue10mItemDragDropOperation* Operation);
-	void SelectInventoryContainer(int32 ContainerIndex);
 
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+
 	virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
 		UDragDropOperation* InOperation) override;
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
@@ -146,9 +144,6 @@ protected:
 	TObjectPtr<UCanvasPanel> UI_InventoryItemCanvas;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory")
-	TObjectPtr<UHorizontalBox> UI_BagTabContainer;
-
-	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory")
 	TObjectPtr<UTextBlock> UI_InventoryMoneyText;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory")
@@ -160,9 +155,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory")
 	TSubclassOf<URogue10mInventoryItemWidget> InventoryItemWidgetClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory")
-	TSubclassOf<URogue10mBagTabWidget> BagTabWidgetClass;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory", meta=(ClampMin="16.0"))
 	float InventoryCellSize = 44.0f;
 
@@ -173,12 +165,12 @@ private:
 	void RefreshInventoryDisplay();
 	void RebuildInventoryCells(FIntPoint GridSize);
 	void RebuildInventoryItems();
-	void RebuildBagTabs();
+
 	bool UpdateGridDropPreview(const FDragDropEvent& DragDropEvent, URogue10mItemDragDropOperation* Operation);
 	void ClearGridDropPreview();
 
 	FIntPoint CachedGridSize = FIntPoint::ZeroValue;
-	int32 DisplayedContainerIndex = 0;
+	static constexpr int32 PrimaryContainerIndex = 0;
 	TWeakObjectPtr<URogue10mItemDragDropOperation> ActiveGridDragOperation;
 };
 
@@ -187,15 +179,41 @@ class ROGUE10M_API URogue10mEquipmentWindowWidget : public URogue10mMenuWindowWi
 {
 	GENERATED_BODY()
 
+public:
+	virtual void InitializeMenuWindow(URogue10mInventoryComponent* InInventoryComponent) override;
+	virtual void SetWindowOpen(bool bOpen) override;
+
 protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
 	TObjectPtr<UVerticalBox> UI_EquipmentSlotContainer;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
 	TObjectPtr<UImage> UI_CharacterPreviewImage;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
+	TObjectPtr<UImage> UI_WeaponSlotIcon;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
+	TObjectPtr<UImage> UI_HeadSlotIcon;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
+	TObjectPtr<UImage> UI_ChestSlotIcon;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
+	TObjectPtr<UImage> UI_HandsSlotIcon;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
+	TObjectPtr<UImage> UI_LegsSlotIcon;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
+	TObjectPtr<UImage> UI_FeetSlotIcon;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
+	TObjectPtr<UImage> UI_AccessorySlotIcon;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
 	TObjectPtr<UVerticalBox> UI_EquipmentStatsContainer;
+
+	virtual void NativeDestruct() override;
+
+private:
+	UFUNCTION()
+	void HandleEquipmentChanged();
+	void RefreshEquipmentDisplay();
+
 };
 
 UCLASS(Abstract, Blueprintable)

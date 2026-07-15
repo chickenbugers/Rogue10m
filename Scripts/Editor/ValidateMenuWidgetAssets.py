@@ -3,10 +3,20 @@ import unreal
 
 ASSETS = {
     "/Game/Widget/Menu/Inventory/WBP_InventoryCell": {"UI_InventoryCellFrame", "UI_InventoryCellFill"},
-    "/Game/Widget/Menu/Inventory/WBP_InventoryItem": {"UI_InventoryItemIcon", "UI_InventoryItemQuantityText", "UI_InventoryItemPreviewBorder"},
+    "/Game/Widget/Menu/Inventory/WBP_InventoryItem": {"UI_InventoryItemSize", "UI_InventoryItemIcon", "UI_InventoryItemQuantityText", "UI_InventoryItemPreviewBorder"},
     "/Game/Widget/Menu/Inventory/WBP_BagTab": {"UI_BagTabButton", "UI_BagNameText"},
-    "/Game/Widget/Menu/Inventory/WBP_InventoryWindow": {"UI_InventoryGridFrame", "UI_InventoryGrid", "UI_InventoryItemCanvas", "UI_BagTabContainer"},
-    "/Game/Widget/Menu/Equipment/WBP_EquipmentWindow": {"UI_EquipmentSlotContainer", "UI_CharacterPreviewImage"},
+    "/Game/Widget/Menu/Inventory/WBP_InventoryWindow": {"UI_InventoryGridFrame", "UI_InventoryGrid", "UI_InventoryItemCanvas"},
+    "/Game/Widget/Menu/Equipment/WBP_EquipmentWindow": {
+        "UI_EquipmentSlotContainer",
+        "UI_CharacterPreviewImage",
+        "UI_WeaponSlotIcon",
+        "UI_HeadSlotIcon",
+        "UI_ChestSlotIcon",
+        "UI_HandsSlotIcon",
+        "UI_LegsSlotIcon",
+        "UI_FeetSlotIcon",
+        "UI_AccessorySlotIcon",
+    },
     "/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry": {"UI_SkillIconImage", "UI_SkillNameText"},
     "/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow": {"UI_SkillListContainer"},
 }
@@ -15,7 +25,6 @@ CLASS_REFERENCES = {
     "/Game/Widget/Menu/Inventory/WBP_InventoryWindow": {
         "inventory_cell_widget_class": "/Game/Widget/Menu/Inventory/WBP_InventoryCell",
         "inventory_item_widget_class": "/Game/Widget/Menu/Inventory/WBP_InventoryItem",
-        "bag_tab_widget_class": "/Game/Widget/Menu/Inventory/WBP_BagTab",
     },
     "/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow": {
         "skill_tree_entry_widget_class": "/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry",
@@ -41,8 +50,26 @@ def main():
         missing = required - names
         if missing:
             raise RuntimeError(f"Missing widgets in {path}: {sorted(missing)}")
+        if path.endswith("/WBP_InventoryItem"):
+            slots = {
+                info.widget.get_name(): info.slot
+                for info in tree.widgets
+                if info.widget and info.slot
+            }
+            expected_layers = {
+                "UI_InventoryItemPreviewBorder": 0,
+                "UI_InventoryItemQuantityText": 1,
+            }
+            for widget_name, expected_layer in expected_layers.items():
+                actual_layer = slots[widget_name].get_editor_property("layer")
+                if actual_layer != expected_layer:
+                    raise RuntimeError(
+                        f"Invalid layer {widget_name}: {actual_layer}, expected {expected_layer}"
+                    )
         if "UI_BagSizeText" in names:
             raise RuntimeError("UI_BagSizeText still exists")
+        if path.endswith("/WBP_InventoryWindow") and "UI_BagTabContainer" in names:
+            raise RuntimeError("UI_BagTabContainer still exists in the single-bag window")
         if not tool.call_method("CompileWidgetBlueprint", (asset,)):
             raise RuntimeError(f"Compile failed: {path}")
         unreal.log(f"[Rogue10mMenuValidation] OK {path}: {sorted(names)}")

@@ -34,7 +34,6 @@ void URogue10mItemDragDropOperation::InitializeGridItemDrag(
 	int32 InSourceContainerIndex,
 	FGuid InInstanceId,
 	const URogue10mItemDataAsset* InItemData,
-	bool bInRotatedClockwise,
 	float InCellSize)
 {
 	InitializeItemDrag(InInventory, ERogue10mItemDragSource::GridInventory, INDEX_NONE);
@@ -42,27 +41,5 @@ void URogue10mItemDragDropOperation::InitializeGridItemDrag(
 	SourceContainerIndex = InSourceContainerIndex;
 	InstanceId = InInstanceId;
 	ItemData = InItemData;
-	bRotatedClockwise = bInRotatedClockwise;
 	CellSize = InCellSize;
-}
-
-void URogue10mItemDragDropOperation::RotateClockwise()
-{
-	const FIntPoint OldFootprint = GetFootprint();
-	GrabCellOffset = FIntPoint(OldFootprint.Y - 1 - GrabCellOffset.Y, GrabCellOffset.X);
-	bRotatedClockwise = !bRotatedClockwise;
-	if (PreviewWidget)
-	{
-		PreviewWidget->SetPreviewSize(GetFootprint(), CellSize);
-	}
-}
-
-FIntPoint URogue10mItemDragDropOperation::GetFootprint() const
-{
-	if (!ItemData)
-	{
-		return FIntPoint(1, 1);
-	}
-	const FIntPoint BaseSize = ItemData->GetClampedInventorySize();
-	return bRotatedClockwise ? FIntPoint(BaseSize.Y, BaseSize.X) : BaseSize;
 }

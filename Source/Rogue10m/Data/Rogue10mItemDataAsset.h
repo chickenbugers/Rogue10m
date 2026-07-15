@@ -47,6 +47,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Display")
 	TSoftObjectPtr<UTexture2D> InventoryIcon;
 
+	/** Uniform display scale applied after the inventory icon is fitted to the item footprint. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Display",
+		meta=(ClampMin="0.1", ClampMax="2.0", UIMin="0.1", UIMax="2.0"))
+	float InventoryIconScale = 1.0f;
+
 	/** Inventory fallback color used when an item does not have an icon yet. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Display")
 	FLinearColor InventoryTint = FLinearColor(0.16f, 0.42f, 0.68f, 0.85f);

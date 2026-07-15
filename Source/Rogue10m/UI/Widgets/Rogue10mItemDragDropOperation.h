@@ -31,10 +31,7 @@ public:
 
 	void InitializeGridItemDrag(URogue10mInventoryComponent* InInventory,
 		URogue10mInventoryWindowWidget* InInventoryWindow, int32 InSourceContainerIndex,
-		FGuid InInstanceId, const URogue10mItemDataAsset* InItemData, bool bInRotatedClockwise, float InCellSize);
-
-	void RotateClockwise();
-	FIntPoint GetFootprint() const;
+		FGuid InInstanceId, const URogue10mItemDataAsset* InItemData, float InCellSize);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items|Drag Drop")
 	void MarkDropHandled() { bDropHandled = true; }
@@ -60,8 +57,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|Items|Drag Drop")
 	FGuid InstanceId;
 
-	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|Items|Drag Drop")
-	bool bRotatedClockwise = false;
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|Items|Drag Drop")
 	FIntPoint PreviewGridPosition = FIntPoint::ZeroValue;

@@ -55,9 +55,10 @@ Designer에서 색상, 브러시, 폰트, 애니메이션은 자유롭게 조정
 
 - `WBP_InventoryCell`: `UI_InventoryGrid`가 X×Y만큼 생성하는 44×44 좌표/배경 셀이다.
 - `WBP_InventoryItem`: `UI_InventoryItemCanvas`에 한 아이템당 하나씩 생성되며 Data Asset의 NxM 크기, 아이콘, 수량을 표시한다.
-- `WBP_BagTab`: 설치된 인벤토리 컨테이너마다 생성되며 가방 이름과 선택 상태를 표시하고 클릭 시 해당 가방으로 전환한다.
-- Grid Entry에 회전 상태를 저장하고, 현재 아이템과 기존 아이템 모두 회전 footprint를 적용해 경계 및 AABB 충돌을 검사한다.
-- 드래그 중 잡은 셀 오프셋을 보존하며 R키 입력 시 시계 방향으로 footprint와 잡은 좌표를 회전한다.
+- 현재 Inventory Window는 컨테이너 0 하나만 표시하며 BagTab을 생성하지 않는다.
+- Item Data Asset의 `InventorySize`를 고정 footprint로 사용해 경계 및 AABB 충돌을 검사한다.
+- 드래그 중 잡은 셀 오프셋은 보존하지만 아이템 회전 입력과 회전 상태는 지원하지 않는다.
+- `UI_InventoryItemSize`와 Canvas 슬롯을 같은 `Width*44`, `Height*44` 크기로 맞추고, 아이콘은 4px inset `ScaleBox(ScaleToFit)`로 원본 종횡비를 보존한다.
 - 드래그 프리뷰는 배치 가능 시 녹색, 경계 초과 또는 충돌 시 적색이다.
 - 검증: `BuildEditor.ps1` 성공. 열린 Editor에서 세 WBP GeneratedClass 할당 및 필수 Designer 위젯 확인.
 ## 메뉴 폴더 및 UI 계약 정리 결과
@@ -81,8 +82,8 @@ Designer에서 색상, 브러시, 폰트, 애니메이션은 자유롭게 조정
 - Cell: 44×44 유지, 밝은 0.5선 대신 1px 다크 외곽선과 차콜 Fill 적용
 - Grid Frame: 448×448 오목한 배경 프레임 안에 440×440 셀 Grid 배치
 - 정렬: Grid와 ItemCanvas를 동일한 중심 `(0, 16)`에 배치해 NxM 좌표 일치 유지
-- BagTab: 136×36, 14pt 텍스트, 어두운 배경으로 축소해 그리드 침범 제거
-- Vertical rhythm: Title, Tab, Grid, BottomInfo 사이에 각각 독립 여백 확보
+- BagTab: 현재 단일 인벤토리 범위에서 Window Designer와 런타임 클래스 참조 제거
+- Vertical rhythm: Title, Grid, BottomInfo 사이에 독립 여백을 두고 Grid 중심을 `(0, -12)`로 조정
 - 검증: `WBP_InventoryGridFrame` 포함 메뉴 WBP 7종 컴파일, 내부 WidgetClass 참조, Overlay 0개 확인
 
-후속 PIE QA에서는 16:9와 16:10 해상도에서 10×10 기본 가방, 다중 BagTab, NxM 아이템 드래그 프리뷰의 픽셀 정렬을 확인한다.
+후속 PIE QA에서는 16:9와 16:10 해상도에서 단일 10×10 인벤토리, NxM 아이템 종횡비, 드래그 프리뷰의 픽셀 정렬을 확인한다.

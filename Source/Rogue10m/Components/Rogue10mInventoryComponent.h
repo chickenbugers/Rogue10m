@@ -11,6 +11,7 @@ class ARogue10mDroppedItem;
 class URogue10mItemDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRogue10mInventoryGridChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRogue10mEquipmentChanged);
 
 UENUM(BlueprintType)
 enum class ERogue10mInventorySlotType : uint8
@@ -130,10 +131,6 @@ struct FRogue10mInventoryGridEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Inventory|Grid")
 	FIntPoint Position = FIntPoint::ZeroValue;
-
-	/** Base item footprint is rotated 90 degrees clockwise in the grid. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Inventory|Grid")
-	bool bRotatedClockwise = false;
 };
 
 USTRUCT(BlueprintType)
@@ -170,6 +167,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category="Rogue10m|Inventory|Grid")
 	FRogue10mInventoryGridChanged OnInventoryGridChanged;
+	UPROPERTY(BlueprintAssignable, Category="Rogue10m|Inventory|Equipment")
+	FRogue10mEquipmentChanged OnEquipmentChanged;
+
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory")
 	const TArray<FRogue10mInventorySlot>& GetLeftEquipmentSlots() const { return LeftEquipmentSlots; }
@@ -232,14 +232,14 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory|Grid")
 	bool CanPlaceGridItem(int32 ContainerIndex, const URogue10mItemDataAsset* ItemData, FIntPoint Position,
-		FGuid IgnoredInstanceId, bool bRotatedClockwise = false) const;
+		FGuid IgnoredInstanceId) const;
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
 	bool TryAddGridItem(const URogue10mItemDataAsset* ItemData, int32 Quantity, int32& OutContainerIndex, FGuid& OutInstanceId);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
 	bool TryMoveGridItem(int32 SourceContainerIndex, FGuid InstanceId, int32 TargetContainerIndex,
-		FIntPoint TargetPosition, bool bRotatedClockwise = false);
+		FIntPoint TargetPosition);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
 	bool RemoveGridItem(int32 ContainerIndex, FGuid InstanceId, FRogue10mInventoryGridEntry& OutRemovedEntry);
@@ -274,6 +274,10 @@ protected:
 	/** Adds the configured prototype items once when the base inventory starts empty. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Prototype")
 	bool bAddPrototypeStartingItems = true;
+	/** Automatically equips compatible data-driven starter equipment for UI verification. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Prototype")
+	bool bEquipPrototypeStarterEquipment = true;
+
 
 	/** Data-driven starter items used to exercise NxM inventory placement. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Prototype")
@@ -308,6 +312,9 @@ private:
 
 	// 아이템 창에 들어갈 일반 아이템 데이터를 만듭니다.
 	static FRogue10mItemStack MakeItem(ERogue10mItemCategory Category, ERogue10mInventorySlotType EquipSlotType, const TCHAR* DisplayName, const TCHAR* Description, int32 Quantity, const FLinearColor& ItemColor, bool bLocked = false);
+
+	// Item Data Asset을 기존 아이템/장비 슬롯 스택 표현으로 변환합니다.
+	static FRogue10mItemStack MakeItemFromDataAsset(const URogue10mItemDataAsset* ItemData, int32 Quantity);
 
 	// 무기 슬롯에 장착 가능한 무기 아이템 데이터를 만듭니다.
 	static FRogue10mItemStack MakeWeaponItem(ERogue10mWeaponType WeaponType, const TCHAR* DisplayName, const TCHAR* Description, const FLinearColor& ItemColor, ERogue10mInventorySlotType EquipSlotType = ERogue10mInventorySlotType::MainWeapon, bool bLocked = false);

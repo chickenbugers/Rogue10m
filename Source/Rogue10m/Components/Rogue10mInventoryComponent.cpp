@@ -26,7 +26,13 @@ URogue10mInventoryComponent::URogue10mInventoryComponent()
 	PrototypeStartingItems = {
 		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Prototype/DA_Item_Prototype_1x1.DA_Item_Prototype_1x1"))),
 		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Prototype/DA_Item_Prototype_2x3.DA_Item_Prototype_2x3"))),
-		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Prototype/DA_Item_Prototype_4x3.DA_Item_Prototype_4x3")))
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Prototype/DA_Item_Prototype_4x3.DA_Item_Prototype_4x3"))),
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_HealthPotion.DA_Item_HealthPotion"))),
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_IronLongsword.DA_Item_IronLongsword"))),
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_IronHelmet.DA_Item_IronHelmet"))),
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_LeatherArmor.DA_Item_LeatherArmor"))),
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_LeatherBoots.DA_Item_LeatherBoots"))),
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_NoviceRing.DA_Item_NoviceRing")))
 	};
 
 	LeftEquipmentSlots = {
@@ -107,6 +113,7 @@ void URogue10mInventoryComponent::BeginPlay()
 		InventoryContainers[0].GridSize = BaseInventorySize;
 	}
 
+	TArray<FRogue10mItemStack> StarterSlotItems;
 	if (bAddPrototypeStartingItems && InventoryContainers[0].Entries.IsEmpty())
 	{
 		for (const TSoftObjectPtr<URogue10mItemDataAsset>& ItemReference : PrototypeStartingItems)
@@ -119,12 +126,43 @@ void URogue10mInventoryComponent::BeginPlay()
 				continue;
 			}
 
+			const int32 StartingQuantity = ItemData->MaxStackSize > 1
+				? FMath::Min(5, ItemData->MaxStackSize)
+				: 1;
+			if (ItemData->Category == ERogue10mItemCategory::Equipment
+				|| ItemData->Category == ERogue10mItemCategory::Consumable)
+			{
+				StarterSlotItems.Add(MakeItemFromDataAsset(ItemData, StartingQuantity));
+			}
+
+
 			int32 ContainerIndex = INDEX_NONE;
 			FGuid InstanceId;
-			if (!TryAddGridItem(ItemData, 1, ContainerIndex, InstanceId))
+			if (!TryAddGridItem(ItemData, StartingQuantity, ContainerIndex, InstanceId))
 			{
 				UE_LOG(LogRogue10m, Warning, TEXT("Prototype inventory item could not be placed: %s"),
 					*ItemData->GetName());
+			}
+		}
+
+		for (int32 Index = StarterSlotItems.Num() - 1; Index >= 0; --Index)
+		{
+			ItemSlots.Insert(StarterSlotItems[Index], 0);
+		}
+		if (ItemSlots.Num() > 80)
+		{
+			ItemSlots.SetNum(80);
+		}
+
+		if (bEquipPrototypeStarterEquipment)
+		{
+			for (int32 ItemSlotIndex = 0; ItemSlotIndex < StarterSlotItems.Num(); ++ItemSlotIndex)
+			{
+				if (ItemSlots.IsValidIndex(ItemSlotIndex)
+					&& ItemSlots[ItemSlotIndex].Category == ERogue10mItemCategory::Equipment)
+				{
+					TryEquipItemFromSlot(ItemSlotIndex);
+				}
 			}
 		}
 	}
@@ -155,6 +193,28 @@ FRogue10mItemStack URogue10mInventoryComponent::MakeItem(ERogue10mItemCategory C
 	Item.bOccupied = true;
 	return Item;
 }
+
+FRogue10mItemStack URogue10mInventoryComponent::MakeItemFromDataAsset(const URogue10mItemDataAsset* ItemData, int32 Quantity)
+{
+	if (!ItemData)
+	{
+		return MakeEmptyItem();
+	}
+
+	const FString DisplayName = ItemData->DisplayName.ToString();
+	const FString Description = ItemData->Description.ToString();
+	FRogue10mItemStack Item = MakeItem(
+		ItemData->Category,
+		ItemData->EquipSlotType,
+		*DisplayName,
+		*Description,
+		Quantity,
+		ItemData->InventoryTint);
+	Item.ItemData = ItemData;
+	Item.WeaponType = ItemData->WeaponType;
+	return Item;
+}
+
 
 FRogue10mItemStack URogue10mInventoryComponent::MakeWeaponItem(ERogue10mWeaponType WeaponType, const TCHAR* DisplayName, const TCHAR* Description, const FLinearColor& ItemColor, ERogue10mInventorySlotType EquipSlotType, bool bLocked)
 {
@@ -227,6 +287,7 @@ bool URogue10mInventoryComponent::TryEquipItemToSlot(int32 ItemSlotIndex, ERogue
 		}
 	}
 
+	OnEquipmentChanged.Broadcast();
 	return true;
 }
 
@@ -288,6 +349,7 @@ bool URogue10mInventoryComponent::TryUnequipItemFromSlot(ERogue10mInventorySlotT
 		EquipmentSlot->SlotColor = FLinearColor(0.28f, 0.28f, 0.3f, 1.0f);
 	}
 
+	OnEquipmentChanged.Broadcast();
 	return true;
 }
 
@@ -323,6 +385,7 @@ bool URogue10mInventoryComponent::TryUnequipItemFromSlotToItemSlot(ERogue10mInve
 		}
 	}
 
+	OnEquipmentChanged.Broadcast();
 	return true;
 }
 
@@ -400,6 +463,7 @@ bool URogue10mInventoryComponent::RemoveEquippedItemFromSlot(ERogue10mInventoryS
 		}
 	}
 
+	OnEquipmentChanged.Broadcast();
 	return true;
 }
 
@@ -490,7 +554,7 @@ void URogue10mInventoryComponent::ResetEquipmentSlotDisplay(FRogue10mInventorySl
 }
 
 bool URogue10mInventoryComponent::CanPlaceGridItem(int32 ContainerIndex, const URogue10mItemDataAsset* ItemData,
-	FIntPoint Position, FGuid IgnoredInstanceId, bool bRotatedClockwise) const
+	FIntPoint Position, FGuid IgnoredInstanceId) const
 {
 	if (!InventoryContainers.IsValidIndex(ContainerIndex) || !ItemData)
 	{
@@ -498,10 +562,7 @@ bool URogue10mInventoryComponent::CanPlaceGridItem(int32 ContainerIndex, const U
 	}
 
 	const FRogue10mInventoryContainer& Container = InventoryContainers[ContainerIndex];
-	const FIntPoint BaseItemSize = ItemData->GetClampedInventorySize();
-	const FIntPoint ItemSize = bRotatedClockwise
-		? FIntPoint(BaseItemSize.Y, BaseItemSize.X)
-		: BaseItemSize;
+	const FIntPoint ItemSize = ItemData->GetClampedInventorySize();
 	if (Position.X < 0 || Position.Y < 0
 		|| Position.X + ItemSize.X > Container.GridSize.X
 		|| Position.Y + ItemSize.Y > Container.GridSize.Y)
@@ -516,10 +577,7 @@ bool URogue10mInventoryComponent::CanPlaceGridItem(int32 ContainerIndex, const U
 			continue;
 		}
 
-		const FIntPoint OtherBaseSize = Entry.ItemData->GetClampedInventorySize();
-		const FIntPoint OtherSize = Entry.bRotatedClockwise
-			? FIntPoint(OtherBaseSize.Y, OtherBaseSize.X)
-			: OtherBaseSize;
+		const FIntPoint OtherSize = Entry.ItemData->GetClampedInventorySize();
 		const bool bOverlaps = Position.X < Entry.Position.X + OtherSize.X
 			&& Position.X + ItemSize.X > Entry.Position.X
 			&& Position.Y < Entry.Position.Y + OtherSize.Y
@@ -616,7 +674,7 @@ const FRogue10mInventoryGridEntry* URogue10mInventoryComponent::FindGridEntry(in
 }
 
 bool URogue10mInventoryComponent::TryMoveGridItem(int32 SourceContainerIndex, FGuid InstanceId,
-	int32 TargetContainerIndex, FIntPoint TargetPosition, bool bRotatedClockwise)
+	int32 TargetContainerIndex, FIntPoint TargetPosition)
 {
 	const FRogue10mInventoryGridEntry* SourceEntry = FindGridEntry(SourceContainerIndex, InstanceId);
 	if (!SourceEntry || !SourceEntry->ItemData || !InventoryContainers.IsValidIndex(TargetContainerIndex))
@@ -625,7 +683,7 @@ bool URogue10mInventoryComponent::TryMoveGridItem(int32 SourceContainerIndex, FG
 	}
 
 	const FGuid IgnoredId = SourceContainerIndex == TargetContainerIndex ? InstanceId : FGuid();
-	if (!CanPlaceGridItem(TargetContainerIndex, SourceEntry->ItemData, TargetPosition, IgnoredId, bRotatedClockwise))
+	if (!CanPlaceGridItem(TargetContainerIndex, SourceEntry->ItemData, TargetPosition, IgnoredId))
 	{
 		return false;
 	}
@@ -635,14 +693,12 @@ bool URogue10mInventoryComponent::TryMoveGridItem(int32 SourceContainerIndex, FG
 		FRogue10mInventoryGridEntry* MutableEntry = InventoryContainers[SourceContainerIndex].Entries.FindByPredicate(
 			[InstanceId](const FRogue10mInventoryGridEntry& Entry) { return Entry.InstanceId == InstanceId; });
 		MutableEntry->Position = TargetPosition;
-		MutableEntry->bRotatedClockwise = bRotatedClockwise;
 		OnInventoryGridChanged.Broadcast();
 		return true;
 	}
 
 	FRogue10mInventoryGridEntry MovedEntry = *SourceEntry;
 	MovedEntry.Position = TargetPosition;
-	MovedEntry.bRotatedClockwise = bRotatedClockwise;
 	InventoryContainers[SourceContainerIndex].Entries.RemoveAll(
 		[InstanceId](const FRogue10mInventoryGridEntry& Entry) { return Entry.InstanceId == InstanceId; });
 	InventoryContainers[TargetContainerIndex].Entries.Add(MoveTemp(MovedEntry));

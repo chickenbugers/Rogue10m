@@ -83,7 +83,7 @@ def main():
     component_class = unreal.load_class(None, "/Script/Rogue10m.Rogue10mInventoryComponent")
     component_cdo = unreal.get_default_object(component_class)
     starting_items = component_cdo.get_editor_property("prototype_starting_items")
-    if len(starting_items) != len(ITEMS):
+    if len(starting_items) < len(ITEMS):
         raise RuntimeError(
             f"Prototype starting item reference validation failed: {len(starting_items)}"
         )

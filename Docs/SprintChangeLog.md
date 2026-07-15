@@ -393,3 +393,127 @@
 - 관련 문서:
   - Feature/architect/2026-07-15_prototype-inventory-items.md
   - Feature/doc/2026-07-15_prototype-inventory-items.md
+
+### Sprint#1-14 - project-warning-cleanup
+
+- 상태: 프로젝트 측 경고 수정 및 독립 commandlet 검증 완료
+- 목표: 삭제된 몬스터 컴포넌트 직렬화 경고와 GameplayCue 전체 콘텐츠 검색 경고를 제거하고 엔진 자체 경고를 분리한다.
+- 주요 변경:
+  - `BP_BaseMonster`와 배치 External Actor에서 삭제된 `Rogue10mVitalsComponent` 참조 제거
+  - 현재 GAS Ability System 및 Vital Regeneration 컴포넌트 유지 확인
+  - `GameplayCueNotifyPaths=/Game/GameplayCues` 설정 추가
+  - `ValidateWarningFixes.py` 회귀 검증 추가
+  - `r.MotionVectorSimulation`은 UE 5.8 엔진 측 Render Thread Safe 플래그 문제로 판정하고 프로젝트 렌더 설정은 유지
+- 검증:
+  - 구형 Vitals 문자열 참조 0건
+  - 새 UE5.8 commandlet 검증 성공, 0 errors / 0 warnings
+- 관련 문서:
+  - `Feature/architect/2026-07-16_project-warning-cleanup.md`
+  - `Feature/doc/2026-07-16_project-warning-cleanup.md`
+  - `DevLog/20260716.txt`
+
+### Sprint#1-14 - inventory-item-footprint
+
+- 상태: 구현, C++ 빌드, WBP 재구성 및 독립 commandlet 검증 완료. PIE 시각 QA 필요.
+- 목표: 단일 10×10 인벤토리에서 1×1·2×3·4×3 아이템의 셀 점유 크기와 아이콘 원본 종횡비를 정확히 유지한다.
+- 주요 변경:
+  - Grid Entry와 DragDrop Operation의 회전 상태 및 R키 회전 처리 제거
+  - Item Data Asset의 원본 `InventorySize`만 배치·충돌 footprint로 사용
+  - Designer SizeBox 기본값을 44×44로 명시하고 Canvas 슬롯과 런타임 `UI_InventoryItemSize`를 `Width×44`, `Height×44`로 동기화
+  - Preview Border를 전체 footprint에 Fill하고 아이콘은 4px inset `ScaleBox(ScaleToFit)`로 분리
+  - `SetBrushFromTexture(Icon, true)`로 텍스처 실제 크기를 반영해 세로형·가로형 아이콘 종횡비 보존
+  - 아이콘 있는 아이템은 크기 문자열을 숨기고 비장비 스택 수량만 우측 상단 표시
+  - 아이콘 없는 프로토타입은 `InventoryTint`와 `W×H` fallback 표시
+  - Inventory Window의 BagTab 컨테이너와 클래스 참조를 제거하고 컨테이너 0으로 고정
+  - 제거된 탭 공간에 맞춰 Grid Frame/Grid/ItemCanvas 중심을 `(0,-12)`로 통일
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - `WBP_InventoryItem`, `WBP_InventoryWindow` 재구성·컴파일·저장 성공
+  - 새 commandlet에서 메뉴 WBP 7종 컴파일 및 클래스 참조 검증 성공
+  - 최종 `WBP_InventoryItem`에 IconScale 포함, `WBP_InventoryWindow`에 BagTabContainer 없음
+  - 최신 독립 검증 로그의 Blueprint/Python 오류 0건
+  - 런타임 회전 코드 검색 0건
+- 관련 문서:
+  - `Feature/architect/2026-07-15_inventory-item-footprint.md`
+  - `Feature/doc/2026-07-15_inventory-item-footprint.md`
+  - `Docs/GridInventoryAndMenuWindowsGuide.md`
+
+### Sprint#1-14 - inventory-item-icon-scale
+
+- 상태: 구현 및 C++ 빌드 검증 완료
+- 목표: Item Data Asset마다 인벤토리 아이콘의 표시 크기를 원본 비율을 유지한 채 조절한다.
+- 주요 변경:
+  - `InventoryIconScale` Data Asset 속성 추가, 기본값 `1.0`, 범위 `0.1~2.0`
+  - `ScaleToFit` 이후 중앙 Pivot 기준 균일 Render Scale 적용
+  - 확대 아이콘이 인접 셀을 침범하지 않도록 footprint 경계 클리핑
+  - 점유 크기·배치·충돌은 기존 `InventorySize` 기준 유지
+- 검증: Rogue10mEditor Win64 Development 빌드 성공
+- 관련 문서:
+  - `Feature/architect/2026-07-15_inventory-item-footprint.md`
+  - `Feature/doc/2026-07-15_inventory-item-footprint.md`
+
+### Sprint#1-14 - starter-item-icons
+
+- 상태: 아이콘 생성, Data Asset/Texture Import, C++ 빌드, WBP 재구성 및 독립 commandlet 검증 완료. PIE 시각 QA 필요.
+- 목표: 포션과 기본 장비를 실제 이미지로 제작해 M×N 인벤토리와 장비창에서 데이터 기반으로 표시한다.
+- 주요 변경:
+  - 다크 판타지 스타일 스타터 아이콘 6종 제작 및 투명 배경 처리
+  - 1칸당 256px 기준으로 1×1, 1×3, 2×2, 2×3 원본 캔버스 구성
+  - UI Texture 6개와 Item Data Asset 6개 생성
+  - Data Asset 기반 `FRogue10mItemStack` 변환과 시작 아이템 배치
+  - 포션 시작 수량 5개 및 장비 5종 프로토타입 자동 장착
+  - `OnEquipmentChanged` Delegate와 장비창 슬롯 아이콘 7개 추가
+  - 장비 슬롯에도 `ScaleBox(ScaleToFit)`와 `InventoryIconScale` 적용
+- 검증:
+  - PNG 투명 모서리와 M×N 해상도 검사 성공
+  - Unreal Python Import 시 Texture/Data Asset 크기·참조 검증 성공
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - UE5.8 commandlet 메뉴 WBP 전체 컴파일 성공, 0 errors / 0 warnings
+  - 열린 Editor에서 Data Asset 6개, PrototypeStartingItems 9개, 장비 아이콘 7개와 누락 0개 확인
+- 관련 문서:
+  - `Feature/architect/2026-07-15_starter-item-icons.md`
+  - `Feature/doc/2026-07-15_starter-item-icons.md`
+  - `Feature/architect/2026-07-15_inventory-item-footprint.md`
+  - `Feature/doc/2026-07-15_inventory-item-footprint.md`
+
+### Sprint#1-14 - inventory-item-tint-layer-order
+
+- 상태: 수정 및 Editor/commandlet 검증 완료
+- 목표: InventoryTint Border가 실제 아이콘과 수량을 덮지 않도록 렌더 계층을 고정한다.
+- 주요 변경:
+  - `UI_InventoryItemPreviewBorder` GridSlot Layer 0
+  - `UI_InventoryItemIconScale` GridSlot Layer 1
+  - `UI_InventoryItemQuantityText` GridSlot Layer 2
+  - `ValidateMenuWidgetAssets.py`에 Layer 회귀 검사 추가
+- 검증:
+  - 열린 Editor에서 Layer 0/1/2 확인 및 WBP 컴파일·저장 성공
+  - UE5.8 commandlet 전체 메뉴 WBP 컴파일 성공, 0 errors / 0 warnings
+- 관련 문서:
+  - `Feature/doc/2026-07-15_starter-item-icons.md`
+  - `DevLog/20260716.txt`
+
+### Sprint#1-14 - inventory-item-icon-runtime-paint
+
+- 상태: 구현, C++ 빌드, WBP 자동 검증, PIE 시각 검증 완료
+- 목표: Texture가 연결됐지만 Tint만 보이던 NxM 인벤토리 아이콘을 런타임에 정상 표시한다.
+- 주요 변경:
+  - WBP_InventoryItem에서 Inventory Icon ScaleBox를 제거하고 Tint Border의 Image 콘텐츠로 직접 배치
+  - Texture 종횡비와 NxM footprint를 이용해 44px 셀 기준 Fit 크기 계산
+  - 생성 전에는 적용되지 않는 SetDesiredSizeOverride() 대신 FSlateBrush::SetImageSize()로 Brush에 크기 저장
+  - 아이콘이 있는 일반 상태 Tint Alpha를 최대 0.18로 제한
+  - 스타터 Texture Import를 TC_DEFAULT, TEXTUREGROUP_UI, TMGS_FROM_TEXTURE_GROUP으로 통일
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - ValidateMenuWidgetAssets.py 전체 통과
+  - PIE UI 포함 캡처에서 포션, 장검, 투구, 갑옷, 부츠, 반지 아이콘 정상 표시
+- 관련 문서:
+  - Feature/architect/2026-07-15_starter-item-icons.md
+  - Feature/doc/2026-07-15_starter-item-icons.md
+  - Docs/GridInventoryAndMenuWindowsGuide.md
+  - DevLog/20260716.txt
+"@
+Append-Utf8 'D:\Project\Rogue10m\Feature\architect\2026-07-15_starter-item-icons.md' @"
+
+## Runtime Paint Correction (2026-07-16)
+
+PIE에서 Brush 리소스는 유효하지만 아이콘이 보이지 않는 문제를 별도 패킷으로 진단했다. InitializeGridItem()은 위젯이 Canvas에 추가되기 전에 실행되므로, 내부 SImage가 존재할 때만 동작하는 SetDesiredSizeOverride()를 사용할 수 없다. 최종 구조는 SizeBox -> Grid -> Border -> Image이며, C++가 Texture 종횡비와 NxM footprint로 계산한 크기를 FSlateBrush::ImageSize에 저장한다. 완료 조건은 Editor 빌드, WBP 자동 검증, PIE 캡처에서 스타터 아이콘 6종 표시다.
