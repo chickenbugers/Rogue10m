@@ -36,16 +36,16 @@ URogue10mInventoryComponent::URogue10mInventoryComponent()
 	};
 
 	LeftEquipmentSlots = {
-		MakeSlot(ERogue10mInventorySlotType::MainWeapon, TEXT("주무기"), FLinearColor(0.86f, 0.64f, 0.30f, 1.0f), false, true),
-		MakeSlot(ERogue10mInventorySlotType::Head, TEXT("머리"), FLinearColor(0.86f, 0.64f, 0.30f, 1.0f), false, false),
+		MakeSlot(ERogue10mInventorySlotType::MainWeapon, TEXT("무기"), FLinearColor(0.86f, 0.64f, 0.30f, 1.0f), false, true),
+		MakeSlot(ERogue10mInventorySlotType::Head, TEXT("투구"), FLinearColor(0.86f, 0.64f, 0.30f, 1.0f), false, false),
 		MakeSlot(ERogue10mInventorySlotType::Armor, TEXT("갑옷"), FLinearColor(0.86f, 0.64f, 0.30f, 1.0f), false, false),
-		MakeSlot(ERogue10mInventorySlotType::Shoes, TEXT("신발"), FLinearColor(0.86f, 0.64f, 0.30f, 1.0f), false, false)
+		MakeSlot(ERogue10mInventorySlotType::Hands, TEXT("장갑"), FLinearColor(0.86f, 0.64f, 0.30f, 1.0f), false, false)
 	};
 
 	RightEquipmentSlots = {
-		MakeSlot(ERogue10mInventorySlotType::SecondaryWeapon, TEXT("보조무기"), FLinearColor(0.05f, 0.68f, 1.0f, 1.0f), false, false),
+		MakeSlot(ERogue10mInventorySlotType::Shoes, TEXT("신발"), FLinearColor(0.05f, 0.68f, 1.0f, 1.0f), false, false),
 		MakeSlot(ERogue10mInventorySlotType::Ring, TEXT("반지"), FLinearColor(0.05f, 0.68f, 1.0f, 1.0f), false, false),
-		MakeSlot(ERogue10mInventorySlotType::Earring, TEXT("귀걸이"), FLinearColor(0.05f, 0.68f, 1.0f, 1.0f), false, false)
+		MakeSlot(ERogue10mInventorySlotType::Necklace, TEXT("목걸이"), FLinearColor(0.05f, 0.68f, 1.0f, 1.0f), false, false)
 	};
 
 	// 프로토타입 검증을 위해 현재 기획된 무기 6종을 기본 아이템으로 배치합니다.
@@ -56,12 +56,12 @@ URogue10mInventoryComponent::URogue10mInventoryComponent()
 		MakeWeaponItem(ERogue10mWeaponType::Bow, TEXT("활"), TEXT("거리 유지와 차징 사격을 위한 원거리 무기입니다."), FLinearColor(0.32f, 0.76f, 0.42f, 1.0f)),
 		MakeWeaponItem(ERogue10mWeaponType::Staff, TEXT("지팡이"), TEXT("마법 계열 액션을 연결하기 위한 촉매 무기입니다."), FLinearColor(0.58f, 0.42f, 1.0f, 1.0f)),
 		MakeWeaponItem(ERogue10mWeaponType::Knuckle, TEXT("권"), TEXT("주먹 공격을 강화하는 근접 전투 장비입니다."), FLinearColor(0.95f, 0.46f, 0.24f, 1.0f)),
-		MakeWeaponItem(ERogue10mWeaponType::Dagger, TEXT("보조 단검"), TEXT("보조무기 슬롯에 장착하는 짧은 단검입니다."), FLinearColor(0.68f, 0.82f, 1.0f, 1.0f), ERogue10mInventorySlotType::SecondaryWeapon),
+		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Hands, TEXT("수련용 장갑"), TEXT("장갑 슬롯에 장착하는 기본 방어구입니다."), 1, FLinearColor(0.68f, 0.82f, 1.0f, 1.0f)),
 		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Head, TEXT("수련용 머리장식"), TEXT("초기 테스트용 머리 장비입니다."), 1, FLinearColor(0.16f, 0.8f, 0.95f, 1.0f)),
 		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Armor, TEXT("수련용 갑옷"), TEXT("기본 방어구 슬롯 동작을 확인하기 위한 갑옷입니다."), 1, FLinearColor(0.16f, 0.8f, 0.95f, 1.0f)),
 		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Shoes, TEXT("수련용 신발"), TEXT("이동 장비 슬롯 테스트용 신발입니다."), 1, FLinearColor(0.16f, 0.8f, 0.95f, 1.0f)),
 		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Ring, TEXT("초심자의 반지"), TEXT("반지 슬롯에 장착 가능한 기본 장신구입니다."), 1, FLinearColor(0.16f, 0.8f, 0.95f, 1.0f)),
-		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Earring, TEXT("초심자의 귀걸이"), TEXT("귀걸이 슬롯에 장착 가능한 기본 장신구입니다."), 1, FLinearColor(0.16f, 0.8f, 0.95f, 1.0f)),
+		MakeItem(ERogue10mItemCategory::Equipment, ERogue10mInventorySlotType::Necklace, TEXT("초심자의 목걸이"), TEXT("목걸이 슬롯에 장착 가능한 기본 장신구입니다."), 1, FLinearColor(0.16f, 0.8f, 0.95f, 1.0f)),
 		MakeItem(ERogue10mItemCategory::Material, ERogue10mInventorySlotType::Material, TEXT("강화 코어"), TEXT("추후 제작과 강화에 사용할 재료입니다."), 6, FLinearColor(0.55f, 0.28f, 1.0f, 1.0f)),
 		MakeItem(ERogue10mItemCategory::Consumable, ERogue10mInventorySlotType::Consumable, TEXT("회복 구슬"), TEXT("소모품 자리 표시자입니다. 사용 효과는 이후 구현합니다."), 2, FLinearColor(0.15f, 0.45f, 1.0f, 1.0f)),
 		MakeItem(ERogue10mItemCategory::Quest, ERogue10mInventorySlotType::Material, TEXT("낡은 카드"), TEXT("스토리 또는 NPC 진행에 사용할 퀘스트 아이템입니다."), 7, FLinearColor(1.0f, 0.76f, 0.12f, 1.0f)),
@@ -156,13 +156,31 @@ void URogue10mInventoryComponent::BeginPlay()
 
 		if (bEquipPrototypeStarterEquipment)
 		{
+			bool bRemovedEquippedStarterFromGrid = false;
 			for (int32 ItemSlotIndex = 0; ItemSlotIndex < StarterSlotItems.Num(); ++ItemSlotIndex)
 			{
 				if (ItemSlots.IsValidIndex(ItemSlotIndex)
 					&& ItemSlots[ItemSlotIndex].Category == ERogue10mItemCategory::Equipment)
 				{
-					TryEquipItemFromSlot(ItemSlotIndex);
+					const URogue10mItemDataAsset* EquippedItemData = ItemSlots[ItemSlotIndex].ItemData.Get();
+					if (TryEquipItemFromSlot(ItemSlotIndex) && EquippedItemData)
+					{
+						const int32 GridEntryIndex = InventoryContainers[0].Entries.IndexOfByPredicate(
+							[EquippedItemData](const FRogue10mInventoryGridEntry& Entry)
+							{
+								return Entry.ItemData == EquippedItemData;
+							});
+						if (GridEntryIndex != INDEX_NONE)
+						{
+							InventoryContainers[0].Entries.RemoveAt(GridEntryIndex);
+							bRemovedEquippedStarterFromGrid = true;
+						}
+					}
 				}
+			}
+			if (bRemovedEquippedStarterFromGrid)
+			{
+				OnInventoryGridChanged.Broadcast();
 			}
 		}
 	}
@@ -212,6 +230,7 @@ FRogue10mItemStack URogue10mInventoryComponent::MakeItemFromDataAsset(const URog
 		ItemData->InventoryTint);
 	Item.ItemData = ItemData;
 	Item.WeaponType = ItemData->WeaponType;
+	Item.RestoreHealth = FMath::Max(0.0f, ItemData->RestoreHealth);
 	return Item;
 }
 
@@ -312,7 +331,7 @@ bool URogue10mInventoryComponent::TryUnequipItemFromSlot(ERogue10mInventorySlotT
 
 	if (TargetSlotType == ERogue10mInventorySlotType::MainWeapon)
 	{
-		EquipmentSlot->DisplayName = FText::FromString(TEXT("주무기"));
+		EquipmentSlot->DisplayName = FText::FromString(TEXT("무기"));
 		EquipmentSlot->SlotColor = FLinearColor(0.86f, 0.64f, 0.30f, 1.0f);
 		EquipmentSlot->bEquipped = true;
 		if (ARogue10mCharacter* OwningCharacter = Cast<ARogue10mCharacter>(GetOwner()))
@@ -328,16 +347,22 @@ bool URogue10mInventoryComponent::TryUnequipItemFromSlot(ERogue10mInventorySlotT
 			EquipmentSlot->DisplayName = FText::FromString(TEXT("보조무기"));
 			break;
 		case ERogue10mInventorySlotType::Head:
-			EquipmentSlot->DisplayName = FText::FromString(TEXT("머리"));
+			EquipmentSlot->DisplayName = FText::FromString(TEXT("투구"));
 			break;
 		case ERogue10mInventorySlotType::Armor:
 			EquipmentSlot->DisplayName = FText::FromString(TEXT("갑옷"));
+			break;
+		case ERogue10mInventorySlotType::Hands:
+			EquipmentSlot->DisplayName = FText::FromString(TEXT("장갑"));
 			break;
 		case ERogue10mInventorySlotType::Shoes:
 			EquipmentSlot->DisplayName = FText::FromString(TEXT("신발"));
 			break;
 		case ERogue10mInventorySlotType::Ring:
 			EquipmentSlot->DisplayName = FText::FromString(TEXT("반지"));
+			break;
+		case ERogue10mInventorySlotType::Necklace:
+			EquipmentSlot->DisplayName = FText::FromString(TEXT("목걸이"));
 			break;
 		case ERogue10mInventorySlotType::Earring:
 			EquipmentSlot->DisplayName = FText::FromString(TEXT("귀걸이"));
@@ -503,6 +528,31 @@ FRogue10mInventorySlot* URogue10mInventoryComponent::FindEquipmentSlot(ERogue10m
 	return nullptr;
 }
 
+const URogue10mItemDataAsset* URogue10mInventoryComponent::GetEquippedItemData(
+	ERogue10mInventorySlotType SlotType) const
+{
+	const auto FindInSlots = [SlotType](const TArray<FRogue10mInventorySlot>& Slots)
+		-> const URogue10mItemDataAsset*
+	{
+		for (const FRogue10mInventorySlot& Slot : Slots)
+		{
+			if (Slot.SlotType == SlotType)
+			{
+				return !Slot.bLocked && Slot.bHasEquippedItem && Slot.EquippedItem.bOccupied
+					? Slot.EquippedItem.ItemData.Get()
+					: nullptr;
+			}
+		}
+		return nullptr;
+	};
+
+	if (const URogue10mItemDataAsset* ItemData = FindInSlots(LeftEquipmentSlots))
+	{
+		return ItemData;
+	}
+	return FindInSlots(RightEquipmentSlots);
+}
+
 int32 URogue10mInventoryComponent::FindFirstEmptyItemSlot() const
 {
 	for (int32 Index = 0; Index < ItemSlots.Num(); ++Index)
@@ -520,7 +570,7 @@ void URogue10mInventoryComponent::ResetEquipmentSlotDisplay(FRogue10mInventorySl
 {
 	if (TargetSlotType == ERogue10mInventorySlotType::MainWeapon)
 	{
-		EquipmentSlot.DisplayName = FText::FromString(TEXT("주무기"));
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("무기"));
 		EquipmentSlot.SlotColor = FLinearColor(0.86f, 0.64f, 0.30f, 1.0f);
 		EquipmentSlot.bEquipped = true;
 		return;
@@ -532,16 +582,22 @@ void URogue10mInventoryComponent::ResetEquipmentSlotDisplay(FRogue10mInventorySl
 		EquipmentSlot.DisplayName = FText::FromString(TEXT("보조무기"));
 		break;
 	case ERogue10mInventorySlotType::Head:
-		EquipmentSlot.DisplayName = FText::FromString(TEXT("머리"));
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("투구"));
 		break;
 	case ERogue10mInventorySlotType::Armor:
 		EquipmentSlot.DisplayName = FText::FromString(TEXT("갑옷"));
+		break;
+	case ERogue10mInventorySlotType::Hands:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("장갑"));
 		break;
 	case ERogue10mInventorySlotType::Shoes:
 		EquipmentSlot.DisplayName = FText::FromString(TEXT("신발"));
 		break;
 	case ERogue10mInventorySlotType::Ring:
 		EquipmentSlot.DisplayName = FText::FromString(TEXT("반지"));
+		break;
+	case ERogue10mInventorySlotType::Necklace:
+		EquipmentSlot.DisplayName = FText::FromString(TEXT("목걸이"));
 		break;
 	case ERogue10mInventorySlotType::Earring:
 		EquipmentSlot.DisplayName = FText::FromString(TEXT("귀걸이"));
@@ -591,7 +647,7 @@ bool URogue10mInventoryComponent::CanPlaceGridItem(int32 ContainerIndex, const U
 }
 
 bool URogue10mInventoryComponent::FindFirstGridPosition(int32 ContainerIndex,
-	const URogue10mItemDataAsset* ItemData, FIntPoint& OutPosition) const
+	const URogue10mItemDataAsset* ItemData, FIntPoint& OutPosition, FGuid IgnoredInstanceId) const
 {
 	if (!InventoryContainers.IsValidIndex(ContainerIndex) || !ItemData)
 	{
@@ -604,7 +660,7 @@ bool URogue10mInventoryComponent::FindFirstGridPosition(int32 ContainerIndex,
 		for (int32 X = 0; X < GridSize.X; ++X)
 		{
 			const FIntPoint Candidate(X, Y);
-			if (CanPlaceGridItem(ContainerIndex, ItemData, Candidate, FGuid()))
+			if (CanPlaceGridItem(ContainerIndex, ItemData, Candidate, IgnoredInstanceId))
 			{
 				OutPosition = Candidate;
 				return true;
@@ -704,6 +760,249 @@ bool URogue10mInventoryComponent::TryMoveGridItem(int32 SourceContainerIndex, FG
 	InventoryContainers[TargetContainerIndex].Entries.Add(MoveTemp(MovedEntry));
 	OnInventoryGridChanged.Broadcast();
 	return true;
+}
+
+bool URogue10mInventoryComponent::TryUseGridConsumable(int32 ContainerIndex, FGuid InstanceId)
+{
+	FRogue10mInventoryGridEntry* Entry = FindGridEntry(ContainerIndex, InstanceId);
+	if (!Entry || !Entry->ItemData || Entry->ItemData->Category != ERogue10mItemCategory::Consumable
+		|| Entry->Quantity <= 0)
+	{
+		return false;
+	}
+
+	ARogue10mCharacter* Character = Cast<ARogue10mCharacter>(GetOwner());
+	URogue10mAttributeSet* Attributes = Character ? Character->GetRogueAttributeSet() : nullptr;
+	const float RestoreHealth = FMath::Max(0.0f, Entry->ItemData->RestoreHealth);
+	if (!Attributes || RestoreHealth <= 0.0f || Attributes->GetHealth() >= Attributes->GetMaxHealth())
+	{
+		return false;
+	}
+
+	const FText ItemName = Entry->ItemData->DisplayName;
+	const float PreviousHealth = Attributes->GetHealth();
+	Attributes->SetHealth(FMath::Min(Attributes->GetMaxHealth(), PreviousHealth + RestoreHealth));
+	const float AppliedHealth = Attributes->GetHealth() - PreviousHealth;
+	if (AppliedHealth <= 0.0f)
+	{
+		return false;
+	}
+
+	--Entry->Quantity;
+	if (Entry->Quantity <= 0)
+	{
+		InventoryContainers[ContainerIndex].Entries.RemoveAll(
+			[InstanceId](const FRogue10mInventoryGridEntry& Candidate)
+			{
+				return Candidate.InstanceId == InstanceId;
+			});
+	}
+	OnInventoryGridChanged.Broadcast();
+
+	if (ARogue10mPlayerController* Controller = Character
+		? Cast<ARogue10mPlayerController>(Character->GetController()) : nullptr)
+	{
+		Controller->AddCombatLogMessage(FString::Printf(TEXT("%s 사용: 체력 +%.0f"),
+			*ItemName.ToString(), AppliedHealth), FLinearColor(0.25f, 0.9f, 0.35f, 1.0f));
+	}
+	return true;
+}
+
+bool URogue10mInventoryComponent::TryEquipGridItem(int32 ContainerIndex, FGuid InstanceId)
+{
+	FRogue10mInventoryGridEntry* SourceEntry = FindGridEntry(ContainerIndex, InstanceId);
+	if (!SourceEntry || !SourceEntry->ItemData
+		|| SourceEntry->ItemData->Category != ERogue10mItemCategory::Equipment
+		|| SourceEntry->Quantity != 1)
+	{
+		return false;
+	}
+
+	const FRogue10mInventoryGridEntry SourceEntryCopy = *SourceEntry;
+	const URogue10mItemDataAsset* NewItemData = SourceEntryCopy.ItemData.Get();
+	FRogue10mInventorySlot* EquipmentSlot = FindEquipmentSlot(NewItemData->EquipSlotType);
+	if (!EquipmentSlot || EquipmentSlot->bLocked)
+	{
+		return false;
+	}
+
+	const FRogue10mItemStack PreviousEquippedItem = EquipmentSlot->EquippedItem;
+	const bool bHadEquippedItem = EquipmentSlot->bHasEquippedItem
+		&& PreviousEquippedItem.bOccupied;
+	int32 ReplacementContainerIndex = INDEX_NONE;
+	FIntPoint ReplacementPosition = FIntPoint::ZeroValue;
+	if (bHadEquippedItem)
+	{
+		const URogue10mItemDataAsset* PreviousItemData = PreviousEquippedItem.ItemData.Get();
+		if (!PreviousItemData)
+		{
+			return false;
+		}
+
+		if (CanPlaceGridItem(ContainerIndex, PreviousItemData, SourceEntryCopy.Position, InstanceId))
+		{
+			ReplacementContainerIndex = ContainerIndex;
+			ReplacementPosition = SourceEntryCopy.Position;
+		}
+		else
+		{
+			for (int32 CandidateContainerIndex = 0;
+				CandidateContainerIndex < InventoryContainers.Num(); ++CandidateContainerIndex)
+			{
+				const FGuid IgnoredId = CandidateContainerIndex == ContainerIndex ? InstanceId : FGuid();
+				if (FindFirstGridPosition(CandidateContainerIndex, PreviousItemData,
+					ReplacementPosition, IgnoredId))
+				{
+					ReplacementContainerIndex = CandidateContainerIndex;
+					break;
+				}
+			}
+		}
+
+		if (ReplacementContainerIndex == INDEX_NONE)
+		{
+			return false;
+		}
+	}
+
+	const FRogue10mItemStack NewEquippedItem = MakeItemFromDataAsset(NewItemData, 1);
+	if (!NewEquippedItem.bOccupied)
+	{
+		return false;
+	}
+
+	if (bHadEquippedItem)
+	{
+		FRogue10mInventoryGridEntry ReplacementEntry;
+		ReplacementEntry.InstanceId = InstanceId;
+		ReplacementEntry.ItemData = PreviousEquippedItem.ItemData;
+		ReplacementEntry.Quantity = FMath::Clamp(PreviousEquippedItem.Quantity, 1,
+			FMath::Max(1, PreviousEquippedItem.ItemData->MaxStackSize));
+		ReplacementEntry.Position = ReplacementPosition;
+		if (ReplacementContainerIndex == ContainerIndex)
+		{
+			*SourceEntry = MoveTemp(ReplacementEntry);
+		}
+		else
+		{
+			InventoryContainers[ContainerIndex].Entries.RemoveAll(
+				[InstanceId](const FRogue10mInventoryGridEntry& Candidate)
+				{
+					return Candidate.InstanceId == InstanceId;
+				});
+			InventoryContainers[ReplacementContainerIndex].Entries.Add(MoveTemp(ReplacementEntry));
+		}
+	}
+	else
+	{
+		InventoryContainers[ContainerIndex].Entries.RemoveAll(
+			[InstanceId](const FRogue10mInventoryGridEntry& Candidate)
+			{
+				return Candidate.InstanceId == InstanceId;
+			});
+	}
+
+	EquipmentSlot->DisplayName = NewEquippedItem.DisplayName;
+	EquipmentSlot->SlotColor = NewEquippedItem.ItemColor;
+	EquipmentSlot->bEquipped = true;
+	EquipmentSlot->bHasEquippedItem = true;
+	EquipmentSlot->EquippedItem = NewEquippedItem;
+	if (NewItemData->EquipSlotType == ERogue10mInventorySlotType::MainWeapon)
+	{
+		if (ARogue10mCharacter* Character = Cast<ARogue10mCharacter>(GetOwner()))
+		{
+			Character->SetEquippedWeaponType(NewEquippedItem.WeaponType);
+		}
+	}
+
+	OnInventoryGridChanged.Broadcast();
+	OnEquipmentChanged.Broadcast();
+
+	if (ARogue10mCharacter* Character = Cast<ARogue10mCharacter>(GetOwner()))
+	{
+		if (ARogue10mPlayerController* Controller =
+			Cast<ARogue10mPlayerController>(Character->GetController()))
+		{
+			const FString Message = bHadEquippedItem
+				? FString::Printf(TEXT("%s 장착 (%s 교체)"), *NewEquippedItem.DisplayName.ToString(),
+					*PreviousEquippedItem.DisplayName.ToString())
+				: FString::Printf(TEXT("%s 장착"), *NewEquippedItem.DisplayName.ToString());
+			Controller->AddCombatLogMessage(Message, FLinearColor(0.45f, 0.75f, 1.0f, 1.0f));
+		}
+	}
+	return true;
+}
+
+bool URogue10mInventoryComponent::TryUnequipItemToGrid(
+	ERogue10mInventorySlotType SourceSlotType,
+	int32 TargetContainerIndex,
+	FIntPoint TargetPosition)
+{
+	FRogue10mInventorySlot* EquipmentSlot = FindEquipmentSlot(SourceSlotType);
+	if (!EquipmentSlot || EquipmentSlot->bLocked || !EquipmentSlot->bHasEquippedItem
+		|| !EquipmentSlot->EquippedItem.bOccupied || !EquipmentSlot->EquippedItem.ItemData)
+	{
+		return false;
+	}
+
+	const URogue10mItemDataAsset* ItemData = EquipmentSlot->EquippedItem.ItemData.Get();
+	if (!InventoryContainers.IsValidIndex(TargetContainerIndex)
+		|| !CanPlaceGridItem(TargetContainerIndex, ItemData, TargetPosition, FGuid()))
+	{
+		return false;
+	}
+
+	FRogue10mInventoryGridEntry Entry;
+	Entry.InstanceId = FGuid::NewGuid();
+	Entry.ItemData = ItemData;
+	Entry.Quantity = FMath::Clamp(EquipmentSlot->EquippedItem.Quantity, 1, FMath::Max(1, ItemData->MaxStackSize));
+	Entry.Position = TargetPosition;
+	InventoryContainers[TargetContainerIndex].Entries.Add(MoveTemp(Entry));
+
+	EquipmentSlot->EquippedItem = MakeEmptyItem();
+	EquipmentSlot->bHasEquippedItem = false;
+	EquipmentSlot->bEquipped = false;
+	ResetEquipmentSlotDisplay(*EquipmentSlot, SourceSlotType);
+
+	if (SourceSlotType == ERogue10mInventorySlotType::MainWeapon)
+	{
+		if (ARogue10mCharacter* OwningCharacter = Cast<ARogue10mCharacter>(GetOwner()))
+		{
+			OwningCharacter->SetEquippedWeaponType(ERogue10mWeaponType::Unarmed);
+		}
+	}
+
+	OnInventoryGridChanged.Broadcast();
+	OnEquipmentChanged.Broadcast();
+	return true;
+}
+
+bool URogue10mInventoryComponent::TryUnequipItemToFirstAvailableGrid(
+	ERogue10mInventorySlotType SourceSlotType)
+{
+	const FRogue10mInventorySlot* EquipmentSlot = FindEquipmentSlot(SourceSlotType);
+	if (!EquipmentSlot || EquipmentSlot->bLocked || !EquipmentSlot->bHasEquippedItem
+		|| !EquipmentSlot->EquippedItem.bOccupied || !EquipmentSlot->EquippedItem.ItemData)
+	{
+		return false;
+	}
+
+	const URogue10mItemDataAsset* ItemData = EquipmentSlot->EquippedItem.ItemData.Get();
+	for (int32 ContainerIndex = 0; ContainerIndex < InventoryContainers.Num(); ++ContainerIndex)
+	{
+		FIntPoint Position = FIntPoint::ZeroValue;
+		if (!FindFirstGridPosition(ContainerIndex, ItemData, Position))
+		{
+			continue;
+		}
+
+		if (TryUnequipItemToGrid(SourceSlotType, ContainerIndex, Position))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool URogue10mInventoryComponent::RemoveGridItem(int32 ContainerIndex, FGuid InstanceId,

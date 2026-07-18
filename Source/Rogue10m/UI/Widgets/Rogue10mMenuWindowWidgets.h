@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Rogue10mInventoryComponent.h"
 #include "Rogue10mMenuWindowWidgets.generated.h"
 
 class URogue10mAttackSkillData;
@@ -11,12 +13,18 @@ class URogue10mCombatComponent;
 class URogue10mInventoryComponent;
 class URogue10mItemDataAsset;
 class URogue10mItemDragDropOperation;
+class URogue10mEquipmentSlotActionWidget;
+class URogue10mEquipmentDragSourceWidget;
+class URogue10mEquipmentWindowWidget;
+class URogue10mInventoryItemTooltipWidget;
+class ARogue10mEquipmentPreviewActor;
 class UImage;
 class USizeBox;
 class UCanvasPanel;
 class UBorder;
 class UButton;
 class UPanelWidget;
+class UWidget;
 class UTextBlock;
 class UUniformGridPanel;
 class UVerticalBox;
@@ -40,6 +48,21 @@ public:
 	bool IsWindowOpen() const { return bWindowOpen; }
 
 protected:
+	virtual void NativeConstruct() override;
+	virtual FReply NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+
+	/** 전체 화면 Widget 안에서 실제 창 내용만 이동시키는 공통 루트입니다. */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|UI|Window Drag")
+	TObjectPtr<UCanvasPanel> UI_WindowRoot;
+
+	/** 이 Border 안에서 시작한 좌클릭만 창 이동으로 처리합니다. */
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|UI|Window Drag")
+	TObjectPtr<UBorder> UI_WindowDragHandle;
+
 	UFUNCTION(BlueprintImplementableEvent, Category="Rogue10m|UI", meta=(DisplayName="Menu Window Initialized"))
 	void BP_OnMenuWindowInitialized();
 
@@ -51,6 +74,9 @@ private:
 	TObjectPtr<URogue10mInventoryComponent> InventoryComponent;
 
 	bool bWindowOpen = false;
+	bool bWindowDragging = false;
+	FVector2D WindowDragStartScreenPosition = FVector2D::ZeroVector;
+	FVector2D WindowDragStartCanvasPosition = FVector2D::ZeroVector;
 };
 
 UCLASS(Abstract, Blueprintable)
@@ -70,6 +96,94 @@ private:
 };
 
 UCLASS(Abstract, Blueprintable)
+class ROGUE10M_API URogue10mInventoryItemTooltipWidget : public UUserWidget
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Tooltip")
+	void InitializeItemTooltip(const URogue10mItemDataAsset* InItemData, int32 InQuantity,
+		const URogue10mItemDataAsset* InEquippedItemData, bool bInEquippedSlot);
+
+protected:
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<USizeBox> UI_ItemTooltipSize;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UImage> UI_ItemIcon;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UTextBlock> UI_ItemNameText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UTextBlock> UI_ItemDescriptionText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UTextBlock> UI_ItemWeightText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UTextBlock> UI_ItemActionHintText;
+
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UVerticalBox> UI_ItemStatsSection;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UTextBlock> UI_ItemStatsTitleText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UVerticalBox> UI_ItemStatsContainer;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UBorder> UI_EquippedItemPanel;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UImage> UI_EquippedItemIcon;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UTextBlock> UI_EquippedItemNameText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UTextBlock> UI_EquippedItemDescriptionText;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UVerticalBox> UI_EquippedItemStatsContainer;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory|Tooltip")
+	TObjectPtr<UVerticalBox> UI_ComparisonStatsContainer;
+};
+
+UCLASS(Abstract, Blueprintable)
+class ROGUE10M_API URogue10mEquipmentSlotActionWidget : public UUserWidget
+{
+	GENERATED_BODY()
+
+public:
+	void InitializeActionMenu(URogue10mInventoryComponent* InInventory,
+		ERogue10mInventorySlotType InSlotType, const URogue10mItemDataAsset* InItemData);
+
+protected:
+	virtual void NativeConstruct() override;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
+	TObjectPtr<UTextBlock> UI_EquipmentItemNameText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
+	TObjectPtr<UButton> UI_UnequipButton;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
+	TObjectPtr<UTextBlock> UI_UnequipButtonText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
+	TObjectPtr<UTextBlock> UI_ActionResultText;
+
+private:
+	UFUNCTION()
+	void HandleUnequipClicked();
+
+	UPROPERTY(Transient)
+	TObjectPtr<URogue10mInventoryComponent> Inventory;
+
+	ERogue10mInventorySlotType SlotType = ERogue10mInventorySlotType::Material;
+};
+
+UCLASS(Abstract, Blueprintable)
 class ROGUE10M_API URogue10mInventoryItemWidget : public UUserWidget
 {
 	GENERATED_BODY()
@@ -84,7 +198,11 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<USizeBox> UI_InventoryItemSize;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<UImage> UI_InventoryItemIcon;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<UTextBlock> UI_InventoryItemQuantityText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<UBorder> UI_InventoryItemRarityBackground;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<UBorder> UI_InventoryItemPreviewBorder;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Tooltip")
+	TSoftClassPtr<URogue10mInventoryItemTooltipWidget> InventoryItemTooltipWidgetClass =
+		TSoftClassPtr<URogue10mInventoryItemTooltipWidget>(FSoftObjectPath(TEXT("/Game/Widget/Menu/Inventory/WBP_InventoryItemTooltip.WBP_InventoryItemTooltip_C")));
 private:
 	UPROPERTY(Transient) TObjectPtr<URogue10mInventoryComponent> Inventory;
 	UPROPERTY(Transient) TObjectPtr<class URogue10mInventoryWindowWidget> InventoryWindow;
@@ -174,6 +292,37 @@ private:
 	TWeakObjectPtr<URogue10mItemDragDropOperation> ActiveGridDragOperation;
 };
 
+/**
+ * Cursor-positioned drag source used by equipped items.
+ *
+ * UMG animates a drag decorator from the drag source widget's absolute position for the first
+ * 0.15 seconds. The equipment window itself fills the viewport, so using it as the source makes
+ * the decorator fly in from the viewport's upper-left corner. This invisible proxy is sized and
+ * positioned to match the decorator at mouse-down time, removing that unintended travel.
+ */
+UCLASS(Transient)
+class ROGUE10M_API URogue10mEquipmentDragSourceWidget : public UUserWidget
+{
+	GENERATED_BODY()
+
+public:
+	void InitializeDragSource(URogue10mEquipmentWindowWidget* InEquipmentWindow,
+		ERogue10mInventorySlotType InSlotType, const FAnchorData& InHomeLayout);
+	void SetDragLayout(FVector2D ParentLocalCursorPosition, FVector2D DragVisualSize);
+	void RestoreHomeLayout();
+
+protected:
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
+		UDragDropOperation*& OutOperation) override;
+
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+private:
+	TWeakObjectPtr<URogue10mEquipmentWindowWidget> EquipmentWindow;
+	ERogue10mInventorySlotType SlotType = ERogue10mInventorySlotType::Material;
+	FAnchorData HomeLayout;
+};
+
 UCLASS(Abstract, Blueprintable)
 class ROGUE10M_API URogue10mEquipmentWindowWidget : public URogue10mMenuWindowWidget
 {
@@ -184,8 +333,20 @@ public:
 	virtual void SetWindowOpen(bool bOpen) override;
 
 protected:
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
+		UDragDropOperation*& OutOperation) override;
+	virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+		UDragDropOperation* InOperation) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+		UDragDropOperation* InOperation) override;
+	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent,
+		UDragDropOperation* InOperation) override;
+
+
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
-	TObjectPtr<UVerticalBox> UI_EquipmentSlotContainer;
+	TObjectPtr<UCanvasPanel> UI_EquipmentSlotContainer;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
 	TObjectPtr<UImage> UI_CharacterPreviewImage;
@@ -198,22 +359,104 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
 	TObjectPtr<UImage> UI_HandsSlotIcon;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
-	TObjectPtr<UImage> UI_LegsSlotIcon;
+	TObjectPtr<UImage> UI_RingSlotIcon;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
 	TObjectPtr<UImage> UI_FeetSlotIcon;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
-	TObjectPtr<UImage> UI_AccessorySlotIcon;
+	TObjectPtr<UImage> UI_NecklaceSlotIcon;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment")
+	TObjectPtr<UBorder> UI_WeaponSlotFrame;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment")
+	TObjectPtr<UBorder> UI_HeadSlotFrame;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment")
+	TObjectPtr<UBorder> UI_ChestSlotFrame;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment")
+	TObjectPtr<UBorder> UI_HandsSlotFrame;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment")
+	TObjectPtr<UBorder> UI_RingSlotFrame;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment")
+	TObjectPtr<UBorder> UI_FeetSlotFrame;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment")
+	TObjectPtr<UBorder> UI_NecklaceSlotFrame;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Drag Drop", meta=(ClampMin="16.0"))
+	float InventoryDragCellSize = 44.0f;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment")
 	TObjectPtr<UVerticalBox> UI_EquipmentStatsContainer;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment|Stats")
+	TObjectPtr<UTextBlock> UI_AttackStatText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment|Stats")
+	TObjectPtr<UTextBlock> UI_DefenseStatText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment|Stats")
+	TObjectPtr<UTextBlock> UI_MaxHealthStatText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment|Stats")
+	TObjectPtr<UTextBlock> UI_CriticalChanceStatText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment|Stats")
+	TObjectPtr<UTextBlock> UI_AttackSpeedStatText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Equipment|Stats")
+	TObjectPtr<UTextBlock> UI_MoveSpeedStatText;
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Preview")
+	FIntPoint CharacterPreviewResolution = FIntPoint(512, 768);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Tooltip")
+	TSoftClassPtr<URogue10mInventoryItemTooltipWidget> EquipmentItemTooltipWidgetClass =
+		TSoftClassPtr<URogue10mInventoryItemTooltipWidget>(FSoftObjectPath(TEXT("/Game/Widget/Menu/Inventory/WBP_InventoryItemTooltip.WBP_InventoryItemTooltip_C")));
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Action")
+	TSoftClassPtr<URogue10mEquipmentSlotActionWidget> EquipmentSlotActionWidgetClass =
+		TSoftClassPtr<URogue10mEquipmentSlotActionWidget>(FSoftObjectPath(TEXT("/Game/Widget/Menu/Equipment/WBP_EquipmentSlotAction.WBP_EquipmentSlotAction_C")));
+
 
 	virtual void NativeDestruct() override;
 
 private:
+	friend class URogue10mEquipmentDragSourceWidget;
+
+
 	UFUNCTION()
 	void HandleEquipmentChanged();
-	void RefreshEquipmentDisplay();
+	UFUNCTION()
+	void HandleEquipmentDragFinished(UDragDropOperation* Operation);
+	void CreateEquipmentItemDragOperation(UDragDropOperation*& OutOperation);
+	FReply HandleEquipmentDragSourceMouseButtonDown(URogue10mEquipmentDragSourceWidget* DragSource,
+		ERogue10mInventorySlotType SlotType, const FGeometry& InGeometry, const FPointerEvent& InMouseEvent);
+	void RebuildEquipmentDragSourceProxies();
+	void ClearEquipmentDragSourceProxies();
 
+	void RefreshEquipmentDisplay();
+	bool EnsureCharacterPreview();
+	void RefreshCharacterPreview();
+	void DestroyCharacterPreview();
+
+	void RefreshEquipmentSlotTooltip(UWidget* HitWidget, ERogue10mInventorySlotType SlotType);
+	void OpenEquipmentSlotActionMenu(ERogue10mInventorySlotType SlotType, FVector2D ScreenPosition);
+	void CloseEquipmentSlotActionMenu();
+	const FRogue10mInventorySlot* FindEquipmentSlotData(ERogue10mInventorySlotType SlotType) const;
+	TOptional<ERogue10mInventorySlotType> FindEquipmentDropSlot(
+		FVector2D ScreenPosition, UBorder*& OutFrame) const;
+	bool UpdateEquipmentDropPreview(const FDragDropEvent& DragDropEvent, URogue10mItemDragDropOperation* Operation);
+	void ClearEquipmentDropPreview();
+	TOptional<ERogue10mInventorySlotType> PendingEquipmentDragSlotType;
+	FIntPoint PendingEquipmentGrabCellOffset = FIntPoint::ZeroValue;
+
+	TWeakObjectPtr<URogue10mItemDragDropOperation> ActiveEquipmentDragOperation;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<URogue10mEquipmentDragSourceWidget>> EquipmentDragSourceProxies;
+	TWeakObjectPtr<URogue10mEquipmentDragSourceWidget> ActiveEquipmentDragSourceProxy;
+
+	UPROPERTY(Transient)
+	TObjectPtr<URogue10mEquipmentSlotActionWidget> ActiveEquipmentSlotActionWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ARogue10mEquipmentPreviewActor> CharacterPreviewActor;
+	TWeakObjectPtr<UBorder> ActiveEquipmentDropFrame;
+	TWeakObjectPtr<URogue10mItemDragDropOperation> ActiveEquipmentDropOperation;
+
+
+	FLinearColor ActiveEquipmentDropOriginalColor = FLinearColor::Transparent;
 };
 
 UCLASS(Abstract, Blueprintable)

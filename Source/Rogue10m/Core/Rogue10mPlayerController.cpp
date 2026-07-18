@@ -4,6 +4,7 @@
 #include "Data/Rogue10mItemDataAsset.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/GameViewportSubsystem.h"
 
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputSubsystems.h"
@@ -134,7 +135,7 @@ void ARogue10mPlayerController::ToggleInventory()
 		UE_LOG(LogRogue10m, Warning, TEXT("InventoryWindowWidgetClass가 설정되지 않았습니다."));
 		return;
 	}
-	SetPanelVisible(bInventoryVisible, !bInventoryVisible);
+	SetInventoryEquipmentPanelVisible(bInventoryVisible, !bInventoryVisible, InventoryWindowWidget);
 }
 
 void ARogue10mPlayerController::ToggleItemWindow()
@@ -144,7 +145,7 @@ void ARogue10mPlayerController::ToggleItemWindow()
 		UE_LOG(LogRogue10m, Warning, TEXT("EquipmentWindowWidgetClass가 설정되지 않았습니다."));
 		return;
 	}
-	SetPanelVisible(bItemWindowVisible, !bItemWindowVisible);
+	SetInventoryEquipmentPanelVisible(bItemWindowVisible, !bItemWindowVisible, EquipmentWindowWidget);
 }
 
 void ARogue10mPlayerController::ToggleSkillTree()
@@ -154,12 +155,12 @@ void ARogue10mPlayerController::ToggleSkillTree()
 		UE_LOG(LogRogue10m, Warning, TEXT("SkillTreeWindowWidgetClass가 설정되지 않았습니다."));
 		return;
 	}
-	SetPanelVisible(bSkillTreeVisible, !bSkillTreeVisible);
+	SetPanelVisible(bSkillTreeVisible, !bSkillTreeVisible, SkillTreeWindowWidget);
 }
 
 void ARogue10mPlayerController::ToggleSettings()
 {
-	SetPanelVisible(bSettingsVisible, !bSettingsVisible);
+	SetPanelVisible(bSettingsVisible, !bSettingsVisible, nullptr);
 }
 
 void ARogue10mPlayerController::CloseAllBlockingPanels()
@@ -518,7 +519,7 @@ void ARogue10mPlayerController::InitializeMenuWindows()
 		if (OutWidget)
 		{
 			OutWidget->InitializeMenuWindow(Inventory);
-			OutWidget->AddToPlayerScreen(50);
+			BringMenuWindowToFront(OutWidget);
 			OutWidget->SetWindowOpen(false);
 		}
 	};
@@ -538,10 +539,72 @@ void ARogue10mPlayerController::InitializeMenuWindows()
 
 void ARogue10mPlayerController::ApplyMenuWindowVisibility()
 {
-	if (InventoryWindowWidget) InventoryWindowWidget->SetWindowOpen(bInventoryVisible);
-	if (EquipmentWindowWidget) EquipmentWindowWidget->SetWindowOpen(bItemWindowVisible);
-	if (SkillTreeWindowWidget) SkillTreeWindowWidget->SetWindowOpen(bSkillTreeVisible);
+	if (InventoryWindowWidget && InventoryWindowWidget->IsWindowOpen() != bInventoryVisible)
+	{
+		InventoryWindowWidget->SetWindowOpen(bInventoryVisible);
+	}
+	if (EquipmentWindowWidget && EquipmentWindowWidget->IsWindowOpen() != bItemWindowVisible)
+	{
+		EquipmentWindowWidget->SetWindowOpen(bItemWindowVisible);
+	}
+	if (SkillTreeWindowWidget && SkillTreeWindowWidget->IsWindowOpen() != bSkillTreeVisible)
+	{
+		SkillTreeWindowWidget->SetWindowOpen(bSkillTreeVisible);
+	}
 }
+
+void ARogue10mPlayerController::BringMenuWindowToFront(URogue10mMenuWindowWidget* Window)
+{
+	if (!Window)
+	{
+		return;
+	}
+
+	MenuWindowStack.RemoveAll([Window](const TWeakObjectPtr<URogue10mMenuWindowWidget>& Entry)
+	{
+		return !Entry.IsValid() || Entry.Get() == Window;
+	});
+	MenuWindowStack.Add(Window);
+
+	int32 StackIndex = 0;
+	UGameViewportSubsystem* ViewportSubsystem = UGameViewportSubsystem::Get();
+	for (const TWeakObjectPtr<URogue10mMenuWindowWidget>& Entry : MenuWindowStack)
+	{
+		if (URogue10mMenuWindowWidget* MenuWindow = Entry.Get())
+		{
+			const int32 WindowZOrder = MenuWindowBaseZOrder + StackIndex++;
+			if (ViewportSubsystem && ViewportSubsystem->IsWidgetAdded(MenuWindow))
+			{
+				FGameViewportWidgetSlot ViewportSlot = ViewportSubsystem->GetWidgetSlot(MenuWindow);
+				if (ViewportSlot.ZOrder != WindowZOrder)
+				{
+					ViewportSlot.ZOrder = WindowZOrder;
+					ViewportSubsystem->SetWidgetSlot(MenuWindow, ViewportSlot);
+				}
+			}
+			else if (!MenuWindow->IsInViewport())
+			{
+				MenuWindow->AddToPlayerScreen(WindowZOrder);
+			}
+		}
+	}
+}
+
+URogue10mMenuWindowWidget* ARogue10mPlayerController::GetTopmostOpenMenuWindow() const
+{
+	for (int32 Index = MenuWindowStack.Num() - 1; Index >= 0; --Index)
+	{
+		if (URogue10mMenuWindowWidget* MenuWindow = MenuWindowStack[Index].Get())
+		{
+			if (MenuWindow->IsWindowOpen())
+			{
+				return MenuWindow;
+			}
+		}
+	}
+	return nullptr;
+}
+
 void ARogue10mPlayerController::RefreshInputMode()
 {
 	const bool bBlocking = IsAnyBlockingWindowVisible();
@@ -552,11 +615,8 @@ void ARogue10mPlayerController::RefreshInputMode()
 	if (bBlocking)
 	{
 		FInputModeGameAndUI InputMode;
-		UUserWidget* FocusWidget = nullptr;
-		if (bInventoryVisible) FocusWidget = InventoryWindowWidget;
-		else if (bItemWindowVisible) FocusWidget = EquipmentWindowWidget;
-		else if (bSkillTreeVisible) FocusWidget = SkillTreeWindowWidget;
-		else FocusWidget = RunHUD;
+		UUserWidget* FocusWidget = GetTopmostOpenMenuWindow();
+		if (!FocusWidget) FocusWidget = RunHUD;
 		if (FocusWidget)
 		{
 			InputMode.SetWidgetToFocus(FocusWidget->TakeWidget());
@@ -571,7 +631,8 @@ void ARogue10mPlayerController::RefreshInputMode()
 	}
 }
 
-void ARogue10mPlayerController::SetPanelVisible(bool& PanelState, bool bVisible)
+void ARogue10mPlayerController::SetPanelVisible(
+	bool& PanelState, bool bVisible, URogue10mMenuWindowWidget* ActivatedWindow)
 {
 	if (bVisible)
 	{
@@ -585,6 +646,10 @@ void ARogue10mPlayerController::SetPanelVisible(bool& PanelState, bool bVisible)
 
 	if (bVisible)
 	{
+		BringMenuWindowToFront(ActivatedWindow);
+	}
+	if (bVisible)
+	{
 		if (ARogue10mCharacter* RogueCharacter = Cast<ARogue10mCharacter>(GetPawn()))
 		{
 			RogueCharacter->GetCharacterMovement()->StopMovementImmediately();
@@ -592,6 +657,32 @@ void ARogue10mPlayerController::SetPanelVisible(bool& PanelState, bool bVisible)
 	}
 	RefreshInputMode();
 }
+void ARogue10mPlayerController::SetInventoryEquipmentPanelVisible(
+	bool& PanelState, bool bVisible, URogue10mMenuWindowWidget* ActivatedWindow)
+{
+	if (bVisible)
+	{
+		// 인벤토리와 장비창은 한 그룹으로 함께 열 수 있고, 다른 Blocking 창만 닫습니다.
+		bSkillTreeVisible = false;
+		bSettingsVisible = false;
+	}
+	PanelState = bVisible;
+	ApplyMenuWindowVisibility();
+
+	if (bVisible)
+	{
+		BringMenuWindowToFront(ActivatedWindow);
+	}
+	if (bVisible)
+	{
+		if (ARogue10mCharacter* RogueCharacter = Cast<ARogue10mCharacter>(GetPawn()))
+		{
+			RogueCharacter->GetCharacterMovement()->StopMovementImmediately();
+		}
+	}
+	RefreshInputMode();
+}
+
 void ARogue10mPlayerController::HandleToggleCombatLog()
 {
 	const bool bVisible = ToggleCombatLogVisible();

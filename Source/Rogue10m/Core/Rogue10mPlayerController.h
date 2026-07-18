@@ -81,6 +81,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|UI")
 	bool IsAnyBlockingWindowVisible() const;
 
+	/** Promotes a visible menu window to the top of the bounded menu ZOrder stack. */
+	void BringMenuWindowToFront(URogue10mMenuWindowWidget* Window);
+
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Settings")
 	float GetLookSensitivityX() const { return LookSensitivityX; }
 
@@ -225,10 +228,12 @@ private:
 	bool ShouldUseTouchControls() const;
 	void InitializeMenuWindows();
 	void ApplyMenuWindowVisibility();
+	URogue10mMenuWindowWidget* GetTopmostOpenMenuWindow() const;
 	void InitializeRunHUD();
 	TSubclassOf<URogue10mRunHUD> ResolveRunHUDClass();
 	void RefreshInputMode();
-	void SetPanelVisible(bool& PanelState, bool bVisible);
+	void SetPanelVisible(bool& PanelState, bool bVisible, URogue10mMenuWindowWidget* ActivatedWindow);
+	void SetInventoryEquipmentPanelVisible(bool& PanelState, bool bVisible, URogue10mMenuWindowWidget* ActivatedWindow);
 	void HandleToggleCombatLog();
 	void InitializeDamageIndicatorPool();
 	URogue10mDamageIndicatorWidget* AcquireDamageIndicator();
@@ -236,6 +241,9 @@ private:
 
 	UFUNCTION(Client, Reliable)
 	void ClientShowDamageIndicator(FVector WorldLocation, float DamageAmount, bool bCriticalHit);
+
+	static constexpr int32 MenuWindowBaseZOrder = 50;
+	TArray<TWeakObjectPtr<URogue10mMenuWindowWidget>> MenuWindowStack;
 
 	bool bInventoryVisible = false;
 	bool bItemWindowVisible = false;

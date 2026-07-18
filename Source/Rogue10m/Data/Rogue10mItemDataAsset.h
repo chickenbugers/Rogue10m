@@ -14,10 +14,37 @@ UENUM(BlueprintType)
 enum class ERogue10mItemRarity : uint8
 {
 	Common UMETA(DisplayName="일반"),
-	Uncommon UMETA(DisplayName="고급"),
-	Rare UMETA(DisplayName="희귀"),
-	Epic UMETA(DisplayName="영웅"),
-	Legendary UMETA(DisplayName="전설")
+	Rare UMETA(DisplayName="레어"),
+	Epic UMETA(DisplayName="에픽"),
+	Unique UMETA(DisplayName="유니크"),
+	Mythic UMETA(DisplayName="신화")
+};
+
+/** 장비 한 개가 제공하는 고정 능력치 증가량입니다. 비율 값은 0.05가 5%를 의미합니다. */
+USTRUCT(BlueprintType)
+struct FRogue10mEquipmentStatModifiers
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
+	float AttackPowerBonus = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
+	float DefenseBonus = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
+	float MaxHealthBonus = 0.0f;
+
+	/** 0.05는 치명타 확률 5%p 증가를 의미합니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
+	float CriticalChanceBonus = 0.0f;
+
+	/** 0.05는 공격 속도 배율 5% 증가를 의미합니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
+	float AttackSpeedBonus = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
+	float MoveSpeedBonus = 0.0f;
 };
 
 /** 아이템 인스턴스와 분리된 정적 정의 데이터입니다. */
@@ -34,6 +61,14 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Items|Bag")
 	FIntPoint GetClampedBagSize() const;
+
+	/** 인벤토리 아이콘 뒤에 표시할 반투명 등급 배경색입니다. */
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Items|Display")
+	FLinearColor GetInventoryRarityBackgroundColor() const;
+
+	/** 툴팁과 장비 메뉴의 아이템 이름에 사용할 불투명 등급 색상입니다. */
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Items|Display")
+	FLinearColor GetRarityTextColor() const;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Identity")
 	FName ItemId;
@@ -77,6 +112,14 @@ public:
 	/** 아이템 한 개의 무게(kg)입니다. 총 무게는 수량을 곱해 계산합니다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Inventory", meta=(ClampMin="0.0", Units="kg"))
 	float UnitWeight = 0.1f;
+
+	/** 체력 회복형 소비 아이템을 한 번 사용할 때 회복하는 양입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Consumable", meta=(ClampMin="0.0"))
+	float RestoreHealth = 25.0f;
+
+	/** 장비 Tooltip과 향후 장비 효과 계산에서 공유하는 능력치 증가량입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment", meta=(ShowOnlyInnerProperties))
+	FRogue10mEquipmentStatModifiers EquipmentStats;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|World")
 	TSoftObjectPtr<UStaticMesh> DroppedWorldMesh;

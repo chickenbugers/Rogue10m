@@ -21,12 +21,14 @@ ITEMS = (
         "display_name": "회복 포션",
         "description": "붉은 약액이 담긴 기본 회복 포션입니다.",
         "category": unreal.Rogue10mItemCategory.CONSUMABLE,
+        "rarity": unreal.Rogue10mItemRarity.COMMON,
         "slot": unreal.Rogue10mInventorySlotType.CONSUMABLE,
         "weapon": unreal.Rogue10mWeaponType.UNARMED,
         "size": (1, 1),
         "stack": 20,
         "weight": 0.2,
-        "scale": 0.9,
+        "scale": 1.0,
+        "restore_health": 25.0,
     },
     {
         "asset": "DA_Item_IronLongsword",
@@ -36,12 +38,17 @@ ITEMS = (
         "display_name": "철제 장검",
         "description": "기본기에 충실한 초보자용 철제 장검입니다.",
         "category": unreal.Rogue10mItemCategory.EQUIPMENT,
+        "rarity": unreal.Rogue10mItemRarity.RARE,
         "slot": unreal.Rogue10mInventorySlotType.MAIN_WEAPON,
         "weapon": unreal.Rogue10mWeaponType.GREAT_SWORD,
         "size": (1, 3),
         "stack": 1,
         "weight": 3.5,
-        "scale": 0.95,
+        "scale": 1.0,
+        "stats": {
+            "attack_power_bonus": 12.0,
+            "critical_chance_bonus": 0.02,
+        },
     },
     {
         "asset": "DA_Item_IronHelmet",
@@ -51,12 +58,17 @@ ITEMS = (
         "display_name": "철제 투구",
         "description": "머리를 안정적으로 보호하는 단순한 철제 투구입니다.",
         "category": unreal.Rogue10mItemCategory.EQUIPMENT,
+        "rarity": unreal.Rogue10mItemRarity.RARE,
         "slot": unreal.Rogue10mInventorySlotType.HEAD,
         "weapon": unreal.Rogue10mWeaponType.UNARMED,
         "size": (2, 2),
         "stack": 1,
         "weight": 2.4,
-        "scale": 0.92,
+        "scale": 1.0,
+        "stats": {
+            "defense_bonus": 5.0,
+            "max_health_bonus": 10.0,
+        },
     },
     {
         "asset": "DA_Item_LeatherArmor",
@@ -66,12 +78,17 @@ ITEMS = (
         "display_name": "가죽 갑옷",
         "description": "움직임과 방어력의 균형을 맞춘 초보자용 가죽 갑옷입니다.",
         "category": unreal.Rogue10mItemCategory.EQUIPMENT,
+        "rarity": unreal.Rogue10mItemRarity.EPIC,
         "slot": unreal.Rogue10mInventorySlotType.ARMOR,
         "weapon": unreal.Rogue10mWeaponType.UNARMED,
         "size": (2, 3),
         "stack": 1,
         "weight": 4.0,
-        "scale": 0.92,
+        "scale": 1.0,
+        "stats": {
+            "defense_bonus": 12.0,
+            "max_health_bonus": 25.0,
+        },
     },
     {
         "asset": "DA_Item_LeatherBoots",
@@ -81,12 +98,17 @@ ITEMS = (
         "display_name": "가죽 장화",
         "description": "발목을 보호하는 튼튼한 가죽 장화 한 쌍입니다.",
         "category": unreal.Rogue10mItemCategory.EQUIPMENT,
+        "rarity": unreal.Rogue10mItemRarity.COMMON,
         "slot": unreal.Rogue10mInventorySlotType.SHOES,
         "weapon": unreal.Rogue10mWeaponType.UNARMED,
         "size": (2, 2),
         "stack": 1,
         "weight": 1.6,
-        "scale": 0.9,
+        "scale": 1.0,
+        "stats": {
+            "defense_bonus": 3.0,
+            "move_speed_bonus": 20.0,
+        },
     },
     {
         "asset": "DA_Item_NoviceRing",
@@ -96,12 +118,18 @@ ITEMS = (
         "display_name": "초심자의 반지",
         "description": "작은 호박석이 박힌 소박한 은제 반지입니다.",
         "category": unreal.Rogue10mItemCategory.EQUIPMENT,
+        "rarity": unreal.Rogue10mItemRarity.UNIQUE,
         "slot": unreal.Rogue10mInventorySlotType.RING,
         "weapon": unreal.Rogue10mWeaponType.UNARMED,
         "size": (1, 1),
         "stack": 1,
         "weight": 0.1,
-        "scale": 0.85,
+        "scale": 1.0,
+        "stats": {
+            "attack_power_bonus": 3.0,
+            "critical_chance_bonus": 0.03,
+            "attack_speed_bonus": 0.04,
+        },
     },
 )
 
@@ -159,11 +187,25 @@ def main():
         asset.set_editor_property("inventory_icon", texture)
         asset.set_editor_property("inventory_icon_scale", definition["scale"])
         asset.set_editor_property("category", definition["category"])
+        asset.set_editor_property("rarity", definition["rarity"])
         asset.set_editor_property("equip_slot_type", definition["slot"])
         asset.set_editor_property("weapon_type", definition["weapon"])
         asset.set_editor_property("inventory_size", unreal.IntPoint(*definition["size"]))
         asset.set_editor_property("max_stack_size", definition["stack"])
         asset.set_editor_property("unit_weight", definition["weight"])
+        asset.set_editor_property("restore_health", definition.get("restore_health", 0.0))
+        equipment_stats = asset.get_editor_property("equipment_stats")
+        stat_values = definition.get("stats", {})
+        for property_name in (
+            "attack_power_bonus",
+            "defense_bonus",
+            "max_health_bonus",
+            "critical_chance_bonus",
+            "attack_speed_bonus",
+            "move_speed_bonus",
+        ):
+            equipment_stats.set_editor_property(property_name, stat_values.get(property_name, 0.0))
+        asset.set_editor_property("equipment_stats", equipment_stats)
         asset.set_editor_property("can_drop", True)
         unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False)
 

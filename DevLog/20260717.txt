@@ -1,0 +1,30 @@
+============================================================
+Sprint#2-1 인벤토리·장비창 동시 표시 및 창 드래그
+============================================================
+
+[작업 목표]
+인벤토리와 장비창을 동시에 열고, 각 창을 타이틀 바 Drag로 이동할 수 있게 한다. 장비창은 좌측 캐릭터 프리뷰와 우측 7개 장비 슬롯으로 재배치하고 슬롯 위치 텍스트를 항상 표시한다.
+
+[주요 구현]
+- PlayerController에 인벤토리·장비 전용 표시 그룹을 추가해 두 창이 서로를 닫지 않도록 했다.
+- 공통 MenuWindow 부모에 UI_WindowRoot와 UI_WindowDragHandle 기반 마우스 캡처·Canvas 이동·Viewport 경계 Clamp를 추가했다.
+- 인벤토리와 장비창의 상단 44px 영역을 창 Drag 전용 타이틀 바로 구성했다.
+- 장비창의 캐릭터 프리뷰를 좌측 340x500 영역으로 옮겼다.
+- 무기, 투구, 갑옷, 장갑, 반지, 신발, 목걸이 7개 슬롯을 우측 300x500 Canvas의 두 열에 배치했다.
+- 장비 아이콘은 ScaleBox의 ScaleToFit으로 슬롯 고정 크기 안에 표시한다.
+- 각 슬롯의 위치 텍스트를 우측 상단 Font Size 8, Grid Layer 1로 고정해 빈 슬롯과 장착 슬롯 모두에서 보이게 했다.
+- RebuildDraggableInventoryEquipmentWindows.py에 창 루트, DragHandle, 좌우 배치, 슬롯 계층, 좌표, 크기, 폰트, 정렬, 레이어 검사를 추가했다.
+
+[검증]
+- Rogue10mEditor Win64 Development 빌드 성공
+- 활성 Editor에서 WBP_InventoryWindow와 WBP_EquipmentWindow 재구성·컴파일·저장 성공
+- 인벤토리 11개, 장비창 46개 Designer Widget 확인
+- 7개 슬롯 계층·좌표·크기·8px 라벨·우측 상단 정렬·Layer 1 검사 성공
+- 새 UE5.8 commandlet 전체 메뉴 Widget Blueprint 컴파일 성공, 0 errors / 0 warnings
+- Python py_compile 성공
+- PIE 자동 상호작용 검증은 시작 후 Remote Execution 노드가 중단되어 수동 QA 항목으로 남겼다.
+
+[Notion 정리 후보]
+제목: UE5.8 인벤토리·장비창 동시 표시와 드래그 가능한 장비 UI
+요약: 인벤토리와 장비창을 독립 토글 그룹으로 분리해 동시에 표시하고, 공통 타이틀 Drag로 각 WindowRoot를 Viewport 안에서 이동하도록 구현했다. 장비창은 좌측 캐릭터 프리뷰와 우측 7슬롯으로 재구성했으며, 각 슬롯은 ScaleToFit 이미지와 우측 상단 8px 위치 텍스트를 Layer로 분리해 빈 상태와 장착 상태 모두에서 위치 정보를 유지한다.
+검증: Editor 빌드 성공, 두 WBP 재구성·컴파일 성공, 슬롯 구조 자동 검사 성공, 독립 commandlet 0 errors / 0 warnings.

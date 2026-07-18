@@ -511,9 +511,240 @@
   - Feature/doc/2026-07-15_starter-item-icons.md
   - Docs/GridInventoryAndMenuWindowsGuide.md
   - DevLog/20260716.txt
-"@
-Append-Utf8 'D:\Project\Rogue10m\Feature\architect\2026-07-15_starter-item-icons.md' @"
 
-## Runtime Paint Correction (2026-07-16)
+# Sprint#2-1 - 장비창 캐릭터 프리뷰 및 7부위 레이아웃
 
-PIE에서 Brush 리소스는 유효하지만 아이콘이 보이지 않는 문제를 별도 패킷으로 진단했다. InitializeGridItem()은 위젯이 Canvas에 추가되기 전에 실행되므로, 내부 SImage가 존재할 때만 동작하는 SetDesiredSizeOverride()를 사용할 수 없다. 최종 구조는 SizeBox -> Grid -> Border -> Image이며, C++가 Texture 종횡비와 NxM footprint로 계산한 크기를 FSlateBrush::ImageSize에 저장한다. 완료 조건은 Editor 빌드, WBP 자동 검증, PIE 캡처에서 스타터 아이콘 6종 표시다.
+- 목표: 장비창에서 현재 플레이어 전신 외형과 7부위 장착 상태를 적절한 비율로 함께 확인한다.
+- 주요 변경:
+  - SceneCapture 전용 프리뷰 액터, transient 512×768 Render Target, Leader Pose 기반 메시 복제, 장비창 수명주기 연결
+  - 장비 데이터와 UMG 바인딩을 무기·투구·갑옷·장갑·신발·반지·목걸이 7부위로 통일
+  - 캐릭터 프리뷰 중심 CanvasPanel 직접 배치와 부위별 슬롯 크기 차등 적용
+  - ScaleToFit 및 최대 1.0 아이콘 배율로 Texture 종횡비와 슬롯 경계 보존
+  - WBP_EquipmentWindow 전용 재생성 및 CanvasSlot 좌표·크기 회귀 검사 추가
+- 검증:
+  - UE Editor 빌드 및 전체 메뉴 Widget Blueprint 컴파일 성공
+  - 7개 슬롯 위치·크기 자동 검사 성공
+  - PIE 장비 데이터 7개, 장비창 표시, 프리뷰 액터 1개 확인
+  - 스타터 장비 5종 Texture Brush 연결 및 빈 슬롯 아이콘 숨김 확인
+- 상태: 구현 및 런타임 검증 완료
+- 관련 문서: `Feature/architect/2026-07-16_equipment-character-preview.md`, `Feature/doc/2026-07-16_equipment-character-preview.md`
+# Sprint#2-1 - 인벤토리·장비창 동시 표시와 드래그 UI
+
+- 목표: 인벤토리와 장비창을 동시에 표시하고 각 창을 타이틀 Drag로 이동하며, 장비창을 좌측 스탯·중앙 캐릭터 프리뷰·우측 장비 슬롯 구조로 정리한다.
+- 주요 변경:
+  - 인벤토리·장비창 전용 표시 그룹으로 두 창의 상호 배타 정책 제거
+  - 두 전체화면 UserWidget·Canvas를 SelfHitTestInvisible로 설정해 실제 창 자식만 입력을 받고 투명 영역은 다른 창으로 입력 통과
+  - 공통 `UI_WindowRoot`, `UI_WindowDragHandle`과 Canvas 이동·Viewport 경계 Clamp 추가
+  - 인벤토리와 장비창에 44px 타이틀 Drag 영역 적용
+  - 장비창을 980x620으로 확장하고 좌측 200x500 스탯, 중앙 340x500 프리뷰, 우측 350x500 7슬롯 Canvas 배치
+  - 공격력·방어력·최대 체력·치명타 확률·공격 속도·이동 속도 Text 자리표시자 추가
+  - 6개 스탯 Text를 C++ `BindWidgetOptional`로 노출해 향후 실제 수치 연결 준비
+  - 슬롯을 `투구 | 목걸이`, `갑옷 | 장갑 | 무기`, `신발 | 반지` 3행으로 재정렬
+  - 슬롯 크기를 갑옷 100x150, 무기 100x200, 나머지 5부위 100x100으로 통일
+  - 각 장비 슬롯을 Frame > Canvas Layer > ScaleBox/Image + LocationText 계층으로 구성
+  - Texture 원본 Brush 크기 복사를 끄고 긴 변 64px 정규화 및 사방 7px Stretch Anchor 적용
+  - 무기·투구·갑옷·장갑·반지·신발·목걸이 위치 텍스트를 우측 상단 8px, Layer 1로 고정
+  - 빈 장비 슬롯은 아이콘만 숨기고 위치 텍스트 유지
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - 활성 Editor에서 두 WBP 재구성·컴파일·저장 성공
+  - 7개 슬롯 계층·좌표·크기·폰트·우측 상단 Anchor·ZOrder 자동 검사 성공
+  - PIE에서 인벤토리·장비창 동시 True, 양쪽 UserWidget·화면 Canvas 입력 투과와 실제 자식 Visible 확인
+  - PIE에서 투구 64×64, 갑옷 42.67×64, 무기 21.33×64 정규화 Desired Size 확인
+  - 새 UE5.8 commandlet 전체 메뉴 WBP 컴파일 성공, 0 errors / 0 warnings
+  - PIE 마우스 상호작용은 Remote Execution 중단으로 수동 QA 필요
+- 상태: 구현 및 정적·자산 검증 완료, PIE 수동 상호작용 QA 필요
+- 관련 문서: `Feature/architect/2026-07-17_draggable-inventory-equipment-windows.md`, `Feature/doc/2026-07-17_draggable-inventory-equipment-windows.md`, `DevLog/20260717.txt`
+
+# Sprint#2-1 - 장비 → 인벤토리 Drag & Drop
+
+- 목표: 장비창의 장착 아이템을 Data Asset의 MxN 크기를 유지한 채 인벤토리의 원하는 빈 위치로 옮긴다.
+- 주요 변경:
+  - `Equipment` Item Drag Source와 장비 부위·Item Data·수량·클릭 셀 오프셋 Payload 추가
+  - 장비창 7개 슬롯 Frame의 Drag 시작 입력 연결
+  - Inventory Window DragOver/Drop의 Grid Item·Equipment Item 공통 처리
+  - `TryUnequipItemToGrid()`의 위치 재검증, Grid Entry 생성, 장비 슬롯 초기화 원자적 처리
+  - 성공 시 `OnInventoryGridChanged`, `OnEquipmentChanged` 동시 갱신
+  - 주무기 해제 시 `Unarmed` 전환
+  - 자동 장착 시작 장비의 Grid 중복 제거
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - 전체 메뉴 Widget Blueprint compile/구조 검증 성공
+  - commandlet 0 errors / 0 warnings
+  - `git diff --check` 통과
+  - 실제 마우스 Drop은 PIE 수동 QA 필요
+- 상태: 구현·C++ 빌드·WBP 컴파일 검증 완료, PIE 수동 상호작용 QA 대기
+- 관련 문서: `Feature/architect/2026-07-18_equipment-to-inventory-drag-drop.md`, `Feature/doc/2026-07-18_equipment-to-inventory-drag-drop.md`, `DevLog/20260718.txt`
+
+# Sprint#2-1 - 메뉴 창 호출 순서 ZOrder 스택
+
+- 목표: 인벤토리와 장비창이 겹칠 때 가장 늦게 호출하거나 클릭한 창을 최상단에 표시
+- 주요 변경:
+  - `MenuWindowStack`과 `BringMenuWindowToFront()`로 메뉴 창 호출 순서 관리
+  - 스택 순서에 따라 ZOrder `50 + Index`를 제한된 범위에서 재배치
+  - 공통 Preview Mouse 좌클릭으로 가려진 창 승격
+  - 직접 `SetWindowOpen(true)` 호출 경로도 동일하게 승격
+  - 현재 최상단 열린 창을 Game and UI 입력 Focus 대상으로 선택
+  - 표시 상태가 변한 창만 갱신해 인벤토리·장비창 동시 표시 순서 보존
+  - Viewport에 없는 메뉴 창만 `AddToPlayerScreen()`으로 최초 등록
+  - 이미 등록된 메뉴 창은 `UGameViewportSubsystem`의 기존 Widget Slot ZOrder만 갱신
+  - 아이템 이동·창 클릭 시 메뉴 위젯 중복 화면 등록 경고 제거
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - 전체 메뉴 Widget Blueprint commandlet 컴파일 성공
+  - `ValidateMenuWidgetAssets.py` 0 errors / 0 warnings
+  - 중복 등록 방지 수정 후 Rogue10mEditor Win64 Development 재빌드 성공
+  - PIE 실제 겹침·클릭·Drag & Drop 수동 QA 필요
+- 상태: 구현·C++ 빌드·WBP 정적 검증 완료, PIE 수동 상호작용 QA 대기
+- 관련 문서: `Feature/architect/2026-07-18_menu-window-z-order-stacking.md`, `Feature/doc/2026-07-18_menu-window-z-order-stacking.md`, `DevLog/20260718.txt`
+
+# Sprint#2-2 - 인벤토리 아이템 Hover 툴팁
+
+- 목표: 인벤토리 아이템 Hover 시 이름·아이템 정보·무게를 별도 UserWidget으로 표시
+- 주요 변경:
+  - `URogue10mInventoryItemTooltipWidget` C++ 부모와 `WBP_InventoryItemTooltip` 추가
+  - `DisplayName`, `Description`, `UnitWeight` 기반 표시
+  - 중첩 수량은 개당 무게와 총 무게를 함께 표시
+  - Inventory Item의 `SetToolTip()` 연결 및 Drag Preview Tooltip 제거
+  - `TSoftClassPtr` native 기본 경로로 활성 Editor의 기존 WBP 파일 잠금 회피
+  - Menu Designer 빌더·좁은 Tooltip 생성 스크립트·전체 Validator 확장
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - WBP_InventoryItemTooltip 생성·저장 성공
+  - 전체 메뉴 Widget Blueprint commandlet 0 errors / 0 warnings
+  - 필수 Widget 3개 및 native Tooltip Soft Class 기본값 검증 성공
+  - PIE 실제 Hover·화면 경계·Drag 전환 수동 QA 필요
+- 상태: 구현·C++ 빌드·WBP 생성 및 정적 검증 완료, PIE 수동 상호작용 QA 대기
+- 관련 문서: `Feature/architect/2026-07-18_inventory-item-hover-tooltip.md`, `Feature/doc/2026-07-18_inventory-item-hover-tooltip.md`, `DevLog/20260718.txt`
+
+# Sprint#2-3 - 인벤토리 아이템 우클릭 사용·장착
+
+- 목표: 소비 아이템은 우클릭으로 사용하고 장비 아이템은 우클릭으로 즉시 장착·교체한다.
+- 주요 변경:
+  - Item Data Asset에 소비 효과용 `RestoreHealth` 설정 추가
+  - 체력 회복이 실제 적용될 때만 소비 아이템 수량 1 감소
+  - 빈 장비 부위 즉시 장착 및 동일 부위 기존 장비 교체
+  - 기존 장비의 MxN Grid 공간을 변경 전에 확보하는 원자적 교체
+  - 새 장비 원래 위치 우선, 이후 전체 컨테이너 빈 위치 검색
+  - 공간 부족 시 인벤토리·장비 상태 변경 취소
+  - 인벤토리·장비 Delegate 및 전투 로그 결과 갱신
+  - 좌클릭 Drag & Drop과 Hover 툴팁 입력 경로 유지
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - 전체 메뉴 Widget Blueprint commandlet 0 errors / 0 warnings
+  - 스타터 Item Asset Python 스크립트 문법 검사 성공
+  - `git diff --check` 통과
+  - PIE 실제 우클릭 사용·장착·교체 수동 QA 필요
+- 상태: 구현·C++ 빌드·WBP 정적 검증 완료, PIE 수동 상호작용 QA 대기
+- 관련 문서: `Feature/architect/2026-07-18_inventory-item-right-click-actions.md`, `Feature/doc/2026-07-18_inventory-item-right-click-actions.md`, `DevLog/20260718.txt`
+
+# Sprint#2-4 - 장비 Hover 스탯 및 장착 장비 비교 Tooltip
+
+- 목표: 인벤토리 장비 Hover 시 장착 증가량과 동일 부위 현재 장착 장비의 교체 차이를 함께 표시한다.
+- 주요 변경:
+  - `FRogue10mEquipmentStatModifiers` 6종 장비 증가량 데이터 추가
+  - 부위별 현재 장착 Item Data 조회 API 추가
+  - Hover 장비 아이콘·이름·설명·무게·장착 증가량 카드 구성
+  - 동일 부위 장착 장비 아이콘·이름·설명·현재 증가량 오른쪽 카드 구성
+  - `Hover - 현재 장착` 변화량의 증가·감소·동일 색상 비교
+  - 한쪽에만 존재하는 스탯을 포함한 합집합 비교
+  - 일반 300px·비교 620px Tooltip 동적 폭과 비교 패널 `Collapsed` 처리
+  - 스타터 장비 5종 샘플 스탯 Data Asset 저장
+  - Tooltip 계층·폭·가시성·장비 스탯 값 Validator 확장
+  - 등급별 불투명 아이템 이름 색상 API 및 Tooltip 적용
+  - Hover 대상·현재 장착 비교 대상·장착 해제 메뉴 이름 색상 통일
+  - `장착 시 증가` 제목 런타임 및 레이아웃 생성 단계에서 숨김
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - WBP_InventoryItemTooltip 재구성·컴파일·저장 성공
+  - 전체 메뉴 Widget Blueprint commandlet 0 errors / 0 warnings
+  - 스타터 장비 5종 스탯 값 검증 성공
+  - Python 문법 및 `git diff --check` 통과
+  - 등급 이름 색상 보완 후 Editor UHT/C++ 빌드 및 전체 메뉴 commandlet 재검증 성공
+- 상태: 구현·C++ 빌드·WBP/Data Asset 정적 검증 완료, PIE Hover 비교 수동 QA 대기
+- 관련 문서: `Feature/architect/2026-07-18_equipment-tooltip-stat-comparison.md`, `Feature/doc/2026-07-18_equipment-tooltip-stat-comparison.md`, `DevLog/20260718.txt`
+- 보완 문서: `Feature/architect/2026-07-18_equipment-tooltip-rarity-name.md`, `Feature/doc/2026-07-18_equipment-tooltip-rarity-name.md`
+
+# Sprint#2-5 - ???? ??? ?? ??
+
+- ??: ???? ???? MxN ?? ?? ??????????????? ??? ?? ??? ????.
+- ?? ??:
+  - ERogue10mItemRarity? ??? 5??? ?? ????? ??
+  - Item Data Asset ??? Inventory Background Color ?? ?? ??
+  - WBP_InventoryItem? MxN ??? ??? UI_InventoryItemRarityBackground Border ??
+  - ?? ?? 0????/Drag Preview 1??? 2 ??? ??
+  - ??? Preview Tint? ?? ???? ?? ??? ?? ??
+  - Tooltip Soft Class? Widget Blueprint ???? ????? ??
+  - ??? 6?? ???????????? ?? ?? ??
+  - ?? WBP/Data Asset ?? ????? 5????????? Validator ??
+- ??:
+  - Rogue10mEditor Win64 Development ?? ??
+  - ?? Unreal Editor?? WBP_InventoryItem ?????????? ??
+  - ?? ?? Widget Blueprint ?? ??
+  - 5?? RGBA ??? ?? ?? ??
+  - ??? 6? ?? ?? ?? ??
+  - Unreal Editor Python ?? ?? ??
+- ??: ???C++ ???WBP/Data Asset ?? ?? ??, PIE ?? ? ???? ?? QA ??
+- ?? ??: Feature/architect/2026-07-18_inventory-item-rarity-backgrounds.md, Feature/doc/2026-07-18_inventory-item-rarity-backgrounds.md, DevLog/20260718.txt
+
+# Sprint#2-6 - 장착 장비 Hover 및 장착 해제 메뉴
+
+- 목표: 장비창의 장착 아이템에 Hover 상세 정보와 우클릭 장착 해제 UserWidget을 제공한다.
+- 주요 변경:
+  - 7개 장비 슬롯 Frame에 기존 장비 상세 Tooltip 연결
+  - 이름·설명·무게·6종 장착 증가량 표시
+  - 빈 슬롯 Tooltip 제거 및 장비 변경 시 이벤트 기반 갱신
+  - URogue10mEquipmentSlotActionWidget과 WBP_EquipmentSlotAction 추가
+  - 아이템명·장착 해제 버튼·공간 부족 결과 문구 구성
+  - 우클릭 커서 위치와 Viewport 경계 보정
+  - 장비창 닫기·장비 변경·좌클릭·성공 시 메뉴 자동 정리
+  - 모든 Inventory Container의 MxN 첫 빈 공간 장착 해제 API 추가
+  - 공간 부족 시 장비·인벤토리 상태 원상 유지
+  - 기존 장비 좌클릭 Drag & Drop 경로 유지
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - WBP_EquipmentSlotAction 생성·컴파일·저장 성공
+  - Action 결과 기본 Collapsed 및 필수 계층 검증 성공
+  - 장비창 Tooltip/Action Soft Class Reference 검증 성공
+  - 첫 빈 Grid 장착 해제 API 노출 검증 성공
+  - 새 Unreal commandlet 프로세스 0 errors / 0 warnings
+  - Editor Python AST와 git diff --check 통과
+- 상태: 구현·C++ 빌드·WBP/API 정적 검증 완료, PIE Hover·우클릭·공간 부족 수동 QA 대기
+- 관련 문서: Feature/architect/2026-07-18_equipped-item-hover-unequip-menu.md, Feature/doc/2026-07-18_equipped-item-hover-unequip-menu.md, DevLog/20260718.txt
+
+# Sprint#2-7 - 인벤토리·장비 UI 비율 및 Drag & Drop 보정
+
+- 목표: MxN 아이콘 비율과 Tooltip 크기를 정규화하고 인벤토리→장비 슬롯 Drop 장착 및 커서 중심 장비 Payload를 제공한다.
+- 주요 변경:
+  - 인벤토리 아이콘 footprint 84% Fit 및 원본 종횡비 유지
+  - Texture Match Size 비활성화와 스케일 0.75~1.0 제한
+  - 스타터 아이템 6종 InventoryIconScale 1.0 정규화
+  - Tooltip 기본 280px·비교 580px·아이콘 52×52px
+  - 장비·소비·장착 상태별 우클릭 동작 안내
+  - 장비창 GridInventory DragOver·Drop·DragLeave 경로 추가
+  - 부위 일치 검사와 호환·비호환 슬롯 Preview
+  - 기존 TryEquipGridItem 기반 원자적 장착·교체
+  - 장비 Drag Visual CenterCenter Pivot 적용
+  - UE 5.8 UMG의 0.15초 Drag Decorator 보간과 전체 화면 Drag Source Geometry를 좌측 상단 비행 원인으로 특정
+  - 장비 슬롯 Canvas의 MouseDown Hit-Test 경로에 투명 Drag Source 프록시 7개 사전 배치
+  - MouseDown 시 동일 프록시를 Payload MxN 크기의 커서 중심 Layout으로 이동
+  - Drop·Drag Cancel·클릭 종료·창 닫기 홈 Layout 복원 및 장비 갱신·Destruct 제거 수명주기 연결
+  - 기존 CenterCenter Pivot과 MxN Payload 크기 유지
+  - Drop·이탈·창·장비 수명주기 Preview 정리
+  - Tooltip WBP 빌더와 전체 메뉴 Validator 확장
+- 검증:
+  - Rogue10mEditor Win64 Development 빌드 성공
+  - 장비 Drag Source 프록시 추가 후 UE 5.8 UHT 통과
+  - 수정된 Rogue10mEditor Win64 Development 재빌드 성공
+  - 새 UnrealEditor-Cmd 프로세스에서 전체 메뉴 Widget Validator 통과
+  - git diff --check 및 CheckGeneratedChanges 통과
+  - WBP_InventoryItemTooltip 재생성·컴파일·저장 성공
+  - 전체 메뉴 Widget Blueprint 명령형 검증 성공
+  - Tooltip 폭·안내 문구 기본 가시성 검증 성공
+  - 스타터 아이템 6종 InventoryIconScale 1.0 검증 성공
+  - Python 문법 및 git diff --check 통과
+- 상태: 구현·빌드·WBP/Data Asset 정적 검증 완료, 에디터 재시작 후 PIE 수동 상호작용 QA 대기
+- 관련 문서:
+  - `Feature/architect/2026-07-18_inventory-equipment-ui-polish.md`
+  - `Feature/doc/2026-07-18_inventory-equipment-ui-polish.md`
+  - `DevLog/20260718.txt`

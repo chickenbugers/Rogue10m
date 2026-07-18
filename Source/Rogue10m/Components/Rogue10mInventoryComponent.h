@@ -30,7 +30,9 @@ enum class ERogue10mInventorySlotType : uint8
 	Earring,
 	Relic,
 	Consumable,
-	Material
+	Material,
+	/** 목걸이 장비 슬롯. 기존 enum 직렬화 호환성을 위해 마지막에 추가합니다. */
+	Necklace
 };
 
 UENUM(BlueprintType)
@@ -177,6 +179,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory")
 	const TArray<FRogue10mInventorySlot>& GetRightEquipmentSlots() const { return RightEquipmentSlots; }
 
+	/** 지정 부위에 실제 장착된 Item Data를 반환합니다. 비어 있거나 잠긴 슬롯은 nullptr입니다. */
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory|Equipment")
+	const URogue10mItemDataAsset* GetEquippedItemData(ERogue10mInventorySlotType SlotType) const;
+
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Items")
 	const TArray<FRogue10mItemStack>& GetItemSlots() const { return ItemSlots; }
 
@@ -213,6 +219,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
 	bool TryMoveItemSlot(int32 SourceItemSlotIndex, int32 TargetItemSlotIndex);
 
+	/** Moves an equipped Data Asset item directly into an exact NxM grid position. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Equipment")
+	bool TryUnequipItemToGrid(ERogue10mInventorySlotType SourceSlotType, int32 TargetContainerIndex,
+		FIntPoint TargetPosition);
+
+	/** Moves equipped gear to the first MxN position available across all inventory containers. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Equipment")
+	bool TryUnequipItemToFirstAvailableGrid(ERogue10mInventorySlotType SourceSlotType);
+
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items")
 	bool RemoveItemFromSlot(int32 ItemSlotIndex, FRogue10mItemStack& OutRemovedItem);
 
@@ -240,6 +255,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
 	bool TryMoveGridItem(int32 SourceContainerIndex, FGuid InstanceId, int32 TargetContainerIndex,
 		FIntPoint TargetPosition);
+
+	/** Uses one consumable from an NxM grid entry. The item is not consumed when its effect cannot apply. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
+	bool TryUseGridConsumable(int32 ContainerIndex, FGuid InstanceId);
+
+	/** Equips an NxM grid item and atomically returns replaced equipment to a valid grid position. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
+	bool TryEquipGridItem(int32 ContainerIndex, FGuid InstanceId);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Inventory|Grid")
 	bool RemoveGridItem(int32 ContainerIndex, FGuid InstanceId, FRogue10mInventoryGridEntry& OutRemovedEntry);
@@ -303,7 +326,8 @@ protected:
 	TArray<float> ConsumableQuickSlotCooldownEndTimes;
 
 private:
-	bool FindFirstGridPosition(int32 ContainerIndex, const URogue10mItemDataAsset* ItemData, FIntPoint& OutPosition) const;
+	bool FindFirstGridPosition(int32 ContainerIndex, const URogue10mItemDataAsset* ItemData, FIntPoint& OutPosition,
+		FGuid IgnoredInstanceId = FGuid()) const;
 	FRogue10mInventoryGridEntry* FindGridEntry(int32 ContainerIndex, FGuid InstanceId);
 	const FRogue10mInventoryGridEntry* FindGridEntry(int32 ContainerIndex, FGuid InstanceId) const;
 

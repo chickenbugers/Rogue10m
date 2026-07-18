@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/DragDropOperation.h"
+#include "Rogue10mInventoryComponent.h"
 #include "Rogue10mItemDragDropOperation.generated.h"
 
+class UBorder;
 class URogue10mInventoryComponent;
 class URogue10mInventoryItemWidget;
 class URogue10mInventoryWindowWidget;
@@ -16,7 +18,8 @@ enum class ERogue10mItemDragSource : uint8
 {
 	Inventory,
 	QuickSlot,
-	GridInventory
+	GridInventory,
+	Equipment
 };
 
 /** Typed payload shared by inventory cells and consumable quick slots. */
@@ -32,6 +35,12 @@ public:
 	void InitializeGridItemDrag(URogue10mInventoryComponent* InInventory,
 		URogue10mInventoryWindowWidget* InInventoryWindow, int32 InSourceContainerIndex,
 		FGuid InInstanceId, const URogue10mItemDataAsset* InItemData, float InCellSize);
+
+	void InitializeEquipmentItemDrag(URogue10mInventoryComponent* InInventory,
+		ERogue10mInventorySlotType InEquipmentSlotType, const URogue10mItemDataAsset* InItemData,
+		int32 InQuantity, float InCellSize);
+
+	void SetGridPlacementPreview(bool bPreviewing, bool bCanPlace);
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|Items|Drag Drop")
 	void MarkDropHandled() { bDropHandled = true; }
@@ -57,6 +66,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|Items|Drag Drop")
 	FGuid InstanceId;
 
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|Items|Drag Drop")
+	ERogue10mInventorySlotType EquipmentSlotType = ERogue10mInventorySlotType::Material;
+
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|Items|Drag Drop")
+	int32 Quantity = 0;
+
 
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|Items|Drag Drop")
 	FIntPoint PreviewGridPosition = FIntPoint::ZeroValue;
@@ -69,6 +84,11 @@ public:
 
 	UPROPERTY(Transient)
 	TObjectPtr<URogue10mInventoryItemWidget> PreviewWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> PreviewBorder;
+
+	FLinearColor PreviewNeutralColor = FLinearColor(0.05f, 0.05f, 0.05f, 0.35f);
 
 	float CellSize = 44.0f;
 
