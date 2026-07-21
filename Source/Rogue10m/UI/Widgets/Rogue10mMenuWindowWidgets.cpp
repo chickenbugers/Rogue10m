@@ -515,17 +515,15 @@ void URogue10mInventoryItemWidget::InitializeGridItem(
 		UI_InventoryItemIcon->SetRenderOpacity(1.0f);
 		if (Icon)
 		{
-			constexpr float IconFillRatio = 0.84f;
-			const float AvailableWidth = FMath::Max(
-				1.0f, Footprint.X * CellSize * IconFillRatio);
-			const float AvailableHeight = FMath::Max(
-				1.0f, Footprint.Y * CellSize * IconFillRatio);
-			const float TextureWidth = FMath::Max(1.0f, static_cast<float>(Icon->GetSizeX()));
-			const float TextureHeight = FMath::Max(1.0f, static_cast<float>(Icon->GetSizeY()));
-			const float FitScale = FMath::Min(AvailableWidth / TextureWidth, AvailableHeight / TextureHeight);
-			const float IconScale = ItemData ? FMath::Clamp(ItemData->InventoryIconScale, 0.75f, 1.0f) : 1.0f;
+			const float TargetWidth = Footprint.X * CellSize; 
+			const float TargetHeight = Footprint.Y * CellSize; 
+
 			FSlateBrush IconBrush = UI_InventoryItemIcon->GetBrush();
-			IconBrush.SetImageSize(FVector2D(TextureWidth, TextureHeight) * FitScale * IconScale);
+			IconBrush.SetResourceObject(Icon);
+
+			// margin 4px to avoid clipping the icon
+			IconBrush.SetImageSize(FVector2D(TargetWidth-8.0f, TargetHeight-8.0f));
+
 			UI_InventoryItemIcon->SetBrush(IconBrush);
 		}
 		UI_InventoryItemIcon->SetRenderScale(FVector2D::UnitVector);
