@@ -748,3 +748,15 @@
   - `Feature/architect/2026-07-18_inventory-equipment-ui-polish.md`
   - `Feature/doc/2026-07-18_inventory-equipment-ui-polish.md`
   - `DevLog/20260718.txt`
+
+## 2026-07-22 보완 - 장비 장착 해제 컨텍스트 메뉴
+
+- 목표: 장착 장비 우클릭 시 Tooltip 중첩을 제거하고 메뉴 위치 및 외부 클릭 닫기 동작을 개선한다.
+- 주요 변경:
+  - 활성 Hover Tooltip 즉시 닫기 및 메뉴 종료 시 슬롯 Tooltip 복원
+  - 커서 오른쪽 12px 메뉴 배치와 Viewport 경계 보정
+  - 전체 화면 투명 dismiss 버튼으로 메뉴 외부 첫 클릭 소비 및 닫기
+  - Action WBP 생성 스크립트와 Validator 필수 바인딩 갱신
+- 검증: Rogue10mEditor 빌드 성공, 전체 메뉴 Widget Validator 0 errors / 0 warnings, Python 문법 및 diff 검사 통과
+- 상태: 구현·빌드·WBP 정적 검증 완료, PIE 수동 상호작용 QA 대기
+- 관련 문서: `Feature/architect/2026-07-22_equipment-context-menu-dismiss.md`, `Feature/doc/2026-07-22_equipment-context-menu-dismiss.md`, `DevLog/20260722.txt`

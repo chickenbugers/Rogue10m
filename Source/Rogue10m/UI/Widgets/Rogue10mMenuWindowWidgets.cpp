@@ -26,6 +26,7 @@
 #include "Components/TextBlock.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/VerticalBox.h"
+#include "Framework/Application/SlateApplication.h"
 #include "InputCoreTypes.h"
 #include "Widgets/Rogue10mItemDragDropOperation.h"
 #include "Widgets/Rogue10mSkillDragDropOperation.h"
@@ -426,10 +427,12 @@ void URogue10mInventoryItemTooltipWidget::InitializeItemTooltip(
 void URogue10mEquipmentSlotActionWidget::InitializeActionMenu(
 	URogue10mInventoryComponent* InInventory,
 	ERogue10mInventorySlotType InSlotType,
-	const URogue10mItemDataAsset* InItemData)
+	const URogue10mItemDataAsset* InItemData,
+	URogue10mEquipmentWindowWidget* InOwnerWindow)
 {
 	Inventory = InInventory;
 	SlotType = InSlotType;
+	OwnerWindow = InOwnerWindow;
 
 	if (UI_EquipmentItemNameText)
 	{
@@ -450,6 +453,19 @@ void URogue10mEquipmentSlotActionWidget::InitializeActionMenu(
 	}
 }
 
+void URogue10mEquipmentSlotActionWidget::SetMenuPosition(
+	FVector2D InPosition, FVector2D InSize)
+{
+	if (UI_EquipmentSlotActionSize)
+	{
+		if (UCanvasPanelSlot* MenuSlot = Cast<UCanvasPanelSlot>(UI_EquipmentSlotActionSize->Slot))
+		{
+			MenuSlot->SetPosition(InPosition);
+			MenuSlot->SetSize(InSize);
+		}
+	}
+}
+
 void URogue10mEquipmentSlotActionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -458,6 +474,26 @@ void URogue10mEquipmentSlotActionWidget::NativeConstruct()
 		UI_UnequipButton->OnClicked.AddUniqueDynamic(
 			this, &URogue10mEquipmentSlotActionWidget::HandleUnequipClicked);
 	}
+}
+
+FReply URogue10mEquipmentSlotActionWidget::NativeOnPreviewMouseButtonDown(
+	const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (UI_EquipmentSlotActionSize
+		&& !UI_EquipmentSlotActionSize->GetCachedGeometry().IsUnderLocation(
+			InMouseEvent.GetScreenSpacePosition()))
+	{
+		if (OwnerWindow.IsValid())
+		{
+			OwnerWindow->CloseEquipmentSlotActionMenu();
+		}
+		else
+		{
+			RemoveFromParent();
+		}
+		return FReply::Handled();
+	}
+	return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
 }
 
 void URogue10mEquipmentSlotActionWidget::HandleUnequipClicked()
@@ -1190,7 +1226,7 @@ void URogue10mEquipmentWindowWidget::RefreshEquipmentSlotTooltip(
 }
 
 void URogue10mEquipmentWindowWidget::OpenEquipmentSlotActionMenu(
-	ERogue10mInventorySlotType SlotType, FVector2D ScreenPosition)
+	ERogue10mInventorySlotType SlotType, FVector2D ScreenPosition, UWidget* HitWidget)
 {
 	CloseEquipmentSlotActionMenu();
 	URogue10mInventoryComponent* Inventory = GetInventoryComponent();
@@ -1211,19 +1247,30 @@ void URogue10mEquipmentWindowWidget::OpenEquipmentSlotActionMenu(
 		return;
 	}
 
-	ActionWidget->InitializeActionMenu(Inventory, SlotType, ItemData);
+	ActionWidget->InitializeActionMenu(Inventory, SlotType, ItemData, this);
 	const FVector2D MenuSize(220.0, 96.0);
-	const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this);
-	FVector2D MenuPosition = ScreenPosition + FVector2D(12.0, 12.0);
+	const FGeometry PlayerScreenGeometry =
+		UWidgetLayoutLibrary::GetPlayerScreenWidgetGeometry(GetOwningPlayer());
+	const FVector2D ViewportSize = PlayerScreenGeometry.GetLocalSize();
+	const FVector2D CursorPosition = PlayerScreenGeometry.AbsoluteToLocal(ScreenPosition);
+	FVector2D MenuPosition = CursorPosition + FVector2D(12.0, 0.0);
 	MenuPosition.X = FMath::Clamp(MenuPosition.X, 0.0,
 		FMath::Max(0.0, ViewportSize.X - MenuSize.X));
 	MenuPosition.Y = FMath::Clamp(MenuPosition.Y, 0.0,
 		FMath::Max(0.0, ViewportSize.Y - MenuSize.Y));
 	ActionWidget->AddToViewport(250);
-	ActionWidget->SetAlignmentInViewport(FVector2D::ZeroVector);
-	ActionWidget->SetDesiredSizeInViewport(MenuSize);
-	ActionWidget->SetPositionInViewport(MenuPosition, true);
+	ActionWidget->SetMenuPosition(MenuPosition, MenuSize);
 	ActiveEquipmentSlotActionWidget = ActionWidget;
+	SuppressedEquipmentTooltipWidget = HitWidget;
+	SuppressedEquipmentTooltipSlotType = SlotType;
+	if (HitWidget)
+	{
+		HitWidget->SetToolTip(nullptr);
+	}
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().CloseToolTip();
+	}
 }
 
 void URogue10mEquipmentWindowWidget::CloseEquipmentSlotActionMenu()
@@ -1233,6 +1280,20 @@ void URogue10mEquipmentWindowWidget::CloseEquipmentSlotActionMenu()
 		ActiveEquipmentSlotActionWidget->RemoveFromParent();
 		ActiveEquipmentSlotActionWidget = nullptr;
 	}
+	RestoreSuppressedEquipmentSlotTooltip();
+}
+
+void URogue10mEquipmentWindowWidget::RestoreSuppressedEquipmentSlotTooltip()
+{
+	if (SuppressedEquipmentTooltipWidget.IsValid()
+		&& SuppressedEquipmentTooltipSlotType.IsSet())
+	{
+		RefreshEquipmentSlotTooltip(
+			SuppressedEquipmentTooltipWidget.Get(),
+			SuppressedEquipmentTooltipSlotType.GetValue());
+	}
+	SuppressedEquipmentTooltipWidget.Reset();
+	SuppressedEquipmentTooltipSlotType.Reset();
 }
 
 FReply URogue10mEquipmentWindowWidget::HandleEquipmentDragSourceMouseButtonDown(
@@ -1252,7 +1313,7 @@ FReply URogue10mEquipmentWindowWidget::HandleEquipmentDragSourceMouseButtonDown(
 	const FVector2D ScreenPosition = InMouseEvent.GetScreenSpacePosition();
 	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		OpenEquipmentSlotActionMenu(SlotType, ScreenPosition);
+		OpenEquipmentSlotActionMenu(SlotType, ScreenPosition, DragSource);
 		return FReply::Handled();
 	}
 	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
@@ -1316,7 +1377,7 @@ FReply URogue10mEquipmentWindowWidget::NativeOnMouseButtonDown(
 			{
 				continue;
 			}
-			OpenEquipmentSlotActionMenu(Candidate.SlotType, ScreenPosition);
+			OpenEquipmentSlotActionMenu(Candidate.SlotType, ScreenPosition, Candidate.HitWidget);
 			return FReply::Handled();
 		}
 		CloseEquipmentSlotActionMenu();

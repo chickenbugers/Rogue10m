@@ -159,11 +159,17 @@ class ROGUE10M_API URogue10mEquipmentSlotActionWidget : public UUserWidget
 
 public:
 	void InitializeActionMenu(URogue10mInventoryComponent* InInventory,
-		ERogue10mInventorySlotType InSlotType, const URogue10mItemDataAsset* InItemData);
+		ERogue10mInventorySlotType InSlotType, const URogue10mItemDataAsset* InItemData,
+		URogue10mEquipmentWindowWidget* InOwnerWindow);
+	void SetMenuPosition(FVector2D InPosition, FVector2D InSize);
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual FReply NativeOnPreviewMouseButtonDown(
+		const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
+	TObjectPtr<USizeBox> UI_EquipmentSlotActionSize;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
 	TObjectPtr<UTextBlock> UI_EquipmentItemNameText;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
@@ -172,6 +178,8 @@ protected:
 	TObjectPtr<UTextBlock> UI_UnequipButtonText;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
 	TObjectPtr<UTextBlock> UI_ActionResultText;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Equipment|Action")
+	TObjectPtr<UButton> UI_ActionDismissButton;
 
 private:
 	UFUNCTION()
@@ -179,6 +187,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<URogue10mInventoryComponent> Inventory;
+	TWeakObjectPtr<URogue10mEquipmentWindowWidget> OwnerWindow;
 
 	ERogue10mInventorySlotType SlotType = ERogue10mInventorySlotType::Material;
 };
@@ -413,6 +422,7 @@ protected:
 
 private:
 	friend class URogue10mEquipmentDragSourceWidget;
+	friend class URogue10mEquipmentSlotActionWidget;
 
 
 	UFUNCTION()
@@ -431,8 +441,10 @@ private:
 	void DestroyCharacterPreview();
 
 	void RefreshEquipmentSlotTooltip(UWidget* HitWidget, ERogue10mInventorySlotType SlotType);
-	void OpenEquipmentSlotActionMenu(ERogue10mInventorySlotType SlotType, FVector2D ScreenPosition);
+	void OpenEquipmentSlotActionMenu(ERogue10mInventorySlotType SlotType,
+		FVector2D ScreenPosition, UWidget* HitWidget);
 	void CloseEquipmentSlotActionMenu();
+	void RestoreSuppressedEquipmentSlotTooltip();
 	const FRogue10mInventorySlot* FindEquipmentSlotData(ERogue10mInventorySlotType SlotType) const;
 	TOptional<ERogue10mInventorySlotType> FindEquipmentDropSlot(
 		FVector2D ScreenPosition, UBorder*& OutFrame) const;
@@ -449,6 +461,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<URogue10mEquipmentSlotActionWidget> ActiveEquipmentSlotActionWidget;
+	TWeakObjectPtr<UWidget> SuppressedEquipmentTooltipWidget;
+	TOptional<ERogue10mInventorySlotType> SuppressedEquipmentTooltipSlotType;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ARogue10mEquipmentPreviewActor> CharacterPreviewActor;

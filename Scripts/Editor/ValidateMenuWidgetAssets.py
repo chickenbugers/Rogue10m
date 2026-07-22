@@ -27,6 +27,7 @@ ASSETS = {
         "UI_ComparisonStatsContainer",
     },
     "/Game/Widget/Menu/Equipment/WBP_EquipmentSlotAction": {
+        "UI_ActionDismissButton",
         "UI_EquipmentSlotActionSize",
         "UI_EquipmentSlotActionFrame",
         "UI_EquipmentItemNameText",

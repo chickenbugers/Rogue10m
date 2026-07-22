@@ -42,6 +42,7 @@ REQUIRED_WIDGETS = {
         "UI_ComparisonStatsContainer",
     },
     "equipment_slot_action": {
+        "UI_ActionDismissButton",
         "UI_EquipmentSlotActionSize",
         "UI_EquipmentSlotActionFrame",
         "UI_EquipmentItemNameText",
@@ -477,11 +478,27 @@ def build_inventory_item_tooltip(widget_blueprint) -> None:
 
 def build_equipment_slot_action(widget_blueprint) -> None:
     clear_tree(widget_blueprint)
-    size_box, _ = add(
-        widget_blueprint, unreal.SizeBox, "UI_EquipmentSlotActionSize", variable=True
+    canvas, _ = add(
+        widget_blueprint, unreal.CanvasPanel, "UI_EquipmentSlotActionCanvas"
+    )
+    dismiss_button, dismiss_slot = add(
+        widget_blueprint, unreal.Button, "UI_ActionDismissButton", canvas, variable=True
+    )
+    dismiss_button.set_render_opacity(0.0)
+    dismiss_slot.set_anchors(unreal.Anchors(
+        minimum=unreal.Vector2D(0.0, 0.0), maximum=unreal.Vector2D(1.0, 1.0)
+    ))
+    dismiss_slot.set_offsets(unreal.Margin(0.0, 0.0, 0.0, 0.0))
+    dismiss_slot.set_z_order(0)
+    size_box, size_slot = add(
+        widget_blueprint, unreal.SizeBox, "UI_EquipmentSlotActionSize", canvas, variable=True
     )
     size_box.set_width_override(220.0)
     size_box.set_height_override(96.0)
+    set_canvas_layout(
+        size_slot, (0.0, 0.0), (220.0, 96.0),
+        anchors=(0.0, 0.0), alignment=(0.0, 0.0), z_order=1,
+    )
     frame, frame_slot = make_border(
         widget_blueprint, "UI_EquipmentSlotActionFrame", size_box,
         unreal.LinearColor(0.018, 0.022, 0.03, 0.98), 8.0,
