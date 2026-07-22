@@ -9,6 +9,7 @@ ITEM_ASSET_PATHS = (
     "/Game/DataAsset/Item/Starter/DA_Item_HealthPotion",
     "/Game/DataAsset/Item/Starter/DA_Item_IronLongsword",
     "/Game/DataAsset/Item/Starter/DA_Item_IronHelmet",
+    "/Game/DataAsset/Item/Starter/DA_Item_GuardianHelmet",
     "/Game/DataAsset/Item/Starter/DA_Item_LeatherArmor",
     "/Game/DataAsset/Item/Starter/DA_Item_LeatherBoots",
     "/Game/DataAsset/Item/Starter/DA_Item_NoviceRing",

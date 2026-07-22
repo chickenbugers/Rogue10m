@@ -30,6 +30,8 @@ URogue10mInventoryComponent::URogue10mInventoryComponent()
 		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_HealthPotion.DA_Item_HealthPotion"))),
 		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_IronLongsword.DA_Item_IronLongsword"))),
 		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_IronHelmet.DA_Item_IronHelmet"))),
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_GuardianHelmet.DA_Item_GuardianHelmet"))),
+		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_LeatherArmor.DA_Item_LeatherArmor"))),
 		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_LeatherArmor.DA_Item_LeatherArmor"))),
 		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_LeatherBoots.DA_Item_LeatherBoots"))),
 		TSoftObjectPtr<URogue10mItemDataAsset>(FSoftObjectPath(TEXT("/Game/DataAsset/Item/Starter/DA_Item_NoviceRing.DA_Item_NoviceRing")))
@@ -162,6 +164,13 @@ void URogue10mInventoryComponent::BeginPlay()
 				if (ItemSlots.IsValidIndex(ItemSlotIndex)
 					&& ItemSlots[ItemSlotIndex].Category == ERogue10mItemCategory::Equipment)
 				{
+					const FRogue10mInventorySlot* TargetEquipmentSlot =
+						FindEquipmentSlot(ItemSlots[ItemSlotIndex].EquipSlotType);
+					if (TargetEquipmentSlot && TargetEquipmentSlot->bHasEquippedItem)
+					{
+						continue;
+					}
+
 					const URogue10mItemDataAsset* EquippedItemData = ItemSlots[ItemSlotIndex].ItemData.Get();
 					if (TryEquipItemFromSlot(ItemSlotIndex) && EquippedItemData)
 					{

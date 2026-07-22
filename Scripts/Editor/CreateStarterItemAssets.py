@@ -71,6 +71,25 @@ ITEMS = (
         },
     },
     {
+        "asset": "DA_Item_GuardianHelmet",
+        "texture": "T_Item_IronHelmet",
+        "id": "GuardianHelmet",
+        "display_name": "수호자의 투구",
+        "description": "오랜 전투를 견딘 수호자의 문장이 새겨진 에픽 등급 철제 투구입니다.",
+        "category": unreal.Rogue10mItemCategory.EQUIPMENT,
+        "rarity": unreal.Rogue10mItemRarity.EPIC,
+        "slot": unreal.Rogue10mInventorySlotType.HEAD,
+        "weapon": unreal.Rogue10mWeaponType.UNARMED,
+        "size": (2, 2),
+        "stack": 1,
+        "weight": 2.8,
+        "scale": 1.0,
+        "stats": {
+            "defense_bonus": 10.0,
+            "max_health_bonus": 20.0,
+        },
+    },
+    {
         "asset": "DA_Item_LeatherArmor",
         "texture": "T_Item_LeatherArmor",
         "source": "T_Item_LeatherArmor.png",
@@ -135,7 +154,16 @@ ITEMS = (
 
 
 def import_texture(definition):
-    source = SOURCE_ROOT / definition["source"]
+    source_name = definition.get("source")
+    if not source_name:
+        texture = unreal.EditorAssetLibrary.load_asset(
+            f"{TEXTURE_ROOT}/{definition['texture']}"
+        )
+        if not texture:
+            raise RuntimeError(f"Existing texture is unavailable: {definition['texture']}")
+        return texture
+
+    source = SOURCE_ROOT / source_name
     if not source.is_file():
         raise RuntimeError(f"Missing source icon: {source}")
     task = unreal.AssetImportTask()
@@ -230,7 +258,7 @@ def main():
             f"({actual_size.x}x{actual_size.y}, {actual_width}x{actual_height}px)"
         )
 
-    unreal.log("[StarterItemAssets] Six starter inventory/equipment assets validated.")
+    unreal.log("[StarterItemAssets] Seven starter inventory/equipment assets validated.")
 
 
 if __name__ == "__main__":

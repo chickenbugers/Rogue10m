@@ -97,6 +97,10 @@ STARTER_EQUIPMENT_STATS = {
         "defense_bonus": 5.0,
         "max_health_bonus": 10.0,
     },
+    "/Game/DataAsset/Item/Starter/DA_Item_GuardianHelmet": {
+        "defense_bonus": 10.0,
+        "max_health_bonus": 20.0,
+    },
     "/Game/DataAsset/Item/Starter/DA_Item_LeatherArmor": {
         "defense_bonus": 12.0,
         "max_health_bonus": 25.0,
@@ -122,6 +126,7 @@ STARTER_ITEM_RARITIES = {
     "/Game/DataAsset/Item/Starter/DA_Item_HealthPotion": unreal.Rogue10mItemRarity.COMMON,
     "/Game/DataAsset/Item/Starter/DA_Item_IronLongsword": unreal.Rogue10mItemRarity.RARE,
     "/Game/DataAsset/Item/Starter/DA_Item_IronHelmet": unreal.Rogue10mItemRarity.RARE,
+    "/Game/DataAsset/Item/Starter/DA_Item_GuardianHelmet": unreal.Rogue10mItemRarity.EPIC,
     "/Game/DataAsset/Item/Starter/DA_Item_LeatherArmor": unreal.Rogue10mItemRarity.EPIC,
     "/Game/DataAsset/Item/Starter/DA_Item_LeatherBoots": unreal.Rogue10mItemRarity.COMMON,
     "/Game/DataAsset/Item/Starter/DA_Item_NoviceRing": unreal.Rogue10mItemRarity.UNIQUE,

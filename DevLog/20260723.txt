@@ -51,3 +51,49 @@
 - Rogue10mEditor Win64 Development 빌드 성공
 - `UObject.Class AttemptToFindUninitializedScriptStructMembers` Automation 테스트 성공
 - 새 Automation 로그에서 `FRogue10mHudQuickSlotView::InputSlot` 및 `Uninitialized script struct members` 오류 0건 확인
+
+## 시작 인벤토리 추가 갑옷
+
+### 작업 목표
+
+시작 장비 자동 장착은 유지하면서 플레이어 인벤토리에 가죽 갑옷 한 개를 추가로 제공했다.
+
+### 변경 사항
+
+- 기존 `DA_Item_LeatherArmor`를 시작 아이템 목록에 한 번 더 등록했다.
+- 같은 부위에 시작 장비가 이미 장착된 경우 후속 장비의 자동 장착을 건너뛰도록 보완했다.
+- 첫 번째 갑옷은 Armor 슬롯에 장착되고 추가 갑옷 한 개는 인벤토리 그리드에 남는다.
+
+### 검증
+
+- Rogue10mEditor Win64 Development 빌드 성공
+- `Scripts/CheckGeneratedChanges.ps1` 통과
+- `git diff --check` 통과
+
+## Notion 요약 후보
+
+기존 가죽 갑옷 Data Asset을 재사용해 시작 인벤토리에 갑옷 한 개를 추가했다. 자동 장착은 장비 부위당 첫 아이템만 처리하도록 변경해, 기존 가죽 갑옷은 장착 상태를 유지하고 추가 갑옷은 인벤토리에 남도록 했다.
+
+## 에픽 수호자 투구 Data Asset 및 시작 인벤토리 추가
+
+### 작업 목표
+
+에픽 등급 투구 Data Asset을 제작하고 시작 인벤토리에 한 개를 추가했다.
+
+### 변경 사항
+
+- `DA_Item_GuardianHelmet`을 생성하고 Equipment / Epic / Head, 2×2, 2.8kg으로 설정했다.
+- 방어력 +10, 최대 체력 +20 능력치를 적용했다.
+- 기존 철제 투구 아이콘을 재사용하고 별도 Texture 중복 생성을 피했다.
+- 기존 철제 투구 뒤에 시작 아이템 참조를 추가해 수호자의 투구가 인벤토리에 남도록 했다.
+
+### 검증
+
+- Rogue10mEditor Win64 Development 빌드 성공
+- UnrealEditor-Cmd Data Asset 생성 및 크기·아이콘 검증 성공
+- 전체 메뉴·아이템 Validator에서 Epic 등급, 능력치, 아이콘 스케일 검증 성공
+- `Scripts/CheckGeneratedChanges.ps1` 및 `git diff --check` 통과
+
+## Notion 요약 후보
+
+에픽 Head 장비 `수호자의 투구` Data Asset을 제작했다. 방어력 +10과 최대 체력 +20을 제공하며, 기존 철제 투구 아이콘을 재사용한다. 시작 시 기존 철제 투구는 자동 장착되고 새 에픽 투구는 인벤토리에 남도록 시작 아이템 순서와 부위 중복 자동 장착 규칙을 활용했다.

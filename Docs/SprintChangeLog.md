@@ -782,3 +782,20 @@
 - 검증: Rogue10mEditor 빌드 성공, `UObject.Class AttemptToFindUninitializedScriptStructMembers` Automation 테스트 성공, 관련 LogClass 오류 0건
 - 상태: 수정 및 자동 검증 완료
 - 관련 문서: `DevLog/20260723.txt`
+
+## 2026-07-23 보완 - 시작 인벤토리 추가 갑옷
+
+- 목표: 시작 장비 자동 장착을 유지하면서 인벤토리에 가죽 갑옷 한 개를 추가로 제공한다.
+- 주요 변경: `DA_Item_LeatherArmor` 시작 참조 추가, 동일 장비 부위의 후속 자동 장착 방지
+- 검증: Rogue10mEditor 빌드 성공, `CheckGeneratedChanges.ps1` 및 `git diff --check` 통과
+- 상태: 구현 및 자동 검증 완료, 새 PIE 세션 수동 확인 대기
+- 관련 문서: `Feature/architect/2026-07-23_starter-inventory-extra-armor.md`, `Feature/doc/2026-07-23_starter-inventory-extra-armor.md`, `DevLog/20260723.txt`
+
+## 2026-07-23 보완 - 에픽 수호자 투구
+
+- 목표: 에픽 등급 Head 장비 Data Asset을 제작하고 시작 인벤토리에 추가한다.
+- 주요 변경: `DA_Item_GuardianHelmet` 생성, 방어력 +10·최대 체력 +20 적용, 시작 아이템 참조 및 자동 검증 목록 추가
+- 에셋 정책: 기존 철제 투구 아이콘 재사용, 불필요한 기존 스타터 에셋 재저장 변경 제거
+- 검증: Rogue10mEditor 빌드 성공, UnrealEditor-Cmd 생성 검증 및 전체 메뉴·아이템 Validator 통과, 생성 파일·diff 검사 통과
+- 상태: 구현 및 자동 검증 완료, 새 PIE 세션 수동 확인 대기
+- 관련 문서: `Feature/architect/2026-07-23_epic-guardian-helmet.md`, `Feature/doc/2026-07-23_epic-guardian-helmet.md`, `DevLog/20260723.txt`
