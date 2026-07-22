@@ -70,7 +70,7 @@ struct FRogue10mHudQuickSlotView
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") float CooldownNormalized = 0.0f;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") bool bUnlocked = true;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") TObjectPtr<URogue10mAttackSkillData> SkillData = nullptr;
-	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") ERogue10mAttackInputSlot InputSlot;
+	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") ERogue10mAttackInputSlot InputSlot = ERogue10mAttackInputSlot::Primary;
 	UPROPERTY(BlueprintReadOnly, Category="Rogue10m|HUD") bool bDodgeSlot = false;
 };
 

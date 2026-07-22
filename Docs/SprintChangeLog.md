@@ -760,3 +760,25 @@
 - 검증: Rogue10mEditor 빌드 성공, 전체 메뉴 Widget Validator 0 errors / 0 warnings, Python 문법 및 diff 검사 통과
 - 상태: 구현·빌드·WBP 정적 검증 완료, PIE 수동 상호작용 QA 대기
 - 관련 문서: `Feature/architect/2026-07-22_equipment-context-menu-dismiss.md`, `Feature/doc/2026-07-22_equipment-context-menu-dismiss.md`, `DevLog/20260722.txt`
+
+## 2026-07-23 보완 - 메뉴 Python wrapper 정리
+
+- 목표: 메뉴 Widget 자동화의 중복 진입점을 제거하고 통합 빌더·Validator 중심으로 유지보수 경로를 단순화한다.
+- 주요 변경:
+  - `BuildMenuDesignerLayouts.py`로 대체된 부분 생성·재생성 wrapper 6개 삭제
+  - 메뉴 생성은 `BuildMenuDesignerLayouts.py`, 회귀 검증은 `ValidateMenuWidgetAssets.py`로 통합
+  - Data Asset·콘텐츠 이동·경고 검증·원격 실행용 재사용 스크립트는 유지
+- 검증: 남은 Python 전체 문법 검사, 삭제 파일 참조 검색, `git diff --check`, `CheckGeneratedChanges.ps1`
+- 상태: 스크립트 정리 및 정적 검증 완료
+- 관련 문서: `DevLog/20260723.txt`
+
+## 2026-07-23 보완 - HUD Quick Slot USTRUCT 초기화
+
+- 목표: Editor Automation에서 반복된 `FRogue10mHudQuickSlotView::InputSlot` 미초기화 오류를 제거한다.
+- 주요 변경: `InputSlot` 기본값을 `ERogue10mAttackInputSlot::Primary`로 지정
+- 원인 분리:
+  - `r.MotionVectorSimulation`: UE 5.8 엔진 CVar 플래그 문제로 프로젝트 변경 없음
+  - 단독 `Condition failed` 15건: UE 5.8 엔진 테스트 로그로 프로젝트 오류와 무관
+- 검증: Rogue10mEditor 빌드 성공, `UObject.Class AttemptToFindUninitializedScriptStructMembers` Automation 테스트 성공, 관련 LogClass 오류 0건
+- 상태: 수정 및 자동 검증 완료
+- 관련 문서: `DevLog/20260723.txt`
