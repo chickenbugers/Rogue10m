@@ -13,6 +13,7 @@
 #include "Rogue10m.h"
 #include "Rogue10mAttributeSet.h"
 #include "Rogue10mCombatComponent.h"
+#include "Rogue10mCharacterDataAsset.h"
 #include "Rogue10mInventoryComponent.h"
 #include "Rogue10mPlayerController.h"
 #include "Rogue10mPlayerFeedbackComponent.h"
@@ -89,8 +90,12 @@ float ARogue10mCharacter::TakeDamage(
 	float DamageAmount, const FDamageEvent& DamageEvent,
 	AController* EventInstigator, AActor* DamageCauser)
 {
-	const float AppliedDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	URogue10mAttributeSet* Attributes = GetRogueAttributeSet();
+	const float MitigatedDamage = Attributes && DamageAmount > 0.0f
+		? FMath::Max(1.0f, DamageAmount - Attributes->GetDefense())
+		: DamageAmount;
+	const float AppliedDamage = Super::TakeDamage(
+		MitigatedDamage, DamageEvent, EventInstigator, DamageCauser);
 	if (IsDead() || !Attributes || AppliedDamage <= 0.0f)
 	{
 		return AppliedDamage;
@@ -504,6 +509,90 @@ URogue10mAttributeSet* ARogue10mCharacter::GetRogueAttributeSet() const
 	return State ? State->GetRogueAttributeSet() : nullptr;
 }
 
+FRogue10mCharacterStatSnapshot ARogue10mCharacter::GetCharacterStatSnapshot() const
+{
+	FRogue10mCharacterStatSnapshot Snapshot;
+	if (const URogue10mCharacterDataAsset* CharacterData =
+		CombatComponent ? CombatComponent->GetCharacterData() : nullptr)
+	{
+		Snapshot.Base = CharacterData->GetBaseStats();
+	}
+	if (InventoryComponent)
+	{
+		Snapshot.Equipment = InventoryComponent->GetEquipmentStatModifiers();
+	}
+	Snapshot.Recalculate();
+	return Snapshot;
+}
+
+bool ARogue10mCharacter::ApplyCharacterProfile(const FRogue10mCharacterProfile& Profile)
+{
+	if (!Profile.IsValid())
+	{
+		UE_LOG(LogRogue10m, Error, TEXT("유효하지 않은 캐릭터 프로필은 적용할 수 없습니다."));
+		return false;
+	}
+
+	CharacterAppearance = Profile.Appearance;
+	if (ARogue10mPlayerState* State = GetPlayerState<ARogue10mPlayerState>())
+	{
+		FText RaceName = NSLOCTEXT("Rogue10mCharacter", "HumanRace", "인간");
+		if (Profile.Appearance.Race == ERogue10mCharacterRace::Dwarf)
+		{
+			RaceName = NSLOCTEXT("Rogue10mCharacter", "DwarfRace", "드워프");
+		}
+		else if (Profile.Appearance.Race == ERogue10mCharacterRace::Orc)
+		{
+			RaceName = NSLOCTEXT("Rogue10mCharacter", "OrcRace", "오크");
+		}
+		State->SetCharacterProfileIdentity(FText::FromString(Profile.CharacterName), RaceName);
+	}
+	return true;
+}
+
+void ARogue10mCharacter::RefreshCharacterStats(bool bRestoreVitals)
+{
+	const FRogue10mCharacterStatSnapshot Snapshot = GetCharacterStatSnapshot();
+	URogue10mAttributeSet* Attributes = GetRogueAttributeSet();
+	if (Attributes && HasAuthority())
+	{
+		const float PreviousMaxHealth = FMath::Max(1.0f, Attributes->GetMaxHealth());
+		const float HealthRatio = FMath::Clamp(Attributes->GetHealth() / PreviousMaxHealth, 0.0f, 1.0f);
+		const float PreviousMaxStamina = FMath::Max(1.0f, Attributes->GetMaxStamina());
+		const float StaminaRatio = FMath::Clamp(Attributes->GetStamina() / PreviousMaxStamina, 0.0f, 1.0f);
+		const float PreviousMaxMana = FMath::Max(1.0f, Attributes->GetMaxMana());
+		const float ManaRatio = FMath::Clamp(Attributes->GetMana() / PreviousMaxMana, 0.0f, 1.0f);
+
+		Attributes->SetMaxHealth(Snapshot.MaxHealth);
+		Attributes->SetMaxStamina(Snapshot.Base.MaxStamina);
+		Attributes->SetMaxMana(Snapshot.Base.MaxMana);
+		Attributes->SetAttackPower(Snapshot.AttackPower);
+		Attributes->SetDefense(Snapshot.Defense);
+		Attributes->SetCriticalChance(Snapshot.CriticalChance);
+		Attributes->SetCriticalDamageMultiplier(Snapshot.CriticalDamageMultiplier);
+		Attributes->SetAttackSpeedMultiplier(Snapshot.AttackSpeedMultiplier);
+		Attributes->SetMoveSpeed(Snapshot.MoveSpeed);
+
+		if (bRestoreVitals)
+		{
+			Attributes->RestoreVitals();
+		}
+		else
+		{
+			Attributes->SetHealth(Snapshot.MaxHealth * HealthRatio);
+			Attributes->SetStamina(Snapshot.Base.MaxStamina * StaminaRatio);
+			Attributes->SetMana(Snapshot.Base.MaxMana * ManaRatio);
+		}
+	}
+
+	NormalWalkSpeed = Snapshot.MoveSpeed;
+	SprintWalkSpeed = Snapshot.SprintSpeed;
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->MaxWalkSpeed = bIsSprinting ? SprintWalkSpeed : NormalWalkSpeed;
+	}
+}
+
 const URogue10mAttackSkillData* ARogue10mCharacter::GetDisplayedAttackSkillForHUD() const
 {
 	return CombatComponent ? CombatComponent->GetDisplayedAttackSkill() : nullptr;
@@ -545,4 +634,5 @@ void ARogue10mCharacter::InitializeAbilityActorInfo()
 	{
 		AbilitySystem->InitAbilityActorInfo(State, this);
 	}
+	RefreshCharacterStats(true);
 }

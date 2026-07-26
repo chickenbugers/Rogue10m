@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Character")
 	FText GetCharacterJobName() const { return CharacterJobName; }
 
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Character")
+	void SetCharacterProfileIdentity(const FText& DisplayName, const FText& JobName);
+
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Combat")
 	ERogue10mWeaponType GetEquippedWeaponType() const { return EquippedWeaponType; }
 

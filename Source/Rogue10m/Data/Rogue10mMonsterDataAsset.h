@@ -11,6 +11,14 @@ class USkeletalMesh;
 class UTexture2D;
 class URogue10mAttackSkillData;
 
+UENUM(BlueprintType)
+enum class ERogue10mMonsterRank : uint8
+{
+	Normal UMETA(DisplayName="일반"),
+	MidBoss UMETA(DisplayName="중간 보스"),
+	FinalBoss UMETA(DisplayName="최종 보스")
+};
+
 /** 몬스터의 외형, 능력치, 보상과 전투 설정을 정의합니다. */
 UCLASS(BlueprintType)
 class ROGUE10M_API URogue10mMonsterDataAsset : public UPrimaryDataAsset
@@ -29,6 +37,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Identity", meta=(ClampMin="1"))
 	int32 Level = 1;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Identity")
+	ERogue10mMonsterRank MonsterRank = ERogue10mMonsterRank::Normal;
+
+	/** 기존 에셋 호환 필드입니다. 신규 로직은 MonsterRank를 기준으로 사용합니다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Identity")
 	bool bIsBoss = false;
 
@@ -82,6 +94,15 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Combat")
 	TObjectPtr<URogue10mAttackSkillData> AttackSkill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Combat", meta=(ClampMin="0.0"))
+	float AttackRange = 170.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Combat", meta=(ClampMin="0.0"))
+	float AttackDamage = 8.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Combat", meta=(ClampMin="0.01"))
+	float AttackInterval = 1.25f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Lifecycle")
 	bool bDestroyOnDeath = true;

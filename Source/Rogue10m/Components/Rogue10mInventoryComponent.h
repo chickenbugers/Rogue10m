@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Rogue10mCharacterStats.h"
 #include "Rogue10mWeaponTypes.h"
 #include "Rogue10mInventoryComponent.generated.h"
 
@@ -183,6 +184,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory|Equipment")
 	const URogue10mItemDataAsset* GetEquippedItemData(ERogue10mInventorySlotType SlotType) const;
 
+	/** 현재 장착된 모든 Item Data Asset의 능력치 증가량 합계입니다. */
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Inventory|Equipment")
+	FRogue10mEquipmentStatModifiers GetEquipmentStatModifiers() const;
+
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Items")
 	const TArray<FRogue10mItemStack>& GetItemSlots() const { return ItemSlots; }
 
@@ -348,6 +353,7 @@ private:
 
 	// 좌/우 장비 슬롯 배열에서 목표 슬롯 타입을 찾습니다.
 	FRogue10mInventorySlot* FindEquipmentSlot(ERogue10mInventorySlotType SlotType);
+	void NotifyEquipmentChanged();
 	int32 FindFirstEmptyItemSlot() const;
 	void ClearQuickSlotAssignmentsForItemSlot(int32 ItemSlotIndex);
 	void ResetEquipmentSlotDisplay(FRogue10mInventorySlot& EquipmentSlot, ERogue10mInventorySlotType TargetSlotType);

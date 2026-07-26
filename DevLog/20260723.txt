@@ -97,3 +97,52 @@
 ## Notion 요약 후보
 
 에픽 Head 장비 `수호자의 투구` Data Asset을 제작했다. 방어력 +10과 최대 체력 +20을 제공하며, 기존 철제 투구 아이콘을 재사용한다. 시작 시 기존 철제 투구는 자동 장착되고 새 에픽 투구는 인벤토리에 남도록 시작 아이템 순서와 부위 중복 자동 장착 규칙을 활용했다.
+
+## 캐릭터 기본 스탯 설계 및 장비창 표시
+
+### 작업 목표
+
+캐릭터의 기본값, 장비 증가량, 최종 런타임 값의 소유 관계를 정리하고 장비 변경 결과를 전투·생존·이동과 장비창에 동시에 반영했다.
+
+### 기본값
+
+- 최대 체력·스테미나·마나: 각 100
+- 공격력: 10
+- 방어력: 0
+- 치명타 확률: 5%
+- 치명타 피해: 150%
+- 공격 속도: 100%
+- 이동 속도: 600 cm/s
+- 질주 속도: 900 cm/s
+
+### 변경 사항
+
+- Character Data Asset이 장비 적용 전 기본 스탯을 소유하도록 확장했다.
+- InventoryComponent가 현재 장착 장비의 공격력·방어력·최대 체력·치명타 확률·공격 속도·이동 속도 보너스를 합산한다.
+- Character가 기본·장비·최종값 스냅샷을 계산하고 AttributeSet과 CharacterMovement에 적용한다.
+- 장착·교체·해제 성공 경로를 공통 스탯 갱신 함수로 통합했다.
+- 스킬 피해에 최종 공격력을 더하고 피격 피해에서 최종 방어력을 차감한다.
+- 방어 감소 후에도 양수 입력 피해는 최소 1이 적용된다.
+- 장비로 최대 체력이 바뀔 때 현재 체력 비율을 유지한다.
+- 장비창에 공격력, 방어력, 최대 체력, 치명타 확률, 공격 속도, 이동 속도를 `최종 (기본 + 장비)` 형식으로 표시한다.
+- Character Data 기본값만 갱신하는 전용 Editor Python 모드와 회귀 Validator를 추가했다.
+
+### 검증
+
+- Rogue10mEditor Win64 Development 전체 빌드 성공
+- 방어력 적용 순서 리뷰 보완 후 증분 재빌드 성공
+- UnrealEditor-Cmd에서 Character Data 기본 스탯 10종 검증 성공
+- `WBP_EquipmentWindow` 스탯 TextBlock 6종 검증 성공
+- 스타터 장비 6종 능력치 회귀 검증 성공
+- `UObject.Class AttemptToFindUninitializedScriptStructMembers` Automation 테스트 성공
+- Python AST, `Scripts/CheckGeneratedChanges.ps1`, `git diff --check` 검사
+
+### 남은 수동 QA
+
+- 새 PIE 세션에서 시작 장비 합산값 확인
+- 장착·교체·해제 시 장비창과 실제 체력·이동 속도 동시 갱신 확인
+- 방어력 최소 피해 1 확인
+
+## Notion 요약 후보
+
+캐릭터 기본 스탯의 기준값을 Character Data Asset에 정의하고, 현재 장착 장비 보너스를 InventoryComponent에서 합산해 AttributeSet과 CharacterMovement에 반영하는 흐름을 구축했다. 공격력은 스킬 피해에, 방어력은 정액 피해 감소에 적용되며 최대 체력 변경 시 현재 체력 비율을 보존한다. 장비창에는 공격력·방어력·최대 체력·치명타 확률·공격 속도·이동 속도를 최종값과 기본·장비 내역으로 표시한다.

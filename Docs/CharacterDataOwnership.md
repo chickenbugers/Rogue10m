@@ -28,6 +28,11 @@ URogue10mAttributeSet은 모든 전투/성장 수치의 단일 원본이다.
 - PlayerLevel
 - Experience
 - ExperienceToNextLevel
+- AttackPower
+- Defense
+- MoveSpeed
+- CriticalChance / CriticalDamageMultiplier
+- AttackSpeedMultiplier
 
 플레이어는 PlayerState가 AttributeSet을 소유한다. 몬스터는 자신의 ASC와 AttributeSet을 직접 소유한다.
 
@@ -75,8 +80,45 @@ ARogue10mPlayerController의 역할:
 
 URogue10mRunHUD와 URogue10mMainHUDWidget은 PlayerState, Character, CombatComponent, PlayerController 데이터를 View 구조체로 변환한다. 화면 배치와 디자인은 Widget Blueprint가 담당한다.
 
+## 기본 스탯 데이터 흐름
+
+`URogue10mCharacterDataAsset`은 장비 적용 전 기본 체력·자원·공격·방어·치명타·공격 속도·이동 속도를 소유한다.
+
+`URogue10mInventoryComponent`는 현재 장착된 Item Data Asset의 `FRogue10mEquipmentStatModifiers`를 합산한다. Character는 기본값과 장비 합계를 `FRogue10mCharacterStatSnapshot`으로 계산하고 최종값을 AttributeSet과 CharacterMovement에 반영한다.
+
+- Character Data Asset: 변경 가능한 캐릭터 기준값
+- InventoryComponent: 현재 장비 보너스 합계
+- AttributeSet: 실제 전투에서 사용하는 최종 런타임 값
+- EquipmentWindow: 동일 스냅샷을 읽는 표시 계층
+
+장비 변경은 Character의 단일 갱신 진입점을 사용하며 최대 체력 변경 시 현재 체력 비율을 보존한다.
+
+## 캐릭터 프로필과 외형 데이터 흐름
+
+`URogue10mCharacterProfileSubsystem`은 GameInstance 수명 동안 최대 3개의 캐릭터 프로필과 현재 선택 프로필을 관리한다. `URogue10mCharacterProfileSaveGame`은 캐릭터 이름, 종족, 성별, 외형 선택값만 로컬 슬롯에 저장한다.
+
+- CharacterProfileSubsystem: 프로필 생성·삭제·선택과 저장 진입점
+- CharacterProfileSaveGame: 로컬 프로필 영속 데이터
+- CharacterCustomization Data Asset: 종족·성별별 메시와 머티리얼 카탈로그
+- CharacterLobbyWidget: 프로필 및 카탈로그를 화면 상태로 변환
+- Character: 선택 프로필을 런타임 메시와 PlayerState 표시값에 적용
+
+인벤토리, 경험치, 스탯, 월드 진행도는 외형 프로필 저장 경계에 포함하지 않는다. 이후 캐릭터 저장 기능은 `CharacterId`를 키로 사용해 진행 데이터를 별도 저장하고 외형 프로필과 결합한다.
+
 ## 다음 분리 후보
 
 - 무기별 숙련도와 스킬 해금 상태를 전용 ProgressionComponent로 이전
 - 공격 적중 시점을 Animation Montage Notify 또는 Gameplay Event로 전환
 - 인벤토리 아이템 정의를 Item Data Asset으로 이전
+## 상속 캐릭터 외형과 애니메이션 소유권
+
+`ARogue10mCharacter`는 이동·전투·인벤토리·프로필 정체성을 담당하고, `ARogue10mStylizedCharacter`는 외형 Mesh와 애니메이션 리타기팅을 담당한다.
+
+- `AnimationSourceMesh`: 숨김 Manny와 기존 `ABP_Unarmed`를 실행하는 포즈 소스
+- `Character Mesh`: 선택 종족 Skeleton과 종족별 Retarget AnimBP를 사용하는 실제 월드 외형
+- `AppearanceHairMesh`, `AppearanceFacialMesh`: 동일 종족 전신 Skeleton의 Leader Pose를 사용하는 외형 파츠
+- Character Customization Data Asset: 종족·성별별 자식 CharacterClass, IK Retargeter, Retarget AnimClass와 외형 옵션 소유
+- GameMode: 선택 프로필로부터 CharacterClass를 결정하고 Pawn Spawn/Possess 수행
+- CharacterProfileSubsystem: 선택 프로필과 캐릭터 생성 정보 소유
+
+서로 다른 Skeleton 사이에는 Leader Pose를 사용하지 않는다. Manny 포즈는 `Retarget Pose From Mesh`를 통해 종족 Skeleton으로 변환하며, Leader Pose는 동일 Skeleton의 Hair·Facial 파츠에만 제한한다.

@@ -11,15 +11,19 @@
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputMappingContext.h"
+#include "Kismet/GameplayStatics.h"
 #include "Rogue10m.h"
 #include "Rogue10mAttackTargetInterface.h"
 #include "Rogue10mBasicMonster.h"
 #include "Rogue10mCameraManager.h"
 #include "Rogue10mCharacter.h"
+#include "Rogue10mCharacterProfileSubsystem.h"
 #include "Rogue10mCombatComponent.h"
+#include "Rogue10mGameMode.h"
 #include "Rogue10mInventoryComponent.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mRunHUD.h"
+#include "Widgets/Rogue10mCharacterLobbyWidget.h"
 #include "Widgets/Rogue10mDamageIndicatorWidget.h"
 #include "Widgets/Rogue10mMenuWindowWidgets.h"
 #include "Widgets/Input/SVirtualJoystick.h"
@@ -62,6 +66,8 @@ ARogue10mPlayerController::ARogue10mPlayerController()
 		FSoftClassPath(TEXT("/Game/Widget/Menu/Equipment/WBP_EquipmentWindow.WBP_EquipmentWindow_C")));
 	DefaultSkillTreeWindowWidgetClass = TSoftClassPtr<URogue10mSkillTreeWindowWidget>(
 		FSoftClassPath(TEXT("/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow.WBP_SkillTreeWindow_C")));
+	DefaultCharacterLobbyWidgetClass = TSoftClassPtr<URogue10mCharacterLobbyWidget>(
+		FSoftClassPath(TEXT("/Game/Widget/Character/WBP_CharacterLobby.WBP_CharacterLobby_C")));
 }
 
 void ARogue10mPlayerController::BeginPlay()
@@ -85,6 +91,7 @@ void ARogue10mPlayerController::BeginPlay()
 	InitializeRunHUD();
 	InitializeMenuWindows();
 	InitializeDamageIndicatorPool();
+	InitializeCharacterLobby();
 	RefreshInputMode();
 }
 
@@ -173,9 +180,49 @@ void ARogue10mPlayerController::CloseAllBlockingPanels()
 	RefreshInputMode();
 }
 
+void ARogue10mPlayerController::EnterSelectedCharacter()
+{
+	URogue10mCharacterProfileSubsystem* Profiles = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<URogue10mCharacterProfileSubsystem>()
+		: nullptr;
+	const FRogue10mCharacterProfile* Profile = Profiles ? Profiles->GetSelectedProfile() : nullptr;
+	ARogue10mGameMode* GameMode =
+		GetWorld() ? GetWorld()->GetAuthGameMode<ARogue10mGameMode>() : nullptr;
+	ARogue10mCharacter* RogueCharacter = GameMode
+		? GameMode->SpawnSelectedCharacterForController(this)
+		: nullptr;
+	if (!Profile || !RogueCharacter
+		|| !RogueCharacter->ApplyCharacterProfile(*Profile))
+	{
+		UE_LOG(LogRogue10m, Error, TEXT("선택 상속 Character 생성 또는 외형 적용에 실패해 게임 접속을 중단했습니다."));
+		return;
+	}
+
+	bCharacterLobbyVisible = false;
+	if (CharacterLobbyWidget)
+	{
+		CharacterLobbyWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (RunHUD)
+	{
+		RunHUD->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (MobileControlsWidget)
+	{
+		MobileControlsWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+	SetIgnoreMoveInput(false);
+	SetIgnoreLookInput(false);
+	UGameplayStatics::SetGamePaused(this, false);
+	RefreshInputMode();
+	AddCombatLogMessage(
+		FString::Printf(TEXT("%s 캐릭터로 접속했습니다."), *Profile->CharacterName),
+		FLinearColor(0.55f, 0.88f, 1.0f, 1.0f));
+}
+
 bool ARogue10mPlayerController::IsAnyBlockingWindowVisible() const
 {
-	return bInventoryVisible || bItemWindowVisible || bSkillTreeVisible || bSettingsVisible;
+	return bCharacterLobbyVisible || bInventoryVisible || bItemWindowVisible || bSkillTreeVisible || bSettingsVisible;
 }
 
 void ARogue10mPlayerController::SetLookSensitivity(float NewSensitivityX, float NewSensitivityY)
@@ -605,8 +652,66 @@ URogue10mMenuWindowWidget* ARogue10mPlayerController::GetTopmostOpenMenuWindow()
 	return nullptr;
 }
 
+void ARogue10mPlayerController::InitializeCharacterLobby()
+{
+	if (!IsLocalPlayerController())
+	{
+		return;
+	}
+
+	TSubclassOf<URogue10mCharacterLobbyWidget> ResolvedClass = CharacterLobbyWidgetClass;
+	if (!ResolvedClass)
+	{
+		UClass* LoadedClass = DefaultCharacterLobbyWidgetClass.LoadSynchronous();
+		if (LoadedClass && LoadedClass->IsChildOf(URogue10mCharacterLobbyWidget::StaticClass()))
+		{
+			ResolvedClass = LoadedClass;
+		}
+	}
+	if (!ResolvedClass)
+	{
+		UE_LOG(LogRogue10m, Error, TEXT("캐릭터 로비 Widget 클래스를 찾을 수 없습니다."));
+		return;
+	}
+
+	CharacterLobbyWidget = CreateWidget<URogue10mCharacterLobbyWidget>(this, ResolvedClass);
+	if (!CharacterLobbyWidget)
+	{
+		UE_LOG(LogRogue10m, Error, TEXT("캐릭터 로비 Widget을 생성하지 못했습니다."));
+		return;
+	}
+	CharacterLobbyWidget->InitializeCharacterLobby(this);
+	CharacterLobbyWidget->AddToPlayerScreen(1000);
+	bCharacterLobbyVisible = true;
+	if (RunHUD)
+	{
+		RunHUD->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (MobileControlsWidget)
+	{
+		MobileControlsWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	CloseAllBlockingPanels();
+	bCharacterLobbyVisible = true;
+	SetIgnoreMoveInput(true);
+	SetIgnoreLookInput(true);
+	UGameplayStatics::SetGamePaused(this, true);
+}
+
 void ARogue10mPlayerController::RefreshInputMode()
 {
+	if (bCharacterLobbyVisible && CharacterLobbyWidget)
+	{
+		bShowMouseCursor = true;
+		bEnableClickEvents = true;
+		bEnableMouseOverEvents = true;
+		FInputModeUIOnly InputMode;
+		InputMode.SetWidgetToFocus(CharacterLobbyWidget->TakeWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(InputMode);
+		return;
+	}
+
 	const bool bBlocking = IsAnyBlockingWindowVisible();
 	bShowMouseCursor = bBlocking;
 	bEnableClickEvents = bBlocking;

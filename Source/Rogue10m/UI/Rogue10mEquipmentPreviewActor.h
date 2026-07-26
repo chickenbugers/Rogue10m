@@ -25,6 +25,7 @@ public:
 	bool InitializePreview(ACharacter* InSourceCharacter, FIntPoint InResolution);
 	bool RefreshFromCharacter();
 	void SetPreviewActive(bool bActive);
+	void AddPreviewYaw(float DeltaYaw);
 
 	UTextureRenderTarget2D* GetRenderTarget() const { return RenderTarget; }
 
@@ -37,6 +38,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category="Rogue10m|Equipment Preview")
 	TObjectPtr<USceneComponent> SceneRoot;
+
+	UPROPERTY(VisibleAnywhere, Category="Rogue10m|Equipment Preview")
+	TObjectPtr<USceneComponent> PreviewMeshRoot;
 
 	UPROPERTY(VisibleAnywhere, Category="Rogue10m|Equipment Preview")
 	TObjectPtr<USceneCaptureComponent2D> SceneCapture;

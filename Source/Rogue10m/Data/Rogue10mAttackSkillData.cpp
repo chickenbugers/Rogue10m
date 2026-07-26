@@ -21,7 +21,9 @@ float URogue10mAttackSkillData::RollDamage(const URogue10mAttributeSet* SourceAt
 	const float AdjustedB = FMath::Max(0.0f, CharacterMaxRatio * MaxDamageRatioMultiplier);
 	const float MinimumRatio = FMath::Min(AdjustedA, AdjustedB);
 	const float MaximumRatio = FMath::Max(AdjustedA, AdjustedB);
-	float RolledDamage = FMath::Max(0.0f, Damage) * FMath::FRandRange(MinimumRatio, MaximumRatio);
+	const float CharacterAttackPower = SourceAttributes ? SourceAttributes->GetAttackPower() : 0.0f;
+	float RolledDamage = FMath::Max(0.0f, Damage + CharacterAttackPower)
+		* FMath::FRandRange(MinimumRatio, MaximumRatio);
 
 	const float CharacterCriticalChance = SourceAttributes ? SourceAttributes->GetCriticalChance() : 0.0f;
 	const float FinalCriticalChance = FMath::Clamp(CharacterCriticalChance + CriticalChanceBonus, 0.0f, 1.0f);

@@ -663,12 +663,12 @@ def build_equipment(widget_blueprint) -> None:
     )
     set_fill_alignment(stats_content_slot)
     make_text(widget_blueprint, "UI_StatsTitleText", "캐릭터 스탯", stats, font_size=16)
-    make_text(widget_blueprint, "UI_AttackStatText", "공격력 0", stats, variable=True, font_size=13)
-    make_text(widget_blueprint, "UI_DefenseStatText", "방어력 0", stats, variable=True, font_size=13)
-    make_text(widget_blueprint, "UI_MaxHealthStatText", "최대 체력 0", stats, variable=True, font_size=13)
-    make_text(widget_blueprint, "UI_CriticalChanceStatText", "치명타 확률 0%", stats, variable=True, font_size=13)
-    make_text(widget_blueprint, "UI_AttackSpeedStatText", "공격 속도 0%", stats, variable=True, font_size=13)
-    make_text(widget_blueprint, "UI_MoveSpeedStatText", "이동 속도 0", stats, variable=True, font_size=13)
+    make_text(widget_blueprint, "UI_AttackStatText", "공격력 10  (기본 10)", stats, variable=True, font_size=13)
+    make_text(widget_blueprint, "UI_DefenseStatText", "방어력 0  (기본 0)", stats, variable=True, font_size=13)
+    make_text(widget_blueprint, "UI_MaxHealthStatText", "최대 체력 100  (기본 100)", stats, variable=True, font_size=13)
+    make_text(widget_blueprint, "UI_CriticalChanceStatText", "치명타 확률 5%  (기본 5%)", stats, variable=True, font_size=13)
+    make_text(widget_blueprint, "UI_AttackSpeedStatText", "공격 속도 100%  (기본 100%)", stats, variable=True, font_size=13)
+    make_text(widget_blueprint, "UI_MoveSpeedStatText", "이동 속도 600  (기본 600)", stats, variable=True, font_size=13)
 
     preview_frame, preview_slot = make_border(
         widget_blueprint, "UI_CharacterPreviewFrame", window_root, SECTION_COLOR, 8.0

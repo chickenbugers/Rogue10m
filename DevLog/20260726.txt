@@ -1,0 +1,108 @@
+# 캐릭터 선택 후 접속 실패 수정
+
+## 증상
+
+캐릭터 로비에서 슬롯과 캐릭터를 선택한 뒤 `게임 접속`을 눌러도 로비가 닫히지 않고 게임에 진입하지 못했다.
+
+## 원인
+
+PIE 로그에서 슬롯 클릭과 프로필 선택은 정상적으로 처리됐지만 `ARogue10mCharacter::ApplyCharacterProfile()`이 반복해서 실패하는 것을 확인했다.
+
+Unreal Python Validator로 실제 `/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter` CDO를 검사한 결과 `CustomizationCatalog` 참조가 비어 있었다. 이 때문에 접속 단계에서 외형 카탈로그를 불러오지 못하고 진입을 중단했다. 로비 Widget 자체도 포커스 불가 상태라 `InputMode:UIOnly` 포커스 오류가 함께 발생했다.
+
+## 수정 사항
+
+- `BP_FirstPersonCharacter` CDO의 `CustomizationCatalog`에 `DA_CharacterCustomizationCatalog`를 연결하고 저장했다.
+- 에셋 생성 스크립트가 Player Character CDO 참조까지 항상 설정하도록 보강했다.
+- Blueprint 기본값이 다시 비어도 C++에서 표준 카탈로그 경로를 불러오는 fallback을 추가했다.
+- 캐릭터 로비 Widget을 포커스 가능하게 설정해 UIOnly 입력 모드 오류를 제거했다.
+- Validator가 6개 아키타입과 로비 바인딩뿐 아니라 Player Character의 세 커스터마이징 메시 컴포넌트와 카탈로그 CDO 참조도 검사하도록 확장했다.
+
+## 검증
+
+- 수정 전 Validator가 `플레이어 Character CDO 카탈로그 참조가 비어 있습니다.` 오류를 재현
+- 에셋 재생성 후 Validator 통과: `6 Archetype + Character Lobby 필수 바인딩 + Player Character CDO`
+- UE 5.8 Rogue10mEditor Win64 Development 빌드 성공
+- `Scripts/CheckGeneratedChanges.ps1` 및 `git diff --check` 최종 검사
+
+## 남은 수동 QA
+
+- 에디터 재시작 후 기존 캐릭터 슬롯 선택 → 게임 접속 → 로비 종료 확인
+- 선택 캐릭터 이름·종족·외형 적용과 이동·공격 입력 확인
+- 게임 재실행 후 마지막 선택 프로필 유지 확인
+
+## Notion 요약 후보
+
+캐릭터 슬롯 선택은 정상 처리됐지만 Player Character Blueprint CDO의 커스터마이징 카탈로그 참조가 비어 있어 외형 적용 단계에서 접속이 중단되고 있었다. Blueprint 기본값 연결, C++ fallback, 로비 포커스 설정을 추가했으며 Validator를 Player Character CDO까지 확장했다. UE 5.8 빌드와 6개 아키타입·로비·Character CDO 검증을 통과했다.
+
+============================================================
+상속 기반 캐릭터 외형 구조 및 종족별 IK 리타기팅 전환
+============================================================
+
+[작업 배경]
+캐릭터 생성 후 게임에 입장하면 Manny Skeleton의 포즈를 StylizedCharacter Skeleton에 Leader Pose로 직접 전달해 머리와 몸이 분리되거나 팔·다리가 겹치고 늘어나는 문제가 있었다. 외형 옵션 데이터가 아니라 서로 다른 Skeleton 사이의 잘못된 포즈 공유 구조가 원인이었다.
+
+[구현 내용]
+1. ARogue10mStylizedCharacter를 추가했다.
+   - 숨김 Manny AnimationSourceMesh는 기존 ABP_Unarmed를 실행한다.
+   - 실제 Character Mesh는 종족 전신 Mesh와 종족별 Retarget AnimBP를 사용한다.
+   - Hair와 Facial 파츠는 동일 종족 Skeleton의 Character Mesh만 Leader Pose로 사용한다.
+
+2. BP_FirstPersonCharacter를 새 C++ 외형 부모로 재부모화했다.
+   - 공통 이동·전투·카메라 Blueprint 설정은 부모에 유지했다.
+   - Human, Dwarf, Orc 남녀 6개 자식 Character Blueprint를 만들었다.
+
+3. 종족별 리타기팅 에셋을 만들었다.
+   - 프로젝트 로컬 Target IK Rig 6개
+   - Manny → 종족 Skeleton IK Retargeter 6개
+   - Retarget Pose From Mesh 기반 AnimBP 6개
+   - Orc Male 원본 IK Rig의 시작·끝 본이 없는 Cape 체인은 원본을 수정하지 않고 프로젝트 로컬 복제본에서 제거했다.
+
+4. Character Customization Data Asset을 확장했다.
+   - Archetype마다 CharacterClass, Retargeter, RetargetAnimClass를 연결했다.
+   - Preview는 기존 외형 카탈로그를 사용하고 Runtime은 상속 Character가 Body Mesh와 AnimBP를 소유한다.
+
+5. GameMode와 PlayerController의 입장 흐름을 변경했다.
+   - 선택 프로필의 종족·성별로 실제 Pawn 클래스를 결정한다.
+   - 새 Pawn 생성, 프로필 적용, Possess가 성공한 뒤에만 기존 Pawn을 제거한다.
+   - 실패하면 기존 Pawn과 로비 상태를 유지한다.
+
+[검증]
+- Rogue10mEditor Win64 Development 전체 빌드 성공
+- ValidateInheritedCharacterAssets.py 통과: 공통 부모, 6개 자식 Character, IK 체인, Skeleton, AnimGraph 연결 검증
+- ValidateCharacterCustomizationAssets.py 통과: 6 Archetype, 로비 바인딩, 상속 외형 컴포넌트와 기본 참조 검증
+- Retarget AnimBP 생성·컴파일 오류 0건, Skeleton 체인 경고 0건
+- CheckGeneratedChanges.ps1 통과
+
+[남은 수동 QA]
+에디터를 완전히 재시작하고 인간·드워프·오크 남녀 6조합을 각각 생성·입장해 체형 왜곡 부재, 이동·점프·공격 애니메이션, 1인칭 팔, Hair·Facial 동기화, 장비창 Preview와 좌클릭 회전을 확인한다.
+
+[Notion 요약 후보]
+서로 다른 Skeleton에 Leader Pose를 직접 적용해 발생하던 캐릭터 왜곡을 제거했다. 공통 ARogue10mStylizedCharacter 아래에 인간·드워프·오크 남녀 6개 Blueprint를 상속시키고, 숨김 Manny 애니메이션 소스의 포즈를 종족별 IK Retargeter와 Retarget AnimBP로 변환한다. 선택 프로필은 GameMode에서 실제 CharacterClass로 해석해 안전하게 Spawn/Possess한다. 전체 Editor 빌드와 로비·상속·IK·AnimGraph 자동 검증을 통과했다.
+------------------------------------------------------------
+상속 CharacterClass 조회 및 게임 접속 실패 보완
+------------------------------------------------------------
+
+[증상]
+게임 접속 시 선택 프로필의 상속 Character 클래스를 찾지 못했고, 공통 BP_FirstPersonCharacter가 외형 프로필을 적용하려다 실패했다.
+
+[원인]
+상속 구조와 Data Asset 구조체가 Hot Reload된 에디터 세션에서 기존 공통 Pawn과 로드 상태가 남아 있었다. 공통 ARogue10mStylizedCharacter의 BeginPlay가 Human Male 기본값만 보고 외형을 조기 적용하는 경로도 오류를 확대했다.
+
+[수정]
+- 공통 외형 부모의 BeginPlay 자동 프로필 적용을 제거했다.
+- 프로필 적용은 GameMode의 선택 Pawn 생성 및 PlayerController 접속 경로에서만 수행한다.
+- GameMode의 카탈로그 로드에 고정 Data Asset fallback을 추가했다.
+- 카탈로그 CharacterClass 로드 실패 시 종족·성별 자식 Blueprint 경로를 사용하는 안전 fallback을 추가했다.
+- 클래스 조회 실패 로그에 실제 fallback 경로를 남기도록 보강했다.
+
+[검증]
+- Rogue10mEditor Win64 Development 빌드 성공
+- 실행 중인 에디터에서 상속/IK/AnimGraph Validator 통과
+- 실제 PIE Play에서 BP_Rogue10m_HumanMaleCharacter_C Spawn/Possess 확인
+- EnterSelectedCharacter 자동 호출 후 로비 닫힘 확인
+- 접속 후 Pawn 클래스 유지 확인
+- 최근 PIE 로그에서 LogRogue10m Error 및 fallback 경고 0건
+
+[Notion 요약 후보]
+상속 CharacterClass를 찾지 못해 접속이 중단되던 문제를 수정했다. 공통 외형 부모의 조기 프로필 적용을 제거하고, GameMode의 카탈로그 및 종족·성별 CharacterClass 조회에 안전 fallback을 추가했다. 실제 PIE에서 Human Male 자식 Pawn 생성·Possess, 게임 접속, 로비 종료를 자동 검증했으며 관련 오류 로그는 재발하지 않았다.

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Rogue10mCharacterStats.h"
 #include "Rogue10mInventoryComponent.h"
 #include "Rogue10mItemDataAsset.generated.h"
 
@@ -18,33 +19,6 @@ enum class ERogue10mItemRarity : uint8
 	Epic UMETA(DisplayName="에픽"),
 	Unique UMETA(DisplayName="유니크"),
 	Mythic UMETA(DisplayName="신화")
-};
-
-/** 장비 한 개가 제공하는 고정 능력치 증가량입니다. 비율 값은 0.05가 5%를 의미합니다. */
-USTRUCT(BlueprintType)
-struct FRogue10mEquipmentStatModifiers
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
-	float AttackPowerBonus = 0.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
-	float DefenseBonus = 0.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
-	float MaxHealthBonus = 0.0f;
-
-	/** 0.05는 치명타 확률 5%p 증가를 의미합니다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
-	float CriticalChanceBonus = 0.0f;
-
-	/** 0.05는 공격 속도 배율 5% 증가를 의미합니다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
-	float AttackSpeedBonus = 0.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Items|Equipment")
-	float MoveSpeedBonus = 0.0f;
 };
 
 /** 아이템 인스턴스와 분리된 정적 정의 데이터입니다. */

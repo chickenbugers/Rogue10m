@@ -37,7 +37,7 @@
 - PIE Render Target: 512×768
 - Render Target 픽셀 표본: 384개 중 54개가 배경 임계값보다 밝아 캐릭터 렌더 확인
 - 닫힘: `CaptureEveryFrame=false`
-- 재열림: 액터 중복 없이 1개 유지, `CaptureEveryFrame=true`
+- 재열림: 액터 중복 없이 1개 유지, `CaptureEveryFrame=true`, 수동 `CaptureScene()` 중복 없음
 
 ## 제한과 다음 단계
 
@@ -64,3 +64,12 @@
 - PIE 캐릭터 프리뷰 액터: 1개
 - 스타터 무기/투구/갑옷/신발/반지 Texture Brush 연결 및 표시 상태 확인
 - 빈 장갑/목걸이 아이콘은 `Collapsed`, 슬롯 프레임은 유지
+
+## 2026-07-25 Scene Capture 성능 보완
+
+- 원인: 창을 열 때 실시간 캡처를 활성화한 상태에서 `SetPreviewActive()`와 장비 변경 경로가 수동 `CaptureScene()`까지 호출해 같은 프레임에 중복 렌더를 요청했다.
+- 변경: `CapturePreview()`는 `bCaptureEveryFrame=false`일 때만 명시적 캡처를 허용하고, 활성 프리뷰는 엔진의 매 프레임 캡처만 사용한다.
+- 유지: 실시간 포즈, transient Render Target, 프리뷰 액터 재사용, 창 닫기 시 자동 캡처·조명·메시 비활성화, 장비 변경 시 메시·머티리얼 재구성.
+- 효과: 실시간 프리뷰 동작을 유지하면서 `bCaptureEveryFrame` 상태의 중복 수동 갱신 경고를 제거한다.
+- 검증: Rogue10mEditor Win64 Development 빌드 성공 및 수동 캡처 보호 조건 확인.
+- 수동 확인: 실행 중 에디터의 기존 인스턴스를 제거하기 위해 재시작 후 PIE 로그를 확인한다.

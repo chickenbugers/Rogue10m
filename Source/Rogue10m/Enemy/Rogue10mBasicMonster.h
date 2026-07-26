@@ -107,7 +107,7 @@ private:
 
 	TWeakObjectPtr<ARogue10mCharacter> TargetCharacter;
 	TWeakObjectPtr<AController> LastDamageInstigator;
-	int32 ExperienceReward = 0;
+	int32 ExperienceReward = 10;
 	float LastAttackTime = -1000.0f;
 	FTimerHandle AttackSequenceTimer;
 	TWeakObjectPtr<ARogue10mCharacter> LockedAttackTarget;

@@ -17,6 +17,9 @@ URogue10mAttributeSet::URogue10mAttributeSet()
 	InitPlayerLevel(1.0f);
 	InitExperience(0.0f);
 	InitExperienceToNextLevel(100.0f);
+	InitAttackPower(0.0f);
+	InitDefense(0.0f);
+	InitMoveSpeed(600.0f);
 	InitAttackSpeedMultiplier(1.0f);
 	InitMinDamageRatio(0.9f);
 	InitMaxDamageRatio(1.1f);
@@ -57,6 +60,11 @@ void URogue10mAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribu
 	{
 		NewValue = FMath::Max(0.0f, NewValue);
 	}
+	else if (Attribute == GetAttackPowerAttribute() || Attribute == GetDefenseAttribute()
+		|| Attribute == GetMoveSpeedAttribute())
+	{
+		NewValue = FMath::Max(0.0f, NewValue);
+	}
 	else if (Attribute == GetAttackSpeedMultiplierAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.1f, 5.0f);
@@ -90,6 +98,9 @@ void URogue10mAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, PlayerLevel, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, Experience, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, ExperienceToNextLevel, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, AttackPower, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, Defense, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, MoveSpeed, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, AttackSpeedMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, MinDamageRatio, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(URogue10mAttributeSet, MaxDamageRatio, COND_None, REPNOTIFY_Always);
@@ -163,6 +174,9 @@ void URogue10mAttributeSet::OnRep_MaxIdentity(const FGameplayAttributeData& OldV
 void URogue10mAttributeSet::OnRep_PlayerLevel(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, PlayerLevel, OldValue); }
 void URogue10mAttributeSet::OnRep_Experience(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, Experience, OldValue); }
 void URogue10mAttributeSet::OnRep_ExperienceToNextLevel(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, ExperienceToNextLevel, OldValue); }
+void URogue10mAttributeSet::OnRep_AttackPower(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, AttackPower, OldValue); }
+void URogue10mAttributeSet::OnRep_Defense(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, Defense, OldValue); }
+void URogue10mAttributeSet::OnRep_MoveSpeed(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, MoveSpeed, OldValue); }
 void URogue10mAttributeSet::OnRep_AttackSpeedMultiplier(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, AttackSpeedMultiplier, OldValue); }
 void URogue10mAttributeSet::OnRep_MinDamageRatio(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, MinDamageRatio, OldValue); }
 void URogue10mAttributeSet::OnRep_MaxDamageRatio(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(URogue10mAttributeSet, MaxDamageRatio, OldValue); }

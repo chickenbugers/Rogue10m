@@ -87,6 +87,21 @@ public:
 	FGameplayAttributeData ExperienceToNextLevel;
 	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, ExperienceToNextLevel);
 
+	/** 스킬 기본 피해에 더하는 최종 정액 공격력입니다. */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_AttackPower, Category="Rogue10m|Attributes|Combat")
+	FGameplayAttributeData AttackPower;
+	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, AttackPower);
+
+	/** 피격 피해에서 차감하는 최종 정액 방어력입니다. */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Defense, Category="Rogue10m|Attributes|Combat")
+	FGameplayAttributeData Defense;
+	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, Defense);
+
+	/** CharacterMovement에 적용하는 최종 이동 속도(cm/s)입니다. */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_MoveSpeed, Category="Rogue10m|Attributes|Movement")
+	FGameplayAttributeData MoveSpeed;
+	ROGUE10M_ATTRIBUTE_ACCESSORS(URogue10mAttributeSet, MoveSpeed);
+
 	/** 기본값은 1.0이며 공격 몽타주, 콤보 창, 공격 재사용 대기시간에 함께 적용됩니다. */
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_AttackSpeedMultiplier, Category="Rogue10m|Attributes|Combat")
 	FGameplayAttributeData AttackSpeedMultiplier;
@@ -122,6 +137,9 @@ protected:
 	UFUNCTION() void OnRep_PlayerLevel(const FGameplayAttributeData& OldValue);
 	UFUNCTION() void OnRep_Experience(const FGameplayAttributeData& OldValue);
 	UFUNCTION() void OnRep_ExperienceToNextLevel(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_AttackPower(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_Defense(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_MoveSpeed(const FGameplayAttributeData& OldValue);
 	UFUNCTION() void OnRep_AttackSpeedMultiplier(const FGameplayAttributeData& OldValue);
 	UFUNCTION() void OnRep_MinDamageRatio(const FGameplayAttributeData& OldValue);
 	UFUNCTION() void OnRep_MaxDamageRatio(const FGameplayAttributeData& OldValue);

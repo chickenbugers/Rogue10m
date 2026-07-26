@@ -4,6 +4,8 @@ Run through Unreal Editor Python after the Rogue10m Editor target has been rebui
 The script is idempotent: existing assets are updated instead of duplicated.
 """
 
+import os
+
 import unreal
 
 
@@ -13,6 +15,7 @@ CHARACTER_DATA_PATH = "/Game/DataAsset/Character/DA_Character_Default"
 CHARACTER_BP_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
 PLAYER_CONTROLLER_BP_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonPlayerController"
 WIDGET_ROOT = "/Game/Widget/Menu"
+CHARACTER_STATS_MODE = "character_stats"
 
 ATTACK_ASSETS = {
     "PRIMARY": "/Game/DataAsset/AttackSkill/Unarmed/DA_Attack_Unarmed_Primary",
@@ -95,6 +98,25 @@ def generated_class(asset_path):
         raise RuntimeError(f"Blueprint GeneratedClass 로드 실패: {asset_path}")
     return cls
 
+def apply_default_character_stats(character_data):
+    character_data.set_editor_property("max_health", 100.0)
+    character_data.set_editor_property("max_stamina", 100.0)
+    character_data.set_editor_property("max_mana", 100.0)
+    character_data.set_editor_property("attack_power", 10.0)
+    character_data.set_editor_property("defense", 0.0)
+    character_data.set_editor_property("critical_chance", 0.05)
+    character_data.set_editor_property("critical_damage_multiplier", 1.5)
+    character_data.set_editor_property("attack_speed_multiplier", 1.0)
+    character_data.set_editor_property("walk_speed", 600.0)
+    character_data.set_editor_property("sprint_speed", 900.0)
+
+
+def configure_default_character_stats():
+    character_data = require_asset(CHARACTER_DATA_PATH)
+    apply_default_character_stats(character_data)
+    unreal.EditorAssetLibrary.save_loaded_asset(character_data, only_if_is_dirty=False)
+    log("기본 Character Data Asset 스탯을 갱신했습니다.")
+    return character_data
 
 def configure_character_assets():
     dodge_class = unreal.load_class(None, "/Script/Rogue10m.Rogue10mDodgeSkillDataAsset")
@@ -126,11 +148,7 @@ def configure_character_assets():
     character_data = create_or_load_data_asset(CHARACTER_DATA_PATH, character_data_class)
     character_data.set_editor_property("character_id", "DefaultCharacter")
     character_data.set_editor_property("display_name", "기본 캐릭터")
-    character_data.set_editor_property("max_health", 100.0)
-    character_data.set_editor_property("max_stamina", 100.0)
-    character_data.set_editor_property("max_mana", 100.0)
-    character_data.set_editor_property("walk_speed", 600.0)
-    character_data.set_editor_property("sprint_speed", 900.0)
+    apply_default_character_stats(character_data)
     character_data.set_editor_property("weapon_skill_profiles", [profile])
 
     character_bp = require_asset(CHARACTER_BP_PATH)
@@ -178,6 +196,10 @@ def configure_menu_widgets():
 
 def main():
     log("캐릭터 Data Asset 및 메뉴 Widget 설정을 시작합니다.")
+    if os.environ.get("ROGUE10M_SETUP_MODE") == CHARACTER_STATS_MODE:
+        configure_default_character_stats()
+        log("Character Stats 전용 설정 완료")
+        return
     configure_character_assets()
     configure_menu_widgets()
     unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)

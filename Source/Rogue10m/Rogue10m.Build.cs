@@ -20,7 +20,8 @@ public class Rogue10m : ModuleRules
 			"AIModule",
 			"UMG",
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"IKRig"
 		});
 		PublicIncludePaths.AddRange(new string[] {
 			"Rogue10m",

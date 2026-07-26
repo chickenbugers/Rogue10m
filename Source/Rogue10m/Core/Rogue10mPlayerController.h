@@ -9,6 +9,7 @@
 
 class ARogue10mBasicMonster;
 class UInputMappingContext;
+class URogue10mCharacterLobbyWidget;
 class URogue10mDamageIndicatorWidget;
 class URogue10mEquipmentWindowWidget;
 class URogue10mInventoryWindowWidget;
@@ -62,6 +63,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rogue10m|UI")
 	void CloseAllBlockingPanels();
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Character Lobby")
+	void EnterSelectedCharacter();
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Character Lobby")
+	bool IsCharacterLobbyVisible() const { return bCharacterLobbyVisible; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|UI")
 	bool IsInventoryVisible() const { return bInventoryVisible; }
@@ -182,6 +189,15 @@ protected:
 	UPROPERTY()
 	TObjectPtr<URogue10mRunHUD> RunHUD;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character Lobby")
+	TSubclassOf<URogue10mCharacterLobbyWidget> CharacterLobbyWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character Lobby")
+	TSoftClassPtr<URogue10mCharacterLobbyWidget> DefaultCharacterLobbyWidgetClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<URogue10mCharacterLobbyWidget> CharacterLobbyWidget;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Aim")
 	FLinearColor AimCrossLineColor = FLinearColor(0.72f, 0.92f, 1.0f, 0.86f);
 
@@ -231,6 +247,7 @@ private:
 	URogue10mMenuWindowWidget* GetTopmostOpenMenuWindow() const;
 	void InitializeRunHUD();
 	TSubclassOf<URogue10mRunHUD> ResolveRunHUDClass();
+	void InitializeCharacterLobby();
 	void RefreshInputMode();
 	void SetPanelVisible(bool& PanelState, bool bVisible, URogue10mMenuWindowWidget* ActivatedWindow);
 	void SetInventoryEquipmentPanelVisible(bool& PanelState, bool bVisible, URogue10mMenuWindowWidget* ActivatedWindow);
@@ -246,6 +263,7 @@ private:
 	TArray<TWeakObjectPtr<URogue10mMenuWindowWidget>> MenuWindowStack;
 
 	bool bInventoryVisible = false;
+	bool bCharacterLobbyVisible = false;
 	bool bItemWindowVisible = false;
 	bool bSkillTreeVisible = false;
 	bool bSettingsVisible = false;

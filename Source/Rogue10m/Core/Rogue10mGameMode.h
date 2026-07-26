@@ -4,12 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "UObject/SoftObjectPtr.h"
 #include "Rogue10mGameMode.generated.h"
 
+class ARogue10mCharacter;
 class ARogue10mGameState;
 class APawn;
 class APlayerController;
 class AHUD;
+class URogue10mCharacterCustomizationDataAsset;
 enum class ERogue10mRunPhase : uint8;
 
 /**
@@ -23,8 +26,16 @@ class ARogue10mGameMode : public AGameModeBase
 public:
 	ARogue10mGameMode();
 
+	ARogue10mCharacter* SpawnSelectedCharacterForController(
+		AController* Controller);
+
 protected:
 	virtual void StartPlay() override;
+	virtual UClass* GetDefaultPawnClassForController_Implementation(
+		AController* InController) override;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character")
+	TSoftObjectPtr<URogue10mCharacterCustomizationDataAsset> CustomizationCatalog;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Run")
 	bool bStartRunOnStartPlay = false;
@@ -42,6 +53,7 @@ private:
 	bool ShouldStartRunFromTravelOptions() const;
 	void StartConfiguredRun(ARogue10mGameState& RogueGameState) const;
 	void HandleRunDefeat();
+	TSubclassOf<ARogue10mCharacter> ResolveSelectedCharacterClass() const;
 };
 
 

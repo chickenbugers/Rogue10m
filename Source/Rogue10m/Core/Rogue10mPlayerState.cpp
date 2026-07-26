@@ -19,6 +19,13 @@ UAbilitySystemComponent* ARogue10mPlayerState::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
+void ARogue10mPlayerState::SetCharacterProfileIdentity(
+	const FText& DisplayName, const FText& JobName)
+{
+	CharacterDisplayName = DisplayName;
+	CharacterJobName = JobName;
+}
+
 void ARogue10mPlayerState::SetEquippedWeaponType(ERogue10mWeaponType NewWeaponType)
 {
 	EquippedWeaponType = NewWeaponType;
@@ -59,7 +66,7 @@ float ARogue10mPlayerState::GetExperienceNormalized() const
 
 void ARogue10mPlayerState::AddExperience(int32 ExperienceAmount)
 {
-	if (!AttributeSet || ExperienceAmount <= 0)
+	if (!HasAuthority() || !AttributeSet || ExperienceAmount <= 0)
 	{
 		return;
 	}

@@ -28,6 +28,9 @@ ARogue10mEquipmentPreviewActor::ARogue10mEquipmentPreviewActor()
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Scene Root"));
 	SetRootComponent(SceneRoot);
 
+	PreviewMeshRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Preview Mesh Root"));
+	PreviewMeshRoot->SetupAttachment(SceneRoot);
+
 	SceneCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Character Capture"));
 	SceneCapture->SetupAttachment(SceneRoot);
 	SceneCapture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
@@ -111,7 +114,8 @@ bool ARogue10mEquipmentPreviewActor::RefreshFromCharacter()
 
 	for (USkeletalMeshComponent* SourceMesh : SourceMeshes)
 	{
-		if (!SourceMesh || SourceMesh == FirstPersonMesh || !SourceMesh->GetSkeletalMeshAsset())
+		if (!SourceMesh || SourceMesh == FirstPersonMesh || !SourceMesh->IsVisible()
+			|| !SourceMesh->GetSkeletalMeshAsset())
 		{
 			continue;
 		}
@@ -145,7 +149,7 @@ void ARogue10mEquipmentPreviewActor::SetPreviewActive(bool bActive)
 	}
 
 	SceneCapture->bCaptureEveryFrame = bActive;
-	SceneCapture->bCaptureOnMovement = bActive;
+	SceneCapture->bCaptureOnMovement = false;
 	KeyLight->SetVisibility(bActive);
 	FillLight->SetVisibility(bActive);
 	RimLight->SetVisibility(bActive);
@@ -156,10 +160,17 @@ void ARogue10mEquipmentPreviewActor::SetPreviewActive(bool bActive)
 			PreviewMesh->SetVisibility(bActive, true);
 		}
 	}
-	if (bActive)
+}
+
+void ARogue10mEquipmentPreviewActor::AddPreviewYaw(float DeltaYaw)
+{
+	if (!PreviewMeshRoot || FMath::IsNearlyZero(DeltaYaw))
 	{
-		CapturePreview();
+		return;
 	}
+
+	PreviewMeshRoot->AddLocalRotation(FRotator(0.0f, DeltaYaw, 0.0f));
+	CapturePreview();
 }
 
 void ARogue10mEquipmentPreviewActor::ClearPreviewMeshes()
@@ -188,7 +199,7 @@ USkeletalMeshComponent* ARogue10mEquipmentPreviewActor::CreatePreviewMesh(int32 
 		return nullptr;
 	}
 
-	PreviewMesh->SetupAttachment(SceneRoot);
+	PreviewMesh->SetupAttachment(PreviewMeshRoot);
 	PreviewMesh->RegisterComponent();
 	PreviewMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PreviewMesh->SetGenerateOverlapEvents(false);
@@ -244,7 +255,8 @@ void ARogue10mEquipmentPreviewActor::FramePreviewMeshes()
 
 void ARogue10mEquipmentPreviewActor::CapturePreview()
 {
-	if (SceneCapture && SceneCapture->TextureTarget)
+	if (SceneCapture && SceneCapture->TextureTarget
+		&& !SceneCapture->bCaptureEveryFrame)
 	{
 		SceneCapture->CaptureScene();
 	}

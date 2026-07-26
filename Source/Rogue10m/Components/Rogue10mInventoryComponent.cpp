@@ -97,6 +97,26 @@ float URogue10mInventoryComponent::GetTotalInventoryWeight() const
 	return TotalWeight;
 }
 
+FRogue10mEquipmentStatModifiers URogue10mInventoryComponent::GetEquipmentStatModifiers() const
+{
+	FRogue10mEquipmentStatModifiers Total;
+	const auto AccumulateSlots = [&Total](const TArray<FRogue10mInventorySlot>& Slots)
+	{
+		for (const FRogue10mInventorySlot& Slot : Slots)
+		{
+			if (Slot.bHasEquippedItem && Slot.EquippedItem.bOccupied
+				&& Slot.EquippedItem.ItemData)
+			{
+				Total.Accumulate(Slot.EquippedItem.ItemData->EquipmentStats);
+			}
+		}
+	};
+
+	AccumulateSlots(LeftEquipmentSlots);
+	AccumulateSlots(RightEquipmentSlots);
+	return Total;
+}
+
 void URogue10mInventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -315,7 +335,7 @@ bool URogue10mInventoryComponent::TryEquipItemToSlot(int32 ItemSlotIndex, ERogue
 		}
 	}
 
-	OnEquipmentChanged.Broadcast();
+	NotifyEquipmentChanged();
 	return true;
 }
 
@@ -383,7 +403,7 @@ bool URogue10mInventoryComponent::TryUnequipItemFromSlot(ERogue10mInventorySlotT
 		EquipmentSlot->SlotColor = FLinearColor(0.28f, 0.28f, 0.3f, 1.0f);
 	}
 
-	OnEquipmentChanged.Broadcast();
+	NotifyEquipmentChanged();
 	return true;
 }
 
@@ -419,7 +439,7 @@ bool URogue10mInventoryComponent::TryUnequipItemFromSlotToItemSlot(ERogue10mInve
 		}
 	}
 
-	OnEquipmentChanged.Broadcast();
+	NotifyEquipmentChanged();
 	return true;
 }
 
@@ -497,7 +517,7 @@ bool URogue10mInventoryComponent::RemoveEquippedItemFromSlot(ERogue10mInventoryS
 		}
 	}
 
-	OnEquipmentChanged.Broadcast();
+	NotifyEquipmentChanged();
 	return true;
 }
 
@@ -535,6 +555,15 @@ FRogue10mInventorySlot* URogue10mInventoryComponent::FindEquipmentSlot(ERogue10m
 	}
 
 	return nullptr;
+}
+
+void URogue10mInventoryComponent::NotifyEquipmentChanged()
+{
+	if (ARogue10mCharacter* Character = Cast<ARogue10mCharacter>(GetOwner()))
+	{
+		Character->RefreshCharacterStats();
+	}
+	OnEquipmentChanged.Broadcast();
 }
 
 const URogue10mItemDataAsset* URogue10mInventoryComponent::GetEquippedItemData(
@@ -925,7 +954,7 @@ bool URogue10mInventoryComponent::TryEquipGridItem(int32 ContainerIndex, FGuid I
 	}
 
 	OnInventoryGridChanged.Broadcast();
-	OnEquipmentChanged.Broadcast();
+	NotifyEquipmentChanged();
 
 	if (ARogue10mCharacter* Character = Cast<ARogue10mCharacter>(GetOwner()))
 	{
@@ -982,7 +1011,7 @@ bool URogue10mInventoryComponent::TryUnequipItemToGrid(
 	}
 
 	OnInventoryGridChanged.Broadcast();
-	OnEquipmentChanged.Broadcast();
+	NotifyEquipmentChanged();
 	return true;
 }
 

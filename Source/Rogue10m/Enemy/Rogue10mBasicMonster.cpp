@@ -50,6 +50,18 @@ void ARogue10mBasicMonster::BeginPlay()
 	{
 		MonsterDisplayName = MonsterData->DisplayName;
 		MonsterLevel = MonsterData->Level;
+		switch (MonsterData->MonsterRank)
+		{
+		case ERogue10mMonsterRank::MidBoss:
+			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "MidBossRank", "중간 보스");
+			break;
+		case ERogue10mMonsterRank::FinalBoss:
+			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "FinalBossRank", "최종 보스");
+			break;
+		default:
+			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "NormalRank", "일반");
+			break;
+		}
 		MaxHealth = MonsterData->MaxHealth;
 		InitialStamina = MonsterData->MaxStamina;
 		InitialMana = MonsterData->MaxMana;
@@ -57,6 +69,9 @@ void ARogue10mBasicMonster::BeginPlay()
 		DetectionRange = MonsterData->DetectionRange;
 		StopDistance = MonsterData->StopDistance;
 		AttackSkillData = MonsterData->AttackSkill;
+		AttackRange = MonsterData->AttackRange;
+		AttackDamage = MonsterData->AttackDamage;
+		AttackInterval = MonsterData->AttackInterval;
 		bDestroyOnDeath = MonsterData->bDestroyOnDeath;
 		GetCharacterMovement()->MaxWalkSpeed = MonsterData->WalkSpeed;
 		if (!MonsterData->SkeletalMesh.IsNull()) GetMesh()->SetSkeletalMeshAsset(MonsterData->SkeletalMesh.LoadSynchronous());
@@ -242,11 +257,22 @@ void ARogue10mBasicMonster::Die()
 	}
 
 	bIsDead = true;
-	if (ARogue10mPlayerController* RewardController = Cast<ARogue10mPlayerController>(LastDamageInstigator.Get()))
+	if (HasAuthority() && ExperienceReward > 0)
 	{
-		if (ARogue10mPlayerState* RewardState = RewardController->GetPlayerState<ARogue10mPlayerState>())
+		if (ARogue10mPlayerController* RewardController =
+			Cast<ARogue10mPlayerController>(LastDamageInstigator.Get()))
 		{
-			RewardState->AddExperience(ExperienceReward);
+			if (ARogue10mPlayerState* RewardState =
+				RewardController->GetPlayerState<ARogue10mPlayerState>())
+			{
+				RewardState->AddExperience(ExperienceReward);
+				RewardController->AddCombatLogMessage(
+					FString::Printf(TEXT("%s 처치: 경험치 +%d"),
+						*MonsterDisplayName.ToString(), ExperienceReward),
+					FLinearColor(0.42f, 0.9f, 0.58f, 1.0f));
+				UE_LOG(LogRogue10m, Log, TEXT("%s 처치 보상: 경험치 +%d"),
+					*MonsterDisplayName.ToString(), ExperienceReward);
+			}
 		}
 	}
 	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(AttackSequenceTimer);

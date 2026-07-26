@@ -799,3 +799,113 @@
 - 검증: Rogue10mEditor 빌드 성공, UnrealEditor-Cmd 생성 검증 및 전체 메뉴·아이템 Validator 통과, 생성 파일·diff 검사 통과
 - 상태: 구현 및 자동 검증 완료, 새 PIE 세션 수동 확인 대기
 - 관련 문서: `Feature/architect/2026-07-23_epic-guardian-helmet.md`, `Feature/doc/2026-07-23_epic-guardian-helmet.md`, `DevLog/20260723.txt`
+
+# Sprint#2-8 - 캐릭터 기본 스탯 및 장비창 표시
+
+- 목표: 캐릭터 기본 스탯과 장비 보너스의 소유 구조를 확립하고 최종값을 전투·생존·이동 및 장비창에 일관되게 반영한다.
+- 주요 변경:
+  - Character Data Asset에 체력·자원·공격력·방어력·치명타·공격 속도·이동 기본값 정의
+  - 기본·장비·최종값을 공유하는 Character Stat 구조체 추가
+  - 장착 장비 전체의 6종 보너스 합산 API 추가
+  - 장비 변경 성공 경로를 단일 스탯 갱신 진입점으로 통합
+  - 공격력의 스킬 피해 반영과 방어력의 정액 피해 감소 적용
+  - 최대 체력 변경 시 현재 체력 비율 보존
+  - 이동 속도와 질주 속도를 CharacterMovement에 반영
+  - 장비창 6종 스탯을 `최종 (기본 + 장비)` 형식으로 표시
+  - 기본 Character Data 전용 설정 모드와 Validator 추가
+- 검증:
+  - Rogue10mEditor Win64 Development 전체 빌드 성공
+  - 리뷰 보완 후 Rogue10mCharacter 증분 재빌드 성공
+  - UnrealEditor-Cmd에서 기본 스탯 10종과 장비창 바인딩 6종 검증 성공
+  - 기존 스타터 장비 6종 능력치 회귀 검증 성공
+  - `UObject.Class AttemptToFindUninitializedScriptStructMembers` Automation 테스트 성공
+  - Python 문법, `CheckGeneratedChanges.ps1`, `git diff --check` 검사
+- 상태: 구현·빌드·에셋 정적 검증 완료, 새 PIE 세션 장착·해제·피해·이동 수동 QA 대기
+- 관련 문서:
+  - `Feature/architect/2026-07-23_character-base-stats-equipment-window.md`
+  - `Feature/doc/2026-07-23_character-base-stats-equipment-window.md`
+  - `Docs/CharacterDataOwnership.md`
+  - `DevLog/20260723.txt`
+
+## 2026-07-25 보완 - 장비창 Scene Capture 중복 갱신 제거
+
+- 목표: 실시간 캐릭터 프리뷰는 유지하면서 자동·수동 Scene Capture의 중복 렌더 경고를 제거한다.
+- 원인: `bCaptureEveryFrame=true` 상태에서 `SetPreviewActive()`와 장비 변경 경로가 수동 `CaptureScene()`도 호출
+- 주요 변경: 활성 프리뷰는 자동 캡처만 사용하고 수동 캡처는 `bCaptureEveryFrame=false`일 때만 허용
+- 검증: Rogue10mEditor Win64 Development 빌드 성공, 수동 캡처 보호 조건, 생성물·diff 검사
+- 상태: 코드 및 빌드 검증 완료, 에디터 재시작 후 PIE 경고 재발 여부 수동 확인 대기
+- 관련 문서: `Feature/doc/2026-07-16_equipment-character-preview.md`, `DevLog/20260725.txt`
+
+## 2026-07-25 보완 - 장비창 Preview Character 좌클릭 회전
+
+- 목표: 장비창 프리뷰에서 좌클릭 가로 드래그로 캐릭터를 좌우 회전한다.
+- 주요 변경: 메시 전용 Pivot, 프리뷰 영역 판정, 마우스 캡처 기반 드래그, 0.35°/px 감도 설정, 캡처 손실 정리
+- 입력 호환: 타이틀 바 창 이동, 장비 슬롯 Drag & Drop, 우클릭 장착 해제 경로 유지
+- 렌더 호환: 실시간 Scene Capture 유지, 카메라·조명 고정, 자동·수동 중복 캡처 보호 유지
+- 검증: UE 5.8 UHT 및 Rogue10mEditor 빌드 성공, 생성물·diff 검사
+- 상태: 구현·빌드·정적 검증 완료, 에디터 재시작 후 PIE 수동 상호작용 QA 대기
+- 관련 문서: `Feature/architect/2026-07-25_equipment-preview-mouse-rotation.md`, `Feature/doc/2026-07-25_equipment-preview-mouse-rotation.md`, `DevLog/20260725.txt`
+
+# Sprint#2-9 - 몬스터 경험치 보상 및 25종 로스터
+
+- 목표: 몬스터 처치 경험치를 플레이어 성장에 연결하고 Data Asset 기반 25종 로스터를 준비한다.
+- 주요 변경: 서버 권한 마지막 공격자 경험치 지급, 중복 지급 방지, 전투 로그, MonsterRank 및 공격 Fallback 수치 추가
+- 콘텐츠: 일반 20종, 중간 보스 4종, 최종 보스 1종 Data Asset 생성
+- 밸런스: 일반 경험치 18~140, 중간 보스 300~900, 최종 보스 3,000
+- 검증: UE 5.8 UHT 및 Rogue10mEditor 빌드 성공, Unreal Python Validator 25종·20/4/1 통과, 생성물·diff 검사
+- 상태: 구현·에셋 생성·빌드·정적 검증 완료, 에디터 재시작 후 PIE 처치 보상 수동 QA 대기
+- 관련 문서: `Feature/architect/2026-07-25_monster-experience-roster.md`, `Feature/doc/2026-07-25_monster-experience-roster.md`, `DevLog/20260725.txt`
+
+# Sprint#2-10 - 캐릭터 커스터마이징·생성·접속
+
+- 목표: 게임 시작 시 3슬롯에서 캐릭터를 생성·선택하고 해당 외형으로 접속하는 로비 흐름을 제공한다.
+- 주요 변경: 인간·드워프·오크 남녀 6개 아키타입 카탈로그, 이름·외형 SaveGame, 생성·선택·삭제·접속 UI, 좌클릭 회전 프리뷰 추가
+- 런타임 적용: 선택 프로필을 플레이어 메시와 PlayerState 표시에 적용하고 기존 1인칭 팔·전투·장비창 프리뷰 흐름 유지
+- 저장 경계: 이름·외형·선택 슬롯만 저장하며 인벤토리·경험치·스탯·월드 진행도는 후속 캐릭터 저장 기능으로 분리
+- 검증: UE 5.8 UHT 및 Rogue10mEditor 빌드 성공, Unreal Python Validator에서 6개 아키타입·필수 에셋·위젯 바인딩 통과, 생성물·diff 검사
+- 상태: 구현·에셋 생성·빌드·정적 검증 완료, 에디터 재시작 후 PIE 생성·저장·접속·애니메이션 수동 QA 대기
+- 관련 문서:
+  - `Feature/architect/2026-07-25_character-customization-lobby.md`
+  - `Feature/doc/2026-07-25_character-customization-lobby.md`
+  - `Docs/CharacterDataOwnership.md`
+  - `DevLog/20260725.txt`
+
+## 2026-07-26 보완 - 캐릭터 선택 후 접속 실패
+
+- 증상: 슬롯 선택 후 `게임 접속`을 눌러도 로비가 닫히지 않고 외형 적용 실패 로그가 반복됨
+- 원인: `BP_FirstPersonCharacter` CDO의 `CustomizationCatalog` 참조 누락
+- 주요 변경: Character Blueprint 카탈로그 기본값 저장, C++ 기본 경로 fallback, 로비 포커스 활성화
+- 회귀 방지: 에셋 생성 스크립트에서 Character CDO 참조 설정, Validator에서 메시 컴포넌트와 카탈로그 CDO 검사
+- 검증: 수정 전 Validator 오류 재현, 수정 후 6개 아키타입·로비·Player Character CDO 통과, UE 5.8 Editor 빌드 성공
+- 상태: 원인 수정·에셋 저장·빌드·정적 검증 완료, 에디터 재시작 후 기존 슬롯 접속 PIE QA 대기
+- 관련 문서: `Feature/doc/2026-07-25_character-customization-lobby.md`, `DevLog/20260726.txt`
+
+## 2026-07-26 보완 - 상속 기반 캐릭터 외형 및 종족별 리타기팅
+
+- 목표: 캐릭터 생성 후 입장 시 서로 다른 Skeleton의 Leader Pose 연결로 발생하는 머리·몸·팔 왜곡을 구조적으로 제거한다.
+- 주요 변경:
+  - `ARogue10mStylizedCharacter` 공통 외형 부모와 Human·Dwarf·Orc 남녀 6개 자식 Character Blueprint 추가
+  - 숨김 Manny `AnimationSourceMesh`와 종족 전신 `Character Mesh`를 부모·자식으로 구성
+  - 종족별 프로젝트 로컬 Target IK Rig, IK Retargeter, `Retarget Pose From Mesh` AnimBP 추가
+  - 카탈로그 Archetype에 CharacterClass·Retargeter·RetargetAnimClass 연결
+  - GameMode 선택 클래스 결정 및 실패 안전 Spawn/Possess 교체 흐름 추가
+  - 서로 다른 Skeleton Leader Pose 제거, 동일 Skeleton Hair·Facial 파츠에만 Leader Pose 적용
+  - 원본 Orc Male IK Rig의 무효 `Cape` 체인은 프로젝트 로컬 복제본에서 제거
+- 검증:
+  - Rogue10mEditor Win64 Development 전체 빌드 성공
+  - 상속/IK/AnimGraph Validator 오류 0건, 경고 0건
+  - 기존 캐릭터 로비/카탈로그 Validator 오류 0건, 경고 0건
+  - `CheckGeneratedChanges.ps1` 통과
+- 상태: 구현·에셋 생성·정적 검증 완료, 에디터 재시작 후 6조합 이동·공격·장비창 Preview 수동 PIE QA 필요
+- 관련 문서:
+  - `Feature/architect/2026-07-26_inherited-character-appearance.md`
+  - `Feature/doc/2026-07-26_inherited-character-appearance.md`
+  - `Docs/CharacterDataOwnership.md`
+  - `DevLog/20260726.txt`
+## 2026-07-26 보완 - 상속 CharacterClass 접속 실패 수정
+
+- 목표: 선택 프로필의 자식 CharacterClass를 찾지 못해 게임 접속이 중단되는 문제 해결
+- 주요 변경: 공통 외형 부모 BeginPlay 조기 적용 제거, 카탈로그 고정 경로 fallback, 종족·성별 자식 Blueprint class fallback 추가
+- 검증: Editor 빌드 성공, 상속 Validator 통과, 실제 PIE에서 Human Male 자식 Pawn Spawn/Possess 및 EnterSelectedCharacter 후 로비 종료 확인, 최근 오류 로그 0건
+- 상태: 수정 및 자동 PIE 검증 완료
+- 관련 문서: `Feature/doc/2026-07-26_inherited-character-appearance.md`, `DevLog/20260726.txt`

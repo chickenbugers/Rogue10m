@@ -322,6 +322,36 @@ void PopulateComparisonRows(UVerticalBox* Container,
 			"능력치 변화 없음"));
 	}
 }
+
+void SetCharacterStatText(UTextBlock* TextBlock, const FText& Label, float FinalValue,
+	float BaseValue, float EquipmentValue, bool bPercent)
+{
+	if (!TextBlock)
+	{
+		return;
+	}
+
+	const float DisplayScale = bPercent ? 100.0f : 1.0f;
+	FNumberFormattingOptions NumberFormat;
+	NumberFormat.MinimumFractionalDigits = 0;
+	NumberFormat.MaximumFractionalDigits = 2;
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("Label"), Label);
+	Arguments.Add(TEXT("Final"), FText::AsNumber(FinalValue * DisplayScale, &NumberFormat));
+	Arguments.Add(TEXT("Base"), FText::AsNumber(BaseValue * DisplayScale, &NumberFormat));
+	Arguments.Add(TEXT("Equipment"), FText::AsNumber(FMath::Abs(EquipmentValue * DisplayScale), &NumberFormat));
+	Arguments.Add(TEXT("EquipmentSign"), FText::FromString(EquipmentValue < 0.0f ? TEXT("-") : TEXT("+")));
+	Arguments.Add(TEXT("Suffix"), bPercent ? FText::FromString(TEXT("%")) : FText::GetEmpty());
+
+	const bool bHasEquipmentBonus = !FMath::IsNearlyZero(EquipmentValue);
+	TextBlock->SetText(FText::Format(
+		bHasEquipmentBonus
+			? NSLOCTEXT("Rogue10mEquipment", "CharacterStatWithEquipment",
+				"{Label} {Final}{Suffix}  (기본 {Base}{Suffix} {EquipmentSign} 장비 {Equipment}{Suffix})")
+			: NSLOCTEXT("Rogue10mEquipment", "CharacterStatBaseOnly",
+				"{Label} {Final}{Suffix}  (기본 {Base}{Suffix})"),
+		Arguments));
+}
 }
 
 void URogue10mInventoryItemTooltipWidget::InitializeItemTooltip(
@@ -1127,6 +1157,7 @@ void URogue10mEquipmentWindowWidget::SetWindowOpen(bool bOpen)
 {
 	if (!bOpen)
 	{
+		bCharacterPreviewRotating = false;
 		HandleEquipmentDragFinished(nullptr);
 	}
 	Super::SetWindowOpen(bOpen);
@@ -1151,6 +1182,7 @@ void URogue10mEquipmentWindowWidget::SetWindowOpen(bool bOpen)
 
 void URogue10mEquipmentWindowWidget::NativeDestruct()
 {
+	bCharacterPreviewRotating = false;
 	HandleEquipmentDragFinished(nullptr);
 	ClearEquipmentDragSourceProxies();
 	ClearEquipmentDropPreview();
@@ -1385,6 +1417,15 @@ FReply URogue10mEquipmentWindowWidget::NativeOnMouseButtonDown(
 	else if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		CloseEquipmentSlotActionMenu();
+		const FVector2D ScreenPosition = InMouseEvent.GetScreenSpacePosition();
+		if (UI_CharacterPreviewImage
+			&& UI_CharacterPreviewImage->GetCachedGeometry().IsUnderLocation(ScreenPosition)
+			&& EnsureCharacterPreview())
+		{
+			bCharacterPreviewRotating = true;
+			LastCharacterPreviewDragScreenPosition = ScreenPosition;
+			return FReply::Handled().CaptureMouse(TakeWidget());
+		}
 	}
 
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
@@ -1394,6 +1435,12 @@ FReply URogue10mEquipmentWindowWidget::NativeOnMouseButtonUp(
 	const FGeometry& InGeometry,
 	const FPointerEvent& InMouseEvent)
 {
+	if (bCharacterPreviewRotating
+		&& InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		bCharacterPreviewRotating = false;
+		return FReply::Handled().ReleaseMouseCapture();
+	}
 	FReply Reply = Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
 	if (!ActiveEquipmentDragOperation.IsValid())
 	{
@@ -1401,6 +1448,40 @@ FReply URogue10mEquipmentWindowWidget::NativeOnMouseButtonUp(
 		HandleEquipmentDragFinished(nullptr);
 	}
 	return Reply;
+}
+
+FReply URogue10mEquipmentWindowWidget::NativeOnMouseMove(
+	const FGeometry& InGeometry,
+	const FPointerEvent& InMouseEvent)
+{
+	if (!bCharacterPreviewRotating)
+	{
+		return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+	}
+
+	if (!InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	{
+		bCharacterPreviewRotating = false;
+		return FReply::Handled().ReleaseMouseCapture();
+	}
+
+	const FVector2D CurrentScreenPosition = InMouseEvent.GetScreenSpacePosition();
+	const float DeltaYaw = static_cast<float>(
+		CurrentScreenPosition.X - LastCharacterPreviewDragScreenPosition.X)
+		* CharacterPreviewRotationDegreesPerPixel;
+	LastCharacterPreviewDragScreenPosition = CurrentScreenPosition;
+	if (CharacterPreviewActor && IsValid(CharacterPreviewActor))
+	{
+		CharacterPreviewActor->AddPreviewYaw(DeltaYaw);
+	}
+	return FReply::Handled();
+}
+
+void URogue10mEquipmentWindowWidget::NativeOnMouseCaptureLost(
+	const FCaptureLostEvent& CaptureLostEvent)
+{
+	bCharacterPreviewRotating = false;
+	Super::NativeOnMouseCaptureLost(CaptureLostEvent);
 }
 
 
@@ -1625,6 +1706,30 @@ void URogue10mEquipmentWindowWidget::RefreshEquipmentDisplay()
 	if (!Inventory)
 	{
 		return;
+	}
+
+	if (const ARogue10mCharacter* Character = Cast<ARogue10mCharacter>(GetOwningPlayerPawn()))
+	{
+		const FRogue10mCharacterStatSnapshot Stats = Character->GetCharacterStatSnapshot();
+		SetCharacterStatText(UI_AttackStatText,
+			NSLOCTEXT("Rogue10mEquipment", "AttackPower", "공격력"),
+			Stats.AttackPower, Stats.Base.AttackPower, Stats.Equipment.AttackPowerBonus, false);
+		SetCharacterStatText(UI_DefenseStatText,
+			NSLOCTEXT("Rogue10mEquipment", "Defense", "방어력"),
+			Stats.Defense, Stats.Base.Defense, Stats.Equipment.DefenseBonus, false);
+		SetCharacterStatText(UI_MaxHealthStatText,
+			NSLOCTEXT("Rogue10mEquipment", "MaxHealth", "최대 체력"),
+			Stats.MaxHealth, Stats.Base.MaxHealth, Stats.Equipment.MaxHealthBonus, false);
+		SetCharacterStatText(UI_CriticalChanceStatText,
+			NSLOCTEXT("Rogue10mEquipment", "CriticalChance", "치명타 확률"),
+			Stats.CriticalChance, Stats.Base.CriticalChance, Stats.Equipment.CriticalChanceBonus, true);
+		SetCharacterStatText(UI_AttackSpeedStatText,
+			NSLOCTEXT("Rogue10mEquipment", "AttackSpeed", "공격 속도"),
+			Stats.AttackSpeedMultiplier, Stats.Base.AttackSpeedMultiplier,
+			Stats.Equipment.AttackSpeedBonus, true);
+		SetCharacterStatText(UI_MoveSpeedStatText,
+			NSLOCTEXT("Rogue10mEquipment", "MoveSpeed", "이동 속도"),
+			Stats.MoveSpeed, Stats.Base.MoveSpeed, Stats.Equipment.MoveSpeedBonus, false);
 	}
 
 	const auto FindSlot = [Inventory](ERogue10mInventorySlotType SlotType) -> const FRogue10mInventorySlot*

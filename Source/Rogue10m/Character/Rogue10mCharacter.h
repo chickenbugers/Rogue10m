@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "AbilitySystemInterface.h"
 #include "GameFramework/Character.h"
+#include "Rogue10mCharacterCustomizationTypes.h"
+#include "Rogue10mCharacterStats.h"
 #include "Rogue10mWeaponTypes.h"
 #include "Rogue10mCharacter.generated.h"
 
@@ -57,6 +59,19 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|GAS")
 	URogue10mAttributeSet* GetRogueAttributeSet() const;
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Character|Stats")
+	FRogue10mCharacterStatSnapshot GetCharacterStatSnapshot() const;
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Character|Customization")
+	virtual bool ApplyCharacterProfile(const FRogue10mCharacterProfile& Profile);
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Character|Customization")
+	FRogue10mCharacterAppearance GetCharacterAppearance() const { return CharacterAppearance; }
+
+	/** Character Data 기본값과 현재 장비 보너스를 최종 런타임 수치에 반영합니다. */
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Character|Stats")
+	void RefreshCharacterStats(bool bRestoreVitals = false);
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Movement")
 	bool IsSprinting() const { return bIsSprinting; }
@@ -188,6 +203,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Movement|Dodge", meta=(ClampMin="0.0", Units="s"))
 	float DodgeCooldown = 0.45f;
+
+	UPROPERTY(Transient)
+	FRogue10mCharacterAppearance CharacterAppearance;
 
 private:
 	void MoveInput(const FInputActionValue& Value);

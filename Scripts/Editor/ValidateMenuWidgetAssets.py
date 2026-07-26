@@ -131,6 +131,19 @@ STARTER_ITEM_RARITIES = {
     "/Game/DataAsset/Item/Starter/DA_Item_LeatherBoots": unreal.Rogue10mItemRarity.COMMON,
     "/Game/DataAsset/Item/Starter/DA_Item_NoviceRing": unreal.Rogue10mItemRarity.UNIQUE,
 }
+CHARACTER_DATA_PATH = "/Game/DataAsset/Character/DA_Character_Default"
+CHARACTER_BASE_STATS = {
+    "max_health": 100.0,
+    "max_stamina": 100.0,
+    "max_mana": 100.0,
+    "attack_power": 10.0,
+    "defense": 0.0,
+    "critical_chance": 0.05,
+    "critical_damage_multiplier": 1.5,
+    "attack_speed_multiplier": 1.0,
+    "walk_speed": 600.0,
+    "sprint_speed": 900.0,
+}
 
 
 def color_tuple(color):
@@ -296,6 +309,20 @@ def main():
                 f"got {actual_rarity}"
             )
         unreal.log(f"[Rogue10mMenuValidation] RARITY {asset_path}: {actual_rarity}")
+
+    character_data = unreal.EditorAssetLibrary.load_asset(CHARACTER_DATA_PATH)
+    if not character_data:
+        raise RuntimeError(f"Missing default character data asset: {CHARACTER_DATA_PATH}")
+    for property_name, expected_value in CHARACTER_BASE_STATS.items():
+        actual_value = float(character_data.get_editor_property(property_name))
+        if abs(actual_value - expected_value) > 0.0001:
+            raise RuntimeError(
+                f"Invalid character base stat {property_name}: "
+                f"expected {expected_value}, got {actual_value}"
+            )
+        unreal.log(
+            f"[Rogue10mMenuValidation] CHARACTER STAT {property_name}: {actual_value}"
+        )
     unreal.log("[Rogue10mMenuValidation] All organized menu widgets passed.")
 
 

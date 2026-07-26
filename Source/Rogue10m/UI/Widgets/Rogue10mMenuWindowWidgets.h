@@ -344,6 +344,8 @@ public:
 protected:
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
 	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
 		UDragDropOperation*& OutOperation) override;
 	virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
@@ -410,6 +412,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Preview")
 	FIntPoint CharacterPreviewResolution = FIntPoint(512, 768);
+	/** 프리뷰 가로 드래그 1픽셀당 적용할 캐릭터 Yaw 각도입니다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Preview",
+		meta=(ClampMin="0.01", ClampMax="2.0", Units="deg"))
+	float CharacterPreviewRotationDegreesPerPixel = 0.35f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Tooltip")
 	TSoftClassPtr<URogue10mInventoryItemTooltipWidget> EquipmentItemTooltipWidgetClass =
 		TSoftClassPtr<URogue10mInventoryItemTooltipWidget>(FSoftObjectPath(TEXT("/Game/Widget/Menu/Inventory/WBP_InventoryItemTooltip.WBP_InventoryItemTooltip_C")));
@@ -466,6 +472,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ARogue10mEquipmentPreviewActor> CharacterPreviewActor;
+	bool bCharacterPreviewRotating = false;
+	FVector2D LastCharacterPreviewDragScreenPosition = FVector2D::ZeroVector;
 	TWeakObjectPtr<UBorder> ActiveEquipmentDropFrame;
 	TWeakObjectPtr<URogue10mItemDragDropOperation> ActiveEquipmentDropOperation;
 
