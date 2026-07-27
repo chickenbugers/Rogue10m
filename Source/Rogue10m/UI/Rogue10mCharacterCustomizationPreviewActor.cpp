@@ -11,9 +11,9 @@
 
 namespace
 {
-	constexpr float PreviewStagingHeight = 75000.0f;
-	constexpr float PreviewFieldOfView = 30.0f;
-	constexpr float PreviewFrameMargin = 1.18f;
+	constexpr float CustomizationPreviewStagingHeight = 75000.0f;
+	constexpr float CustomizationPreviewFieldOfView = 30.0f;
+	constexpr float CustomizationPreviewFrameMargin = 1.18f;
 }
 
 ARogue10mCharacterCustomizationPreviewActor::ARogue10mCharacterCustomizationPreviewActor()
@@ -50,7 +50,7 @@ ARogue10mCharacterCustomizationPreviewActor::ARogue10mCharacterCustomizationPrev
 	SceneCapture->SetupAttachment(SceneRoot);
 	SceneCapture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 	SceneCapture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-	SceneCapture->FOVAngle = PreviewFieldOfView;
+	SceneCapture->FOVAngle = CustomizationPreviewFieldOfView;
 	SceneCapture->bCaptureEveryFrame = false;
 	SceneCapture->bCaptureOnMovement = false;
 	SceneCapture->MaxViewDistanceOverride = 2000.0f;
@@ -98,7 +98,7 @@ bool ARogue10mCharacterCustomizationPreviewActor::InitializePreview(
 	}
 
 	Catalog = InCatalog;
-	SetActorLocation(FVector(0.0f, 0.0f, PreviewStagingHeight));
+	SetActorLocation(FVector(0.0f, 0.0f, CustomizationPreviewStagingHeight));
 
 	RenderTarget = NewObject<UTextureRenderTarget2D>(
 		this, TEXT("CharacterCustomizationRenderTarget"), RF_Transient);
@@ -177,7 +177,7 @@ void ARogue10mCharacterCustomizationPreviewActor::FrameCharacter()
 	const float HalfFov = FMath::DegreesToRadians(SceneCapture->FOVAngle * 0.5f);
 	const float Distance = FMath::Max(
 		190.0f,
-		(Extent.Z / FMath::Max(0.1f, FMath::Tan(HalfFov))) * PreviewFrameMargin);
+		(Extent.Z / FMath::Max(0.1f, FMath::Tan(HalfFov))) * CustomizationPreviewFrameMargin);
 	const FVector CameraLocation(Distance, Center.Y, Center.Z);
 	SceneCapture->SetRelativeLocation(CameraLocation);
 	SceneCapture->SetRelativeRotation((Center - CameraLocation).Rotation());

@@ -33,6 +33,7 @@ public:
 	URogue10mCombatComponent();
 
 	void InitializeAbilitySystem();
+	void InitializeSpawnedLoadout();
 	void HandleAttackPressed(bool bPrimaryAttack);
 	void HandleAttackReleased(bool bPrimaryAttack);
 	bool ExecutePendingAttackSkillFromAbility();

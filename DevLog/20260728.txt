@@ -1,0 +1,97 @@
+# 2026-07-28 개발 기록
+
+## Sprint#3-2 - 몬스터 영역 스포너
+
+### 작업 목표
+
+레벨의 일정 Box 범위 안에서 지정한 몬스터를 최대 N마리까지 생성하고, 설정에 따라 처치된 몬스터를 일정 간격으로 보충하는 스포너 Actor를 제작했다.
+
+### 주요 변경
+
+- `ARogue10mMonsterSpawner` C++ Actor 추가
+- `Spawn Area` Box 기반 임의 위치 선정
+- 특정 `ARogue10mBasicMonster` 자식 Blueprint 클래스 지정
+- 최대 생존 수와 시작 즉시 충원 옵션 추가
+- 지속 보충과 일회성 생성을 선택하는 `Maintain Population` 옵션 추가
+- Tick 대신 반복 타이머 사용
+- WorldStatic 지면 라인 트레이스와 Spawn 충돌 처리 적용
+- 약한 참조와 파괴 Delegate로 생성 몬스터 추적
+- 사망했지만 파괴되지 않은 몬스터도 생존 수에서 제외
+- 서버 Authority에서만 생성
+- Blueprint 수동 생성·최대 충원·생존 수 조회 API 제공
+
+### 검증
+
+- UHT 통과
+- 신규 `Rogue10mMonsterSpawner.cpp` UBT 단일 파일 컴파일 성공
+- 전체 Unity 빌드에서 기존 UI Preview Actor 두 파일의 익명 네임스페이스 상수 충돌 확인
+- 신규 스포너 파일은 전체 빌드 과정과 단일 파일 빌드에서 모두 컴파일 단계 통과
+- 생성물 변경 검사와 diff 검사
+
+### 상태
+
+C++ 구현 및 전체 Editor 빌드 검증 완료. 레벨 배치 후 범위·최대 수·처치 후 보충에 대한 PIE 수동 QA가 필요하다.
+
+## Notion 요약 후보
+
+Rogue10m에 영역 기반 몬스터 스포너 Actor를 추가했다. 레벨 디자이너는 Box 범위, 특정 몬스터 Blueprint, 최대 동시 생존 수, 재소환 간격을 설정할 수 있다. 시작 시 최대 수를 즉시 생성할 수 있으며 `Maintain Population` 설정으로 처치 후 지속 보충과 일회성 생성을 선택한다. 런타임은 Tick 없이 타이머와 약한 참조, 파괴 Delegate를 사용한다.
+
+## 보완 - Preview Actor Unity 빌드 재정의 수정
+
+### 증상
+
+IDE 전체 빌드에서 장비 프리뷰와 캐릭터 커스터마이징 프리뷰의 익명 네임스페이스 상수 세 개가 Unity 번역 단위에서 재정의되어 컴파일이 실패했다.
+
+### 원인과 수정
+
+- 충돌 이름: `PreviewStagingHeight`, `PreviewFieldOfView`, `PreviewFrameMargin`
+- 장비 프리뷰는 `EquipmentPreview*` 접두사로 변경
+- 커스터마이징 프리뷰는 `CustomizationPreview*` 접두사로 변경
+- 상수 값과 프리뷰 계산식은 변경하지 않음
+
+### 검증
+
+`Rogue10mEditor` Win64 Development 전체 빌드에서 Preview Actor 두 파일, 신규 Monster Spawner, 모듈 링크가 모두 성공했다. XGE 라이선스 미활성 경고는 standalone 모드 전환 안내이며 빌드 결과에는 영향을 주지 않았다.
+
+## Sprint#3-3 - 모험가 기본 직업과 좌클릭 주먹 공격
+
+### 작업 목표
+
+캐릭터 선택 화면에서 선택한 종족별 Pawn이 스폰된 뒤 기본 직업 `모험가`와 맨손 기본 공격을 부여받고, 좌클릭으로 Primary 주먹 공격을 실행할 수 있도록 구성했다.
+
+### 원인과 설계
+
+기존 좌클릭 입력 전달 자체는 정상적으로 구현되어 있었지만 CombatComponent의 로드아웃 적용이 `BeginPlay`에만 의존했다. 선택 CharacterClass로 만든 Pawn은 `BeginPlay` 이후 Controller가 Possess하고 PlayerState가 연결되므로, 스폰 시점에 기본 무기와 Ability 적용이 누락될 수 있었다.
+
+기본 설정은 CharacterData가 소유하고, 실제 런타임 직업·무기 상태는 PlayerState가 소유하도록 경계를 정리했다. Character는 `PossessedBy`와 `OnRep_PlayerState`에서 CombatComponent의 단일 초기화 진입점을 호출한다.
+
+### 구현 내용
+
+- CharacterData에 `JobName`을 추가하고 기본값을 `모험가`로 지정
+- PlayerState 기본 직업명을 `모험가`로 변경
+- 종족명이 직업명을 덮어쓰는 프로필 적용 오류 수정
+- CombatComponent에 `InitializeSpawnedLoadout()` 추가
+- Possess 및 PlayerState 복제 완료 시 CharacterData·무기 Profile·GAS Ability 재적용
+- `DA_Character_Default` 기본 무기를 `Unarmed`로 설정
+- Unarmed Profile의 Primary 슬롯을 맨손 주먹 공격 Data Asset에 연결
+- BP_FirstPersonCharacter의 CombatComponent 참조 저장
+- UE Unity 빌드에서 발생한 Preview Actor 상수 재정의 오류 수정
+
+### 검증 결과
+
+- Unreal Engine 5.8 Rogue10mEditor Win64 Development 전체 빌드 성공
+- 모험가/Unarmed/Primary 주먹 공격 Editor Python 검증 성공
+- Human·Dwarf·Orc 남녀 6개 상속 Character 및 6개 Retarget AnimBP 검증 성공
+- 좌클릭 Press/Release에서 Combat Primary 슬롯까지 코드 경로 확인
+- Windows 샌드박스 ACL로 실제 마우스 자동화가 차단되어 에디터 재시작 후 수동 PIE 체감 확인은 남음
+
+### 변경 파일 요약
+
+- Character, CombatComponent, PlayerState, CharacterData: 스폰 후 로드아웃·직업 적용
+- DA_Character_Default, BP_FirstPersonCharacter: 모험가·Unarmed 에셋 설정
+- ConfigureAdventurerUnarmedSpawn.py: 설정과 회귀 검증 자동화
+- CharacterDataOwnership 및 Feature 문서: 데이터 소유권과 실행 흐름 기록
+
+## Notion 요약 후보
+
+> 캐릭터 선택 후 Pawn이 스폰·Possess되는 시점에 기본 직업 `모험가`, 기본 무기 `Unarmed`, 좌클릭 Primary 주먹 공격을 재적용하도록 초기화 흐름을 개선했다. CharacterData가 기본 설정을 소유하고 PlayerState가 런타임 상태를 소유하며, PossessedBy/OnRep_PlayerState에서 CombatComponent가 로드아웃과 GAS Ability를 다시 구성한다. UE 5.8 전체 빌드와 Editor Python 에셋 검증, 6개 상속 캐릭터 검증을 통과했다.

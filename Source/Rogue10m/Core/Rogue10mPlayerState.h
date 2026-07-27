@@ -103,7 +103,7 @@ private:
 	FText CharacterDisplayName = FText::FromString(TEXT("로그"));
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character", meta=(AllowPrivateAccess="true"))
-	FText CharacterJobName = FText::FromString(TEXT("미정"));
+	FText CharacterJobName = FText::FromString(TEXT("모험가"));
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Rogue10m|Combat", meta=(AllowPrivateAccess="true"))
 	ERogue10mWeaponType EquippedWeaponType = ERogue10mWeaponType::Unarmed;

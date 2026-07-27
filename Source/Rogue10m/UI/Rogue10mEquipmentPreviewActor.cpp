@@ -12,9 +12,9 @@
 
 namespace
 {
-	constexpr float PreviewStagingHeight = 50000.0f;
-	constexpr float PreviewFieldOfView = 32.0f;
-	constexpr float PreviewFrameMargin = 1.2f;
+	constexpr float EquipmentPreviewStagingHeight = 50000.0f;
+	constexpr float EquipmentPreviewFieldOfView = 32.0f;
+	constexpr float EquipmentPreviewFrameMargin = 1.2f;
 	constexpr int32 MinimumRenderTargetSize = 128;
 	constexpr int32 MaximumRenderTargetSize = 2048;
 }
@@ -35,7 +35,7 @@ ARogue10mEquipmentPreviewActor::ARogue10mEquipmentPreviewActor()
 	SceneCapture->SetupAttachment(SceneRoot);
 	SceneCapture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 	SceneCapture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-	SceneCapture->FOVAngle = PreviewFieldOfView;
+	SceneCapture->FOVAngle = EquipmentPreviewFieldOfView;
 	SceneCapture->bCaptureEveryFrame = false;
 	SceneCapture->bCaptureOnMovement = false;
 	SceneCapture->MaxViewDistanceOverride = 2000.0f;
@@ -78,7 +78,7 @@ bool ARogue10mEquipmentPreviewActor::InitializePreview(ACharacter* InSourceChara
 	}
 
 	SourceCharacter = InSourceCharacter;
-	SetActorLocation(InSourceCharacter->GetActorLocation() + FVector(0.0f, 0.0f, PreviewStagingHeight));
+	SetActorLocation(InSourceCharacter->GetActorLocation() + FVector(0.0f, 0.0f, EquipmentPreviewStagingHeight));
 
 	const int32 Width = FMath::Clamp(InResolution.X, MinimumRenderTargetSize, MaximumRenderTargetSize);
 	const int32 Height = FMath::Clamp(InResolution.Y, MinimumRenderTargetSize, MaximumRenderTargetSize);
@@ -247,7 +247,7 @@ void ARogue10mEquipmentPreviewActor::FramePreviewMeshes()
 	const float HalfFovRadians = FMath::DegreesToRadians(SceneCapture->FOVAngle * 0.5f);
 	const float CameraDistance = FMath::Max(
 		180.0f,
-		(Extent.Z / FMath::Max(0.1f, FMath::Tan(HalfFovRadians))) * PreviewFrameMargin);
+		(Extent.Z / FMath::Max(0.1f, FMath::Tan(HalfFovRadians))) * EquipmentPreviewFrameMargin);
 	const FVector CameraLocation(CameraDistance, LocalCenter.Y, LocalCenter.Z);
 	SceneCapture->SetRelativeLocation(CameraLocation);
 	SceneCapture->SetRelativeRotation((LocalCenter - CameraLocation).Rotation());

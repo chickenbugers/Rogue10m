@@ -28,6 +28,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character|Identity")
 	FText DisplayName = FText::FromString(TEXT("기본 캐릭터"));
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character|Identity")
+	FText JobName = FText::FromString(TEXT("모험가"));
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character|Vitals", meta=(ClampMin="1.0"))
 	float MaxHealth = 100.0f;
 

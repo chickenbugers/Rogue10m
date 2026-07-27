@@ -68,7 +68,7 @@ void ARogue10mCharacter::PossessedBy(AController* NewController)
 	InitializeAbilityActorInfo();
 	if (CombatComponent)
 	{
-		CombatComponent->InitializeAbilitySystem();
+		CombatComponent->InitializeSpawnedLoadout();
 	}
 	if (PlayerFeedbackComponent)
 	{
@@ -80,6 +80,10 @@ void ARogue10mCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 	InitializeAbilityActorInfo();
+	if (CombatComponent)
+	{
+		CombatComponent->InitializeSpawnedLoadout();
+	}
 	if (PlayerFeedbackComponent)
 	{
 		PlayerFeedbackComponent->InitializeAbilitySystem();
@@ -482,7 +486,7 @@ FText ARogue10mCharacter::GetCharacterDisplayName() const
 FText ARogue10mCharacter::GetCharacterJobName() const
 {
 	const ARogue10mPlayerState* State = GetPlayerState<ARogue10mPlayerState>();
-	return State ? State->GetCharacterJobName() : FText::FromString(TEXT("미정"));
+	return State ? State->GetCharacterJobName() : NSLOCTEXT("Rogue10mCharacter", "DefaultAdventurerJob", "모험가");
 }
 
 ERogue10mWeaponType ARogue10mCharacter::GetEquippedWeaponType() const
@@ -536,16 +540,16 @@ bool ARogue10mCharacter::ApplyCharacterProfile(const FRogue10mCharacterProfile& 
 	CharacterAppearance = Profile.Appearance;
 	if (ARogue10mPlayerState* State = GetPlayerState<ARogue10mPlayerState>())
 	{
-		FText RaceName = NSLOCTEXT("Rogue10mCharacter", "HumanRace", "인간");
-		if (Profile.Appearance.Race == ERogue10mCharacterRace::Dwarf)
+		FText JobName = NSLOCTEXT("Rogue10mCharacter", "DefaultAdventurerJob", "모험가");
+		if (const URogue10mCharacterDataAsset* CharacterData =
+			CombatComponent ? CombatComponent->GetCharacterData() : nullptr)
 		{
-			RaceName = NSLOCTEXT("Rogue10mCharacter", "DwarfRace", "드워프");
+			if (!CharacterData->JobName.IsEmpty())
+			{
+				JobName = CharacterData->JobName;
+			}
 		}
-		else if (Profile.Appearance.Race == ERogue10mCharacterRace::Orc)
-		{
-			RaceName = NSLOCTEXT("Rogue10mCharacter", "OrcRace", "오크");
-		}
-		State->SetCharacterProfileIdentity(FText::FromString(Profile.CharacterName), RaceName);
+		State->SetCharacterProfileIdentity(FText::FromString(Profile.CharacterName), JobName);
 	}
 	return true;
 }

@@ -31,8 +31,7 @@ URogue10mCombatComponent::URogue10mCombatComponent()
 void URogue10mCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	ApplyCharacterData();
-	ApplyActiveWeaponProfile();
+	InitializeSpawnedLoadout();
 }
 
 void URogue10mCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -62,6 +61,33 @@ void URogue10mCombatComponent::InitializeAbilitySystem()
 	{
 		AbilitySystem->GiveAbility(FGameplayAbilitySpec(DefaultAttackAbilityClass, 1, INDEX_NONE, this));
 	}
+}
+
+void URogue10mCombatComponent::InitializeSpawnedLoadout()
+{
+	ApplyCharacterData();
+	ApplyActiveWeaponProfile();
+	InitializeAbilitySystem();
+
+	const URogue10mAttackSkillData* PrimarySkill =
+		GetEquippedSkill(ERogue10mAttackInputSlot::Primary);
+	if (!PrimarySkill)
+	{
+		UE_LOG(
+			LogRogue10m,
+			Warning,
+			TEXT("%s 스폰 로드아웃에 좌클릭 Primary 공격이 없습니다."),
+			*GetNameSafe(GetOwner()));
+		return;
+	}
+
+	UE_LOG(
+		LogRogue10m,
+		Log,
+		TEXT("%s 스폰 로드아웃 적용: %s / %s"),
+		*GetNameSafe(GetOwner()),
+		*UEnum::GetValueAsString(AppliedProfileWeaponType),
+		*PrimarySkill->SkillName.ToString());
 }
 
 void URogue10mCombatComponent::HandleAttackPressed(bool bPrimaryAttack)

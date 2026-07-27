@@ -909,3 +909,40 @@
 - 검증: Editor 빌드 성공, 상속 Validator 통과, 실제 PIE에서 Human Male 자식 Pawn Spawn/Possess 및 EnterSelectedCharacter 후 로비 종료 확인, 최근 오류 로그 0건
 - 상태: 수정 및 자동 PIE 검증 완료
 - 관련 문서: `Feature/doc/2026-07-26_inherited-character-appearance.md`, `DevLog/20260726.txt`
+
+# Sprint#3-2 - 몬스터 영역 스포너
+
+- 브랜치: `Sprint#3-2-monster-area-spawner`
+- 목표: 지정한 Box 범위 안에서 특정 몬스터를 최대 N마리까지 생성하고 선택적으로 생존 수를 유지한다.
+- 주요 변경:
+  - `ARogue10mMonsterSpawner` World Actor 추가
+  - Monster Class, Box 범위, 최대 생존 수, 생성 간격 에디터 설정
+  - 시작 즉시 최대 수 충원과 지속 보충·일회성 생성 선택
+  - 지면 트레이스와 충돌 안전 생성
+  - Tick 없는 타이머, 약한 참조, 파괴 Delegate 기반 생존 수 추적
+  - Authority 전용 생성과 Blueprint 수동 제어 API
+- 검증:
+  - UHT 통과
+  - `Rogue10mMonsterSpawner.cpp` UBT 단일 파일 컴파일 성공
+  - UI Preview Actor의 Unity 상수 재정의를 기능별 접두사로 수정
+  - `Rogue10mEditor` Win64 Development 전체 빌드 성공
+  - `CheckGeneratedChanges.ps1`, `git diff --check`
+- 상태: C++ 구현 및 전체 Editor 빌드 검증 완료, 레벨 배치 PIE QA 대기
+- 관련 문서:
+  - `Feature/architect/2026-07-28_monster-area-spawner.md`
+  - `Feature/doc/2026-07-28_monster-area-spawner.md`
+  - `DevLog/20260728.txt`
+
+## Sprint#3-3 - 모험가 기본 직업과 스폰 후 맨손 공격
+
+- 목표: 캐릭터 선택 후 스폰·Possess된 Pawn에 기본 직업 모험가와 좌클릭 맨손 Primary 공격을 안정적으로 부여한다.
+- 주요 변경: CharacterData 직업 필드, PlayerState 모험가 기본값, PossessedBy/OnRep 기반 로드아웃 재초기화, 종족명과 직업명 분리
+- 에셋: `DA_Character_Default`를 Unarmed 기본 무기로 변경하고 Unarmed Profile·Primary 주먹 공격·BP CombatComponent 참조를 검증 및 저장
+- 빌드 보완: UE Unity 빌드의 Preview Actor 익명 namespace 상수 재정의 충돌 제거
+- 검증: UE 5.8 Rogue10mEditor 전체 빌드 성공, 모험가/Unarmed Editor Python Validator 통과, 6개 상속 Character 및 Retarget AnimBP Validator 통과
+- 상태: 구현·에셋 설정·빌드·정적 검증 완료, 에디터 재시작 후 실제 좌클릭 PIE 체감 QA 대기
+- 관련 문서:
+  - `Feature/architect/2026-07-28_adventurer-unarmed-spawn.md`
+  - `Feature/doc/2026-07-28_adventurer-unarmed-spawn.md`
+  - `Docs/CharacterDataOwnership.md`
+  - `DevLog/20260728.txt`

@@ -122,3 +122,20 @@ URogue10mRunHUD와 URogue10mMainHUDWidget은 PlayerState, Character, CombatCompo
 - CharacterProfileSubsystem: 선택 프로필과 캐릭터 생성 정보 소유
 
 서로 다른 Skeleton 사이에는 Leader Pose를 사용하지 않는다. Manny 포즈는 `Retarget Pose From Mesh`를 통해 종족 Skeleton으로 변환하며, Leader Pose는 동일 Skeleton의 Hair·Facial 파츠에만 제한한다.
+## 기본 직업과 스폰 로드아웃 소유권
+
+`URogue10mCharacterDataAsset`은 캐릭터 원형의 기본 직업 `JobName`, 기본 무기 `DefaultWeaponType`, 무기별 Skill Profile 목록을 소유한다. 현재 기본 원형은 `모험가`와 `Unarmed`를 사용하며, Unarmed Profile의 Primary 슬롯은 `DA_Attack_Unarmed_Primary`를 참조한다. 기존 StoneFist Profile은 선택 가능한 후속 무기 데이터로 유지한다.
+
+`ARogue10mPlayerState`는 Pawn 스폰·Possess 이후 실제 플레이 중인 캐릭터의 직업명과 장착 무기 상태를 소유한다. 외형 프로필의 종족명은 직업명을 덮어쓰지 않는다.
+
+`ARogue10mCharacter`는 `PossessedBy`와 `OnRep_PlayerState`에서 `URogue10mCombatComponent::InitializeSpawnedLoadout()`을 호출한다. CombatComponent는 이 진입점에서 CharacterData, 활성 무기 Profile, GAS Ability를 순서대로 다시 적용한다. 따라서 선택 캐릭터 Pawn의 `BeginPlay`가 PlayerState 연결보다 먼저 실행되어도, Possess가 끝난 시점에 좌클릭 Primary 공격이 확정된다.
+
+```text
+CharacterData(모험가 / Unarmed / Skill Profiles)
+-> Pawn Spawn
+-> Controller Possess 또는 PlayerState Replication
+-> CombatComponent.InitializeSpawnedLoadout
+-> PlayerState 런타임 직업·무기 상태
+-> LeftMouseButton Press/Release
+-> Primary 슬롯의 맨손 주먹 공격
+```
