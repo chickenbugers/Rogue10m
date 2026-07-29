@@ -18,6 +18,7 @@ public class Rogue10m : ModuleRules
 			"GameplayTags",
 			"GameplayTasks",
 			"AIModule",
+			"NavigationSystem",
 			"UMG",
 			"Slate",
 			"SlateCore",

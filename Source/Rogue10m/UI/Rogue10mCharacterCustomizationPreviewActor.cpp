@@ -2,11 +2,13 @@
 
 #include "Rogue10mCharacterCustomizationPreviewActor.h"
 
+#include "Animation/AnimInstance.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Rogue10m.h"
 #include "Rogue10mCharacterCustomizationDataAsset.h"
 
 namespace
@@ -14,6 +16,7 @@ namespace
 	constexpr float CustomizationPreviewStagingHeight = 75000.0f;
 	constexpr float CustomizationPreviewFieldOfView = 30.0f;
 	constexpr float CustomizationPreviewFrameMargin = 1.18f;
+	constexpr float LobbyPreviewFacingYaw = -90.0f;
 }
 
 ARogue10mCharacterCustomizationPreviewActor::ARogue10mCharacterCustomizationPreviewActor()
@@ -28,28 +31,43 @@ ARogue10mCharacterCustomizationPreviewActor::ARogue10mCharacterCustomizationPrev
 	PreviewRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Preview Root"));
 	PreviewRoot->SetupAttachment(SceneRoot);
 
-	auto ConfigureMesh = [this](USkeletalMeshComponent* Mesh)
+	AnimationSourceMesh = CreateDefaultSubobject<USkeletalMeshComponent>(
+		TEXT("Animation Source Mesh"));
+	AnimationSourceMesh->SetupAttachment(PreviewRoot);
+	AnimationSourceMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	AnimationSourceMesh->SetGenerateOverlapEvents(false);
+	AnimationSourceMesh->SetCastShadow(false);
+	AnimationSourceMesh->SetReceivesDecals(false);
+	AnimationSourceMesh->SetVisibility(false, false);
+	AnimationSourceMesh->SetHiddenInGame(true, false);
+	AnimationSourceMesh->VisibilityBasedAnimTickOption =
+		EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+
+	auto ConfigureMesh = [](USkeletalMeshComponent* Mesh, USceneComponent* Parent)
 	{
-		Mesh->SetupAttachment(PreviewRoot);
+		Mesh->SetupAttachment(Parent);
 		Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Mesh->SetGenerateOverlapEvents(false);
 		Mesh->SetCastShadow(false);
 		Mesh->SetReceivesDecals(false);
 		Mesh->SetVisibleInSceneCaptureOnly(true);
-		Mesh->SetComponentTickEnabled(false);
+		Mesh->VisibilityBasedAnimTickOption =
+			EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	};
 
 	BodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Body Mesh"));
-	ConfigureMesh(BodyMesh);
+	ConfigureMesh(BodyMesh, AnimationSourceMesh);
+	BodyMesh->AddTickPrerequisiteComponent(AnimationSourceMesh);
+
 	HairMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Hair Mesh"));
-	ConfigureMesh(HairMesh);
+	ConfigureMesh(HairMesh, BodyMesh);
 	FacialMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Facial Mesh"));
-	ConfigureMesh(FacialMesh);
+	ConfigureMesh(FacialMesh, BodyMesh);
 
 	SceneCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Character Capture"));
 	SceneCapture->SetupAttachment(SceneRoot);
 	SceneCapture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-	SceneCapture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+	SceneCapture->CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
 	SceneCapture->FOVAngle = CustomizationPreviewFieldOfView;
 	SceneCapture->bCaptureEveryFrame = false;
 	SceneCapture->bCaptureOnMovement = false;
@@ -87,6 +105,15 @@ ARogue10mCharacterCustomizationPreviewActor::ARogue10mCharacterCustomizationPrev
 	SceneCapture->ShowOnlyComponent(BodyMesh);
 	SceneCapture->ShowOnlyComponent(HairMesh);
 	SceneCapture->ShowOnlyComponent(FacialMesh);
+
+	AnimationSourceSkeletalMesh = TSoftObjectPtr<USkeletalMesh>(
+		FSoftObjectPath(TEXT(
+			"/Game/Characters/Mannequins/Meshes/"
+			"SKM_Manny_Simple.SKM_Manny_Simple")));
+	AnimationSourceAnimClass = TSoftClassPtr<UAnimInstance>(
+		FSoftClassPath(TEXT(
+			"/Game/Characters/Mannequins/Anims/Unarmed/"
+			"ABP_Unarmed.ABP_Unarmed_C")));
 }
 
 bool ARogue10mCharacterCustomizationPreviewActor::InitializePreview(
@@ -97,8 +124,23 @@ bool ARogue10mCharacterCustomizationPreviewActor::InitializePreview(
 		return false;
 	}
 
+	USkeletalMesh* SourceMesh = AnimationSourceSkeletalMesh.LoadSynchronous();
+	UClass* SourceAnimClass = AnimationSourceAnimClass.LoadSynchronous();
+	if (!SourceMesh || !SourceAnimClass)
+	{
+		UE_LOG(
+			LogRogue10m, Error,
+			TEXT("Character preview source mesh or AnimBP is missing. Mesh=%s AnimBP=%s"),
+			*AnimationSourceSkeletalMesh.ToSoftObjectPath().ToString(),
+			*AnimationSourceAnimClass.ToSoftObjectPath().ToString());
+		return false;
+	}
+
 	Catalog = InCatalog;
 	SetActorLocation(FVector(0.0f, 0.0f, CustomizationPreviewStagingHeight));
+	AnimationSourceMesh->SetSkeletalMeshAsset(SourceMesh);
+	AnimationSourceMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	AnimationSourceMesh->SetAnimInstanceClass(SourceAnimClass);
 
 	RenderTarget = NewObject<UTextureRenderTarget2D>(
 		this, TEXT("CharacterCustomizationRenderTarget"), RF_Transient);
@@ -107,8 +149,8 @@ bool ARogue10mCharacterCustomizationPreviewActor::InitializePreview(
 		return false;
 	}
 
-	RenderTarget->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8_SRGB;
-	RenderTarget->ClearColor = FLinearColor(0.008f, 0.012f, 0.02f, 0.0f);
+	RenderTarget->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
+	RenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	RenderTarget->InitAutoFormat(
 		FMath::Clamp(Resolution.X, 256, 2048),
 		FMath::Clamp(Resolution.Y, 256, 2048));
@@ -126,20 +168,30 @@ bool ARogue10mCharacterCustomizationPreviewActor::SetAppearance(
 		return false;
 	}
 
-	PreviewRoot->SetRelativeRotation(FRotator(0.0f, -18.0f, 0.0f));
+	const FRogue10mCharacterArchetype* Archetype =
+		Catalog->FindArchetype(Appearance.Race, Appearance.Gender);
+	UClass* RetargetAnimClass =
+		Archetype ? Archetype->RetargetAnimClass.LoadSynchronous() : nullptr;
+	if (RetargetAnimClass)
+	{
+		BodyMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		BodyMesh->SetAnimInstanceClass(RetargetAnimClass);
+	}
+	else
+	{
+		UE_LOG(
+			LogRogue10m, Warning,
+			TEXT("Character preview Retarget AnimBP is missing; showing reference pose."));
+	}
+
+	PreviewRoot->SetRelativeRotation(
+		FRotator(0.0f, LobbyPreviewFacingYaw, 0.0f));
+	BodyMesh->SetVisibility(true, false);
+	HairMesh->SetVisibility(HairMesh->GetSkeletalMeshAsset() != nullptr, false);
+	FacialMesh->SetVisibility(FacialMesh->GetSkeletalMeshAsset() != nullptr, false);
 	FrameCharacter();
 	CapturePreview();
 	return true;
-}
-
-void ARogue10mCharacterCustomizationPreviewActor::AddPreviewYaw(float DeltaYaw)
-{
-	if (!PreviewRoot || FMath::IsNearlyZero(DeltaYaw))
-	{
-		return;
-	}
-	PreviewRoot->AddLocalRotation(FRotator(0.0f, DeltaYaw, 0.0f));
-	CapturePreview();
 }
 
 void ARogue10mCharacterCustomizationPreviewActor::SetPreviewActive(bool bActive)
@@ -177,7 +229,8 @@ void ARogue10mCharacterCustomizationPreviewActor::FrameCharacter()
 	const float HalfFov = FMath::DegreesToRadians(SceneCapture->FOVAngle * 0.5f);
 	const float Distance = FMath::Max(
 		190.0f,
-		(Extent.Z / FMath::Max(0.1f, FMath::Tan(HalfFov))) * CustomizationPreviewFrameMargin);
+		(Extent.Z / FMath::Max(0.1f, FMath::Tan(HalfFov))) *
+			CustomizationPreviewFrameMargin);
 	const FVector CameraLocation(Distance, Center.Y, Center.Z);
 	SceneCapture->SetRelativeLocation(CameraLocation);
 	SceneCapture->SetRelativeRotation((Center - CameraLocation).Rotation());

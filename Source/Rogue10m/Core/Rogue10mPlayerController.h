@@ -13,12 +13,14 @@ class URogue10mCharacterLobbyWidget;
 class URogue10mDamageIndicatorWidget;
 class URogue10mEquipmentWindowWidget;
 class URogue10mInventoryWindowWidget;
+class URogue10mMainMenuWidget;
 class URogue10mMenuWindowWidget;
 class URogue10mSkillTreeWindowWidget;
 class URogue10mRunHUD;
 class URogue10mItemDataAsset;
 class UTexture2D;
 class UUserWidget;
+class UWorld;
 
 struct FRogue10mRuntimeLogEntry
 {
@@ -69,6 +71,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Character Lobby")
 	bool IsCharacterLobbyVisible() const { return bCharacterLobbyVisible; }
+
+	UFUNCTION(BlueprintCallable, Category="Rogue10m|Main Menu")
+	void OpenCharacterLobbyFromMainMenu();
+
+	UFUNCTION(BlueprintPure, Category="Rogue10m|Main Menu")
+	bool IsMainMenuVisible() const { return bMainMenuVisible; }
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|UI")
 	bool IsInventoryVisible() const { return bInventoryVisible; }
@@ -198,6 +206,18 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<URogue10mCharacterLobbyWidget> CharacterLobbyWidget;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Main Menu")
+	TSubclassOf<URogue10mMainMenuWidget> MainMenuWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Main Menu")
+	TSoftClassPtr<URogue10mMainMenuWidget> DefaultMainMenuWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Main Menu")
+	TSoftObjectPtr<UWorld> GameplayMap;
+
+	UPROPERTY(Transient)
+	TObjectPtr<URogue10mMainMenuWidget> MainMenuWidget;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Aim")
 	FLinearColor AimCrossLineColor = FLinearColor(0.72f, 0.92f, 1.0f, 0.86f);
 
@@ -248,7 +268,10 @@ private:
 	void InitializeRunHUD();
 	TSubclassOf<URogue10mRunHUD> ResolveRunHUDClass();
 	void InitializeCharacterLobby();
+	void InitializeMainMenu();
 	void RefreshInputMode();
+	bool IsMenuWorld() const;
+	bool TravelToGameplayMap();
 	void SetPanelVisible(bool& PanelState, bool bVisible, URogue10mMenuWindowWidget* ActivatedWindow);
 	void SetInventoryEquipmentPanelVisible(bool& PanelState, bool bVisible, URogue10mMenuWindowWidget* ActivatedWindow);
 	void HandleToggleCombatLog();
@@ -263,6 +286,7 @@ private:
 	TArray<TWeakObjectPtr<URogue10mMenuWindowWidget>> MenuWindowStack;
 
 	bool bInventoryVisible = false;
+	bool bMainMenuVisible = false;
 	bool bCharacterLobbyVisible = false;
 	bool bItemWindowVisible = false;
 	bool bSkillTreeVisible = false;

@@ -946,3 +946,133 @@
   - `Feature/doc/2026-07-28_adventurer-unarmed-spawn.md`
   - `Docs/CharacterDataOwnership.md`
   - `DevLog/20260728.txt`
+## Sprint#3-4 - 3인 캐릭터 선택 무대
+
+- 브랜치: `Sprint#3-4-character-selection-stage`
+- 목표: 기존 캐릭터 로비 기능을 유지하면서 저장된 최대 3명의 캐릭터를 판타지 배경 앞에 동시에 표시한다.
+- 주요 변경:
+  - CharacterLobbyWidget의 Draft Preview 1개와 Slot Preview 3개 수명주기
+  - 숨김 Manny Idle Source Mesh와 6개 종족·성별 Retarget AnimBP 적용
+  - 선택 캐릭터 명도·슬롯 카드 강조와 각 프리뷰 좌클릭 회전
+  - 오리지널 16:9 판타지 성채 배경과 1920×1080 WBP 무대형 레이아웃
+  - 기존 생성·삭제·선택·게임 접속·외형 편집 BindWidget 유지
+  - 빈 슬롯 캡처 비활성화와 로비 종료 시 Preview Actor 정리
+- 검증:
+  - UE 5.8 UHT 및 Rogue10mEditor Win64 Development 전체 빌드 성공
+  - 기존 캐릭터 커스터마이징 Validator 통과
+  - 신규 3인 선택 무대 Validator 통과
+  - 최종 WBP 재로드 시 Blueprint/Python 오류 없음
+- 상태: 구현·배경·WBP·빌드·에셋 정적 검증 완료, 에디터 PIE 육안 QA 대기
+- 관련 문서:
+  - `Feature/architect/2026-07-28_character-selection-stage.md`
+  - `Feature/doc/2026-07-28_character-selection-stage.md`
+  - `DevLog/20260728.txt`
+
+### Sprint#3-4 보완 - Main Menu / Lobby / Component 경로 분리
+
+- 목표: 캐릭터 로비 비율·상호작용을 보완하고 기본 메인 메뉴에서 로비와 인게임으로 이어지는 화면 흐름 구성
+- 주요 변경:
+  - `Content/Widget/Lobby/WBP_CharacterLobby`로 로비 이동
+  - 기존 공용 메뉴 위젯을 `Content/Widget/Component`로 이동
+  - `Content/Widget/Menu/WBP_MainMenu` 신규 생성 및 게임 시작·종료 연결
+  - Slot Preview 폭 360px 제한, `UI_SelectedCharacterInfoText` 제거, 하단 선택/생성 버튼 배치
+  - 캐릭터/슬롯 정보 더블클릭 접속과 빈 슬롯 캐릭터 생성 지원
+  - PlayerController 흐름을 `Main Menu → Lobby → 현재 Start Map`으로 변경
+- 검증: UE 5.8 Rogue10mEditor 빌드 성공, Widget Flow/Selection Stage/Customization/Inherited Character 검증 통과
+- 상태: 구현·에셋 이동·자동 검증 완료, PIE 수동 체감 QA 대기
+- 후속: `Start Map → World Partition Cell 오픈월드` 설계 및 구현
+- 관련 문서:
+  - `Feature/architect/2026-07-28_character-selection-stage.md`
+  - `Feature/doc/2026-07-28_character-selection-stage.md`
+  - `Docs/CurrentProjectArchitecture.md`
+  - `DevLog/20260728.txt`
+## Sprint#3-5 - 몬스터 Behavior Tree 전투 AI
+
+- 브랜치: `Sprint#3-5-monster-behavior-tree-ai`
+- 목표: 몬스터 이동을 홈·순찰·추격 범위로 제한하고 거리 감지 또는 피격 조건에서만 플레이어와 전투
+- 주요 변경:
+  - Tick 추적 제거, AIController + AI Perception + Blackboard + Behavior Tree + NavigationSystem 적용
+  - Sight/피격 어그로, 기억 시간, 최대 추격 거리, 홈 복귀, 순찰 도착 대기 구현
+  - 공통 `BB_Monster`, `BT_Monster`와 런타임 안전 대체 트리 추가
+  - 25개 Monster Data Asset에 BT·거리 설정 연결
+  - BeginPlay 데이터 적용 후 AI 재초기화로 UE Possess 순서 대응
+  - 로비 `UI_StatusText` 제거, 3개 프리뷰 정면 배치, 16:9 배경 채움
+- 검증:
+  - UE 5.8 Rogue10mEditor Win64 Development 빌드 성공
+  - Monster Behavior Tree AI Validator 통과(Blackboard 8키, 2 Task, 25 Data Asset)
+  - Character Selection Stage Validator 통과
+- 상태: 코드·에셋·자동 검증 완료, NavMesh 레벨에서 순찰·피격 어그로·추격 해제 수동 PIE QA 필요
+- 관련 문서:
+  - `Feature/architect/2026-07-28_monster-behavior-tree-ai.md`
+  - `Feature/doc/2026-07-28_monster-behavior-tree-ai.md`
+  - `Docs/CurrentProjectArchitecture.md`
+  - `DevLog/20260728.txt`
+### Sprint#3-5 보완 - Main Menu UIOnly 포커스 오류
+
+- 문제: `FInputModeUIOnly`가 포커스 불가능한 Main Menu `SObjectWidget`을 대상으로 지정해 PlayerController 오류 로그 발생
+- 수정: `URogue10mMainMenuWidget::NativeConstruct()`에서 Main Menu 루트를 포커스 가능하게 설정
+- 검증: UE 5.8 Rogue10mEditor Win64 Development 빌드 성공
+- 상태: 코드·빌드 검증 완료, PIE에서 오류 로그 미발생 확인 필요
+- 관련 기록: `DevLog/20260729.txt`
+### Sprint#3-5 보완 - 캐릭터 선택 슬롯 및 프리뷰 복구
+
+- 문제: BottomBar가 버튼 입력을 차단하고, 일시정지 중 SceneCapture 갱신 실패로 Slot Preview가 흰색으로 표시됨
+- 수정: 버튼 ZOrder 8, 장식/프리뷰 Hit Test 비활성, 조명·메시 활성화 후 수동 Capture, Pause 중 메시·Capture 갱신
+- UI: Lobby Background Image 유지, 전체 화면 Stretch 앵커와 0 오프셋 적용
+- 에디터 적용: 공식 Unreal Python Remote Execution으로 현재 PIE 종료 후 WBP 재구성
+- 검증: UE 5.8 Editor 빌드 성공, 강화된 Character Selection Stage Validator 통과
+- 상태: 코드·WBP·자동 검증 완료, 에디터 재시작 후 PIE에서 실제 프리뷰와 클릭 체감 확인 필요
+- 관련 문서: `Feature/doc/2026-07-28_character-selection-stage.md`, `DevLog/20260729.txt`
+### Sprint#3-5 보완 - 캐릭터 프리뷰 소스 로드 및 WASD 입력 복구
+
+- 문제: Manny 프리뷰 메시의 불완전한 Soft Object Path로 프리뷰 초기화 실패
+- 문제: Main Menu와 Lobby에서 이동·시점 입력 차단이 중복 누적되어 접속 후에도 WASD 비활성
+- 수정: 메시 경로를 `.SKM_Manny_Simple`까지 포함한 전체 오브젝트 경로로 변경
+- 수정: UI 진입 시 입력 차단 중복 방지, 접속 시 `ResetIgnoreMoveInput`/`ResetIgnoreLookInput` 적용
+- 진단: 접속 직후 입력 차단 및 일시정지 상태 로그 추가
+- 검증: UE 5.8 Rogue10mEditor Win64 Development 빌드 성공
+- 상태: 코드·빌드 검증 완료, 에디터 재시작 후 PIE 프리뷰/WASD 체감 QA 필요
+- 관련 문서: `Feature/doc/2026-07-28_character-selection-stage.md`, `DevLog/20260729.txt`
+## Sprint#3-6 - Menu Map 기반 UI와 인게임 전환
+
+- 브랜치: `Sprint#3-6-menu-map-flow`
+- 목표: 메뉴·캐릭터 선택을 별도 맵으로 분리하고 선택 캐릭터로 인게임 맵에 진입
+- 주요 변경:
+  - `/Game/Rogue10m/Maps/L_Menu` 신규 생성
+  - `Rogue10mMenuGameMode`, `Rogue10mMenuPlayerController` 추가
+  - PlayerController의 Menu World / Gameplay World 초기화 분리
+  - 선택 프로필 저장 후 `Lvl_FirstPerson?StartRun=1` OpenLevel
+  - `EditorStartupMap`, `GameDefaultMap`을 `L_Menu`로 변경
+  - Main Menu 전체 화면 Stretch 및 제목·버튼 확대
+- 검증:
+  - UE 5.8 Editor 빌드 성공
+  - Menu Map Flow Validator 통과
+  - Widget Flow Validator 통과
+  - 실제 PIE에서 `L_Menu → Lobby → Lvl_FirstPerson` 이동 성공
+  - 선택 Pawn Spawn/Possess, 이동·시점 입력 및 Pause 해제 확인
+- 상태: 구현·맵 자산·설정·자동 PIE 검증 완료
+- 관련 문서:
+  - `Feature/architect/2026-07-29_menu-map-flow.md`
+  - `Feature/doc/2026-07-29_menu-map-flow.md`
+  - `DevLog/20260729.txt`
+
+## Sprint#3-6 - 로비 캐릭터 프리뷰 정면·동일 크기·투명 배경
+
+- 목표: 캐릭터 선택 로비에서 세 캐릭터를 동일한 크기의 정면 고정 프리뷰로 표시하고 배경 위에 캐릭터만 합성
+- 주요 변경:
+  - 프리뷰 Yaw -90도 고정
+  - 세 Slot Preview Y=15, 360×720 통일
+  - SceneColor HDR/Inverse Opacity + UI Translucent 합성
+  - M_CharacterPreviewTransparent 추가
+  - Lobby 배경 Shade 및 Slot Stage Glow 제거
+  - Lobby 드래그 회전 제거, Equipment 회전 유지
+- 검증:
+  - UE 5.8 Rogue10mEditor 빌드 성공
+  - Character Selection Stage Validator 오류 0건
+  - Character Lobby Flow Suite 오류 0건
+- 상태: 구현 및 자동 검증 완료
+- 관련 문서:
+  - Feature/architect/2026-07-28_character-selection-stage.md
+  - Feature/doc/2026-07-28_character-selection-stage.md
+
+- 추가 런타임 검증: Menu Map PIE에서 Lobby 표시 및 프리뷰 액터 4개 생성, 관련 로드 오류 0건

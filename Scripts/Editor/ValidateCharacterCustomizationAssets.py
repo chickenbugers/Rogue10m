@@ -5,15 +5,13 @@ import unreal
 CATALOG_PATH = (
     "/Game/DataAsset/Character/Customization/DA_CharacterCustomizationCatalog"
 )
-WIDGET_PATH = "/Game/Widget/Character/WBP_CharacterLobby"
+WIDGET_PATH = "/Game/Widget/Lobby/WBP_CharacterLobby"
 CHARACTER_BLUEPRINT_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
 
 REQUIRED_WIDGETS = {
     "UI_CharacterPreviewImage",
     "UI_CreationPanel",
     "UI_CharacterNameInput",
-    "UI_SelectedCharacterInfoText",
-    "UI_StatusText",
     "UI_Slot1Button",
     "UI_Slot2Button",
     "UI_Slot3Button",

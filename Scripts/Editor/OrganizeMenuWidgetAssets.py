@@ -3,13 +3,13 @@
 import unreal
 
 MOVES = {
-    "/Game/Widget/Menu/WBP_InventoryWindow": "/Game/Widget/Menu/Inventory/WBP_InventoryWindow",
-    "/Game/Widget/Menu/WBP_InventoryCell": "/Game/Widget/Menu/Inventory/WBP_InventoryCell",
-    "/Game/Widget/Menu/WBP_InventoryItem": "/Game/Widget/Menu/Inventory/WBP_InventoryItem",
-    "/Game/Widget/Menu/WBP_BagTab": "/Game/Widget/Menu/Inventory/WBP_BagTab",
-    "/Game/Widget/Menu/WBP_EquipmentWindow": "/Game/Widget/Menu/Equipment/WBP_EquipmentWindow",
-    "/Game/Widget/Menu/WBP_SkillTreeWindow": "/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow",
-    "/Game/Widget/Menu/WBP_SkillTreeEntry": "/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry",
+    "/Game/Widget/Component/WBP_InventoryWindow": "/Game/Widget/Component/Inventory/WBP_InventoryWindow",
+    "/Game/Widget/Component/WBP_InventoryCell": "/Game/Widget/Component/Inventory/WBP_InventoryCell",
+    "/Game/Widget/Component/WBP_InventoryItem": "/Game/Widget/Component/Inventory/WBP_InventoryItem",
+    "/Game/Widget/Component/WBP_BagTab": "/Game/Widget/Component/Inventory/WBP_BagTab",
+    "/Game/Widget/Component/WBP_EquipmentWindow": "/Game/Widget/Component/Equipment/WBP_EquipmentWindow",
+    "/Game/Widget/Component/WBP_SkillTreeWindow": "/Game/Widget/Component/SkillTree/WBP_SkillTreeWindow",
+    "/Game/Widget/Component/WBP_SkillTreeEntry": "/Game/Widget/Component/SkillTree/WBP_SkillTreeEntry",
 }
 
 

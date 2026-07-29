@@ -22,7 +22,7 @@ from BuildMenuDesignerLayouts import (  # noqa: E402
 CATALOG_PATH = (
     "/Game/DataAsset/Character/Customization/DA_CharacterCustomizationCatalog"
 )
-WIDGET_PATH = "/Game/Widget/Character/WBP_CharacterLobby"
+WIDGET_PATH = "/Game/Widget/Lobby/WBP_CharacterLobby"
 CHARACTER_BLUEPRINT_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
 
 BACKGROUND = unreal.LinearColor(0.008, 0.012, 0.022, 0.985)

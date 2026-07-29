@@ -10,9 +10,12 @@
 
 class ARogue10mCharacterCustomizationPreviewActor;
 class ARogue10mPlayerController;
+class UBorder;
 class UButton;
 class UEditableTextBox;
 class UImage;
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
 class UPanelWidget;
 class URogue10mCharacterCustomizationDataAsset;
 class URogue10mCharacterProfileSubsystem;
@@ -29,16 +32,34 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual FReply NativeOnMouseButtonDown(
+	virtual FReply NativeOnMouseButtonDoubleClick(
 		const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonUp(
-		const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseMove(
-		const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
 
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Character Lobby")
+	TObjectPtr<UImage> UI_LobbyBackgroundImage;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Character Lobby")
+	TObjectPtr<UBorder> UI_LobbyBackdrop;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Character Lobby")
+	TObjectPtr<UBorder> UI_BackgroundShade;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="Rogue10m|Character Lobby")
+	TObjectPtr<UBorder> UI_BottomBar;
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
 	TObjectPtr<UImage> UI_CharacterPreviewImage;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
+	TObjectPtr<UPanelWidget> UI_SelectionStagePanel;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
+	TObjectPtr<UImage> UI_Slot1PreviewImage;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
+	TObjectPtr<UImage> UI_Slot2PreviewImage;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
+	TObjectPtr<UImage> UI_Slot3PreviewImage;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
 	TObjectPtr<UPanelWidget> UI_CreationPanel;
@@ -46,11 +67,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
 	TObjectPtr<UEditableTextBox> UI_CharacterNameInput;
 
-	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
-	TObjectPtr<UTextBlock> UI_SelectedCharacterInfoText;
 
-	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
-	TObjectPtr<UTextBlock> UI_StatusText;
 
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Character Lobby")
 	TObjectPtr<UButton> UI_Slot1Button;
@@ -143,8 +160,11 @@ protected:
 		TSoftObjectPtr<URogue10mCharacterCustomizationDataAsset>(
 			FSoftObjectPath(TEXT("/Game/DataAsset/Character/Customization/DA_CharacterCustomizationCatalog")));
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character Lobby", meta=(ClampMin="0.05", ClampMax="2.0"))
-	float PreviewDragYawSensitivity = 0.3f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Character Lobby")
+	TSoftObjectPtr<UMaterialInterface> PreviewTransparencyMaterial =
+		TSoftObjectPtr<UMaterialInterface>(
+			FSoftObjectPath(TEXT(
+				"/Game/Material/UI/M_CharacterPreviewTransparent.M_CharacterPreviewTransparent")));
 
 private:
 	void RefreshAll();
@@ -152,7 +172,11 @@ private:
 	void RefreshMode();
 	void RefreshDraft();
 	void RefreshPreview(const FRogue10mCharacterAppearance& Appearance);
+	void RefreshStagePreviews();
+	ARogue10mCharacterCustomizationPreviewActor* GetPreviewActorAtScreenPosition(
+		const FVector2D& ScreenPosition, int32& OutSlotIndex) const;
 	void SelectSlot(int32 SlotIndex);
+	void EnterSlotCharacter(int32 SlotIndex);
 	void BeginCreation();
 	void EndCreation();
 	void CycleRequired(int32& Value, int32 Count, int32 Delta);
@@ -202,11 +226,23 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ARogue10mCharacterCustomizationPreviewActor> PreviewActor;
 
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<ARogue10mCharacterCustomizationPreviewActor>> SlotPreviewActors;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> DraftPreviewMaterial;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> SlotPreviewMaterials;
+
 	TArray<FGuid> SlotProfileIds;
 	FGuid SelectedProfileId;
 	FGuid PendingDeleteProfileId;
 	FRogue10mCharacterAppearance DraftAppearance;
 	bool bCreationMode = false;
-	bool bDraggingPreview = false;
-	FVector2D LastPreviewDragPosition = FVector2D::ZeroVector;
+
+	int32 LastClickedSlotIndex = INDEX_NONE;
+	double LastSlotClickTime = -1.0;
+
+	static constexpr double CharacterEnterDoubleClickSeconds = 0.35;
 };

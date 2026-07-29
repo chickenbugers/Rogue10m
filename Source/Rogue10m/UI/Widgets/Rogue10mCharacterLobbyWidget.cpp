@@ -2,14 +2,20 @@
 
 #include "Rogue10mCharacterLobbyWidget.h"
 
+#include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/EditableTextBox.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
+#include "HAL/PlatformTime.h"
 #include "InputCoreTypes.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "Rogue10m.h"
 #include "Rogue10mCharacterCustomizationDataAsset.h"
 #include "Rogue10mCharacterCustomizationPreviewActor.h"
 #include "Rogue10mCharacterProfileSubsystem.h"
@@ -57,6 +63,46 @@ void URogue10mCharacterLobbyWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	SetIsFocusable(true);
+	if (UI_LobbyBackgroundImage)
+	{
+		UI_LobbyBackgroundImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (UI_LobbyBackdrop)
+	{
+		UI_LobbyBackdrop->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	for (UWidget* DecorativeWidget :
+		{ static_cast<UWidget*>(UI_BackgroundShade.Get()),
+			static_cast<UWidget*>(UI_BottomBar.Get()) })
+	{
+		if (DecorativeWidget)
+		{
+			DecorativeWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+	}
+	for (UImage* PreviewImage :
+		{ UI_CharacterPreviewImage.Get(), UI_Slot1PreviewImage.Get(),
+			UI_Slot2PreviewImage.Get(), UI_Slot3PreviewImage.Get() })
+	{
+		if (PreviewImage)
+		{
+			PreviewImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+	}
+	for (UButton* ActionButton :
+		{ UI_Slot1Button.Get(), UI_Slot2Button.Get(), UI_Slot3Button.Get(),
+			UI_NewCharacterButton.Get(), UI_DeleteCharacterButton.Get(),
+			UI_EnterGameButton.Get() })
+	{
+		if (ActionButton)
+		{
+			if (UCanvasPanelSlot* CanvasSlot =
+				Cast<UCanvasPanelSlot>(ActionButton->Slot))
+			{
+				CanvasSlot->SetZOrder(8);
+			}
+		}
+	}
 
 	UI_Slot1Button->OnClicked.AddDynamic(this, &ThisClass::HandleSlot1Clicked);
 	UI_Slot2Button->OnClicked.AddDynamic(this, &ThisClass::HandleSlot2Clicked);
@@ -89,14 +135,73 @@ void URogue10mCharacterLobbyWidget::NativeConstruct()
 
 	if (GetWorld() && Catalog)
 	{
-		PreviewActor = GetWorld()->SpawnActor<ARogue10mCharacterCustomizationPreviewActor>();
-		if (PreviewActor && PreviewActor->InitializePreview(Catalog, FIntPoint(720, 900)))
+		UMaterialInterface* PreviewMaterialBase =
+			PreviewTransparencyMaterial.LoadSynchronous();
+		if (!PreviewMaterialBase)
 		{
+			UE_LOG(
+				LogRogue10m, Error,
+				TEXT("Character preview transparency material is missing: %s"),
+				*PreviewTransparencyMaterial.ToSoftObjectPath().ToString());
+		}
+
+		auto CreatePreview = [this, PreviewMaterialBase](
+			UImage* TargetImage,
+			FIntPoint Resolution,
+			UMaterialInstanceDynamic*& OutMaterial)
+		{
+			OutMaterial = nullptr;
+			ARogue10mCharacterCustomizationPreviewActor* Actor =
+				GetWorld()->SpawnActor<ARogue10mCharacterCustomizationPreviewActor>();
+			if (!Actor || !Actor->InitializePreview(Catalog, Resolution))
+			{
+				if (Actor)
+				{
+					Actor->Destroy();
+				}
+				return static_cast<ARogue10mCharacterCustomizationPreviewActor*>(nullptr);
+			}
+
+			UObject* BrushResource = Actor->GetRenderTarget();
+			if (PreviewMaterialBase)
+			{
+				OutMaterial = UMaterialInstanceDynamic::Create(
+					PreviewMaterialBase, this);
+				OutMaterial->SetTextureParameterValue(
+					TEXT("PreviewTexture"), Actor->GetRenderTarget());
+				BrushResource = OutMaterial;
+			}
+
 			FSlateBrush Brush;
-			Brush.SetResourceObject(PreviewActor->GetRenderTarget());
-			Brush.ImageSize = FVector2D(720.0f, 900.0f);
+			Brush.SetResourceObject(BrushResource);
+			Brush.ImageSize = FVector2D(Resolution);
 			Brush.DrawAs = ESlateBrushDrawType::Image;
-			UI_CharacterPreviewImage->SetBrush(Brush);
+			TargetImage->SetBrush(Brush);
+			Actor->SetPreviewActive(false);
+			return Actor;
+		};
+
+		UMaterialInstanceDynamic* CreatedMaterial = nullptr;
+		PreviewActor = CreatePreview(
+			UI_CharacterPreviewImage,
+			FIntPoint(720, 900),
+			CreatedMaterial);
+		DraftPreviewMaterial = CreatedMaterial;
+
+		UImage* SlotImages[] =
+		{
+			UI_Slot1PreviewImage,
+			UI_Slot2PreviewImage,
+			UI_Slot3PreviewImage
+		};
+		SlotPreviewActors.Reset();
+		SlotPreviewMaterials.Reset();
+		for (UImage* SlotImage : SlotImages)
+		{
+			CreatedMaterial = nullptr;
+			SlotPreviewActors.Add(CreatePreview(
+				SlotImage, FIntPoint(520, 760), CreatedMaterial));
+			SlotPreviewMaterials.Add(CreatedMaterial);
 		}
 	}
 	RefreshAll();
@@ -109,69 +214,41 @@ void URogue10mCharacterLobbyWidget::NativeDestruct()
 		PreviewActor->Destroy();
 		PreviewActor = nullptr;
 	}
-	bDraggingPreview = false;
+	for (ARogue10mCharacterCustomizationPreviewActor* SlotPreviewActor : SlotPreviewActors)
+	{
+		if (SlotPreviewActor)
+		{
+			SlotPreviewActor->Destroy();
+		}
+	}
+	SlotPreviewActors.Reset();
+	DraftPreviewMaterial = nullptr;
+	SlotPreviewMaterials.Reset();
 	Super::NativeDestruct();
 }
 
-FReply URogue10mCharacterLobbyWidget::NativeOnMouseButtonDown(
+FReply URogue10mCharacterLobbyWidget::NativeOnMouseButtonDoubleClick(
 	const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton
-		&& UI_CharacterPreviewImage
-		&& UI_CharacterPreviewImage->GetCachedGeometry().IsUnderLocation(
-			InMouseEvent.GetScreenSpacePosition()))
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		bDraggingPreview = true;
-		LastPreviewDragPosition = InMouseEvent.GetScreenSpacePosition();
-		return FReply::Handled().CaptureMouse(TakeWidget());
+		int32 PreviewSlotIndex = INDEX_NONE;
+		if (GetPreviewActorAtScreenPosition(
+			InMouseEvent.GetScreenSpacePosition(), PreviewSlotIndex)
+			&& PreviewSlotIndex != INDEX_NONE)
+		{
+			EnterSlotCharacter(PreviewSlotIndex);
+			return FReply::Handled();
+		}
 	}
-	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	return Super::NativeOnMouseButtonDoubleClick(InGeometry, InMouseEvent);
 }
-
-FReply URogue10mCharacterLobbyWidget::NativeOnMouseButtonUp(
-	const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	if (bDraggingPreview && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
-	{
-		bDraggingPreview = false;
-		return FReply::Handled().ReleaseMouseCapture();
-	}
-	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
-}
-
-FReply URogue10mCharacterLobbyWidget::NativeOnMouseMove(
-	const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	if (bDraggingPreview && PreviewActor)
-	{
-		const FVector2D CurrentPosition = InMouseEvent.GetScreenSpacePosition();
-		const float DeltaX = CurrentPosition.X - LastPreviewDragPosition.X;
-		LastPreviewDragPosition = CurrentPosition;
-		PreviewActor->AddPreviewYaw(DeltaX * PreviewDragYawSensitivity);
-		return FReply::Handled();
-	}
-	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
-}
-
-void URogue10mCharacterLobbyWidget::NativeOnMouseCaptureLost(
-	const FCaptureLostEvent& CaptureLostEvent)
-{
-	bDraggingPreview = false;
-	Super::NativeOnMouseCaptureLost(CaptureLostEvent);
-}
-
 void URogue10mCharacterLobbyWidget::RefreshAll()
 {
 	RefreshSlotButtons();
 	if (!ProfileSubsystem || !Catalog)
 	{
 		SetStatus(NSLOCTEXT("Rogue10mCharacterLobby", "InitializationFailed", "캐릭터 로비 데이터를 초기화하지 못했습니다."), true);
-		return;
-	}
-
-	if (ProfileSubsystem->GetProfileCount() == 0 && !bCreationMode)
-	{
-		BeginCreation();
 		return;
 	}
 
@@ -211,7 +288,7 @@ void URogue10mCharacterLobbyWidget::RefreshSlotButtons()
 		else
 		{
 			Texts[Index]->SetText(FText::Format(
-				NSLOCTEXT("Rogue10mCharacterLobby", "EmptySlot", "슬롯 {0}\n새 캐릭터"),
+				NSLOCTEXT("Rogue10mCharacterLobby", "EmptySlot", "슬롯 {0}\n캐릭터 생성하기"),
 				FText::AsNumber(Index + 1)));
 		}
 		Buttons[Index]->SetIsEnabled(!bCreationMode);
@@ -221,7 +298,11 @@ void URogue10mCharacterLobbyWidget::RefreshSlotButtons()
 void URogue10mCharacterLobbyWidget::RefreshMode()
 {
 	UI_CreationPanel->SetVisibility(
-		bCreationMode ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		bCreationMode ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	UI_SelectionStagePanel->SetVisibility(
+		bCreationMode ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	UI_CharacterPreviewImage->SetVisibility(
+		bCreationMode ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	UI_EnterGameButton->SetVisibility(
 		!bCreationMode && SelectedProfileId.IsValid()
 			? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -235,6 +316,7 @@ void URogue10mCharacterLobbyWidget::RefreshMode()
 
 	if (bCreationMode)
 	{
+		RefreshStagePreviews();
 		RefreshDraft();
 		return;
 	}
@@ -243,18 +325,9 @@ void URogue10mCharacterLobbyWidget::RefreshMode()
 		ProfileSubsystem ? ProfileSubsystem->FindProfile(SelectedProfileId) : nullptr;
 	if (Profile)
 	{
-		UI_SelectedCharacterInfoText->SetText(FText::Format(
-			NSLOCTEXT("Rogue10mCharacterLobby", "SelectedCharacterInfo", "{0}\n{1} · {2}"),
-			FText::FromString(Profile->CharacterName),
-			RaceLabel(Profile->Appearance.Race),
-			GenderLabel(Profile->Appearance.Gender)));
 		RefreshPreview(Profile->Appearance);
 	}
-	else
-	{
-		UI_SelectedCharacterInfoText->SetText(
-			NSLOCTEXT("Rogue10mCharacterLobby", "SelectCharacter", "접속할 캐릭터를 선택하세요."));
-	}
+	RefreshStagePreviews();
 }
 
 void URogue10mCharacterLobbyWidget::RefreshDraft()
@@ -270,9 +343,6 @@ void URogue10mCharacterLobbyWidget::RefreshDraft()
 		return;
 	}
 
-	UI_SelectedCharacterInfoText->SetText(FText::Format(
-		NSLOCTEXT("Rogue10mCharacterLobby", "CreatingCharacter", "새 캐릭터\n{0} · {1}"),
-		RaceLabel(DraftAppearance.Race), GenderLabel(DraftAppearance.Gender)));
 	UI_HeadValueText->SetText(IndexedLabel(TEXT("얼굴"), DraftAppearance.HeadStyleIndex, false));
 	UI_SkinValueText->SetText(IndexedLabel(TEXT("피부"), DraftAppearance.SkinToneIndex, false));
 	UI_HairValueText->SetText(IndexedLabel(TEXT("헤어"), DraftAppearance.HairStyleIndex, true));
@@ -301,7 +371,95 @@ void URogue10mCharacterLobbyWidget::RefreshPreview(
 	if (PreviewActor)
 	{
 		PreviewActor->SetAppearance(Appearance);
+		PreviewActor->SetPreviewActive(true);
 	}
+}
+
+void URogue10mCharacterLobbyWidget::RefreshStagePreviews()
+{
+	const TArray<FRogue10mCharacterProfile>* Profiles =
+		ProfileSubsystem ? &ProfileSubsystem->GetProfiles() : nullptr;
+	UImage* SlotImages[] =
+	{
+		UI_Slot1PreviewImage,
+		UI_Slot2PreviewImage,
+		UI_Slot3PreviewImage
+	};
+	UButton* SlotButtons[] =
+	{
+		UI_Slot1Button,
+		UI_Slot2Button,
+		UI_Slot3Button
+	};
+
+	if (PreviewActor)
+	{
+		PreviewActor->SetPreviewActive(bCreationMode);
+	}
+
+	for (int32 Index = 0; Index < URogue10mCharacterProfileSubsystem::MaximumProfileCount; ++Index)
+	{
+		ARogue10mCharacterCustomizationPreviewActor* SlotActor =
+			SlotPreviewActors.IsValidIndex(Index) ? SlotPreviewActors[Index].Get() : nullptr;
+		const bool bHasProfile = !bCreationMode && Profiles && Profiles->IsValidIndex(Index);
+		SlotImages[Index]->SetVisibility(
+			bHasProfile ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+
+		if (!SlotActor)
+		{
+			continue;
+		}
+		SlotActor->SetPreviewActive(false);
+		if (!bHasProfile)
+		{
+			continue;
+		}
+
+		const FRogue10mCharacterProfile& Profile = (*Profiles)[Index];
+		if (SlotActor->SetAppearance(Profile.Appearance))
+		{
+			SlotActor->SetPreviewActive(true);
+		}
+		const bool bSelected = Profile.ProfileId == SelectedProfileId;
+		SlotImages[Index]->SetColorAndOpacity(
+			bSelected
+				? FLinearColor::White
+				: FLinearColor(0.55f, 0.62f, 0.72f, 0.88f));
+		SlotButtons[Index]->SetBackgroundColor(
+			bSelected
+				? FLinearColor(0.2f, 0.62f, 0.9f, 1.0f)
+				: FLinearColor(0.035f, 0.055f, 0.08f, 0.92f));
+	}
+}
+
+ARogue10mCharacterCustomizationPreviewActor*
+URogue10mCharacterLobbyWidget::GetPreviewActorAtScreenPosition(
+	const FVector2D& ScreenPosition, int32& OutSlotIndex) const
+{
+	OutSlotIndex = INDEX_NONE;
+	if (bCreationMode && PreviewActor && UI_CharacterPreviewImage
+		&& UI_CharacterPreviewImage->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+	{
+		return PreviewActor;
+	}
+
+	UImage* SlotImages[] =
+	{
+		UI_Slot1PreviewImage,
+		UI_Slot2PreviewImage,
+		UI_Slot3PreviewImage
+	};
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(SlotImages); ++Index)
+	{
+		if (SlotPreviewActors.IsValidIndex(Index) && SlotPreviewActors[Index]
+			&& SlotImages[Index]->IsVisible()
+			&& SlotImages[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			OutSlotIndex = Index;
+			return SlotPreviewActors[Index];
+		}
+	}
+	return nullptr;
 }
 
 void URogue10mCharacterLobbyWidget::SelectSlot(int32 SlotIndex)
@@ -312,8 +470,29 @@ void URogue10mCharacterLobbyWidget::SelectSlot(int32 SlotIndex)
 		BeginCreation();
 		return;
 	}
+
+	const double ClickTime = FPlatformTime::Seconds();
+	const bool bEnterOnDoubleClick = LastClickedSlotIndex == SlotIndex
+		&& ClickTime - LastSlotClickTime <= CharacterEnterDoubleClickSeconds;
+	LastClickedSlotIndex = SlotIndex;
+	LastSlotClickTime = ClickTime;
 	SelectedProfileId = SlotProfileIds[SlotIndex];
 	RefreshMode();
+	if (bEnterOnDoubleClick)
+	{
+		HandleEnterGameClicked();
+	}
+}
+
+void URogue10mCharacterLobbyWidget::EnterSlotCharacter(int32 SlotIndex)
+{
+	if (!SlotProfileIds.IsValidIndex(SlotIndex) || !SlotProfileIds[SlotIndex].IsValid())
+	{
+		return;
+	}
+	SelectedProfileId = SlotProfileIds[SlotIndex];
+	RefreshMode();
+	HandleEnterGameClicked();
 }
 
 void URogue10mCharacterLobbyWidget::BeginCreation()
@@ -368,10 +547,14 @@ const FRogue10mCharacterArchetype* URogue10mCharacterLobbyWidget::GetDraftArchet
 
 void URogue10mCharacterLobbyWidget::SetStatus(const FText& Status, bool bError)
 {
-	UI_StatusText->SetText(Status);
-	UI_StatusText->SetColorAndOpacity(bError
-		? FSlateColor(FLinearColor(1.0f, 0.35f, 0.3f))
-		: FSlateColor(FLinearColor(0.55f, 0.88f, 1.0f)));
+	if (bError)
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("Character Lobby: %s"), *Status.ToString());
+	}
+	else
+	{
+		UE_LOG(LogRogue10m, Log, TEXT("Character Lobby: %s"), *Status.ToString());
+	}
 }
 
 void URogue10mCharacterLobbyWidget::ClearDeleteConfirmation()

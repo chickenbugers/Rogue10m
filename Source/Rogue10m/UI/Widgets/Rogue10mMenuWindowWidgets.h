@@ -211,7 +211,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Rogue10m|Inventory") TObjectPtr<UBorder> UI_InventoryItemPreviewBorder;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Inventory|Tooltip")
 	TSoftClassPtr<URogue10mInventoryItemTooltipWidget> InventoryItemTooltipWidgetClass =
-		TSoftClassPtr<URogue10mInventoryItemTooltipWidget>(FSoftObjectPath(TEXT("/Game/Widget/Menu/Inventory/WBP_InventoryItemTooltip.WBP_InventoryItemTooltip_C")));
+		TSoftClassPtr<URogue10mInventoryItemTooltipWidget>(FSoftObjectPath(TEXT("/Game/Widget/Component/Inventory/WBP_InventoryItemTooltip.WBP_InventoryItemTooltip_C")));
 private:
 	UPROPERTY(Transient) TObjectPtr<URogue10mInventoryComponent> Inventory;
 	UPROPERTY(Transient) TObjectPtr<class URogue10mInventoryWindowWidget> InventoryWindow;
@@ -418,10 +418,10 @@ protected:
 	float CharacterPreviewRotationDegreesPerPixel = 0.35f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Tooltip")
 	TSoftClassPtr<URogue10mInventoryItemTooltipWidget> EquipmentItemTooltipWidgetClass =
-		TSoftClassPtr<URogue10mInventoryItemTooltipWidget>(FSoftObjectPath(TEXT("/Game/Widget/Menu/Inventory/WBP_InventoryItemTooltip.WBP_InventoryItemTooltip_C")));
+		TSoftClassPtr<URogue10mInventoryItemTooltipWidget>(FSoftObjectPath(TEXT("/Game/Widget/Component/Inventory/WBP_InventoryItemTooltip.WBP_InventoryItemTooltip_C")));
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Equipment|Action")
 	TSoftClassPtr<URogue10mEquipmentSlotActionWidget> EquipmentSlotActionWidgetClass =
-		TSoftClassPtr<URogue10mEquipmentSlotActionWidget>(FSoftObjectPath(TEXT("/Game/Widget/Menu/Equipment/WBP_EquipmentSlotAction.WBP_EquipmentSlotAction_C")));
+		TSoftClassPtr<URogue10mEquipmentSlotActionWidget>(FSoftObjectPath(TEXT("/Game/Widget/Component/Equipment/WBP_EquipmentSlotAction.WBP_EquipmentSlotAction_C")));
 
 
 	virtual void NativeDestruct() override;

@@ -5,12 +5,15 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Rogue10mCharacterCustomizationTypes.h"
+#include "UObject/SoftObjectPtr.h"
 #include "Rogue10mCharacterCustomizationPreviewActor.generated.h"
 
+class UAnimInstance;
 class UPointLightComponent;
 class URogue10mCharacterCustomizationDataAsset;
 class USceneCaptureComponent2D;
 class USceneComponent;
+class USkeletalMesh;
 class USkeletalMeshComponent;
 class UTextureRenderTarget2D;
 
@@ -26,7 +29,6 @@ public:
 		URogue10mCharacterCustomizationDataAsset* InCatalog,
 		FIntPoint Resolution);
 	bool SetAppearance(const FRogue10mCharacterAppearance& Appearance);
-	void AddPreviewYaw(float DeltaYaw);
 	void SetPreviewActive(bool bActive);
 
 	UTextureRenderTarget2D* GetRenderTarget() const { return RenderTarget; }
@@ -40,6 +42,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category="Rogue10m|Character Customization Preview")
 	TObjectPtr<USceneComponent> PreviewRoot;
+
+	UPROPERTY(VisibleAnywhere, Category="Rogue10m|Character Customization Preview")
+	TObjectPtr<USkeletalMeshComponent> AnimationSourceMesh;
 
 	UPROPERTY(VisibleAnywhere, Category="Rogue10m|Character Customization Preview")
 	TObjectPtr<USkeletalMeshComponent> BodyMesh;
@@ -67,4 +72,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
+
+	UPROPERTY()
+	TSoftObjectPtr<USkeletalMesh> AnimationSourceSkeletalMesh;
+
+	UPROPERTY()
+	TSoftClassPtr<UAnimInstance> AnimationSourceAnimClass;
 };

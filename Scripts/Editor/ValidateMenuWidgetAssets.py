@@ -2,15 +2,15 @@
 import unreal
 
 ASSETS = {
-    "/Game/Widget/Menu/Inventory/WBP_InventoryCell": {"UI_InventoryCellFrame", "UI_InventoryCellFill"},
-    "/Game/Widget/Menu/Inventory/WBP_InventoryItem": {
+    "/Game/Widget/Component/Inventory/WBP_InventoryCell": {"UI_InventoryCellFrame", "UI_InventoryCellFill"},
+    "/Game/Widget/Component/Inventory/WBP_InventoryItem": {
         "UI_InventoryItemSize",
         "UI_InventoryItemIcon",
         "UI_InventoryItemQuantityText",
         "UI_InventoryItemRarityBackground",
         "UI_InventoryItemPreviewBorder",
     },
-    "/Game/Widget/Menu/Inventory/WBP_InventoryItemTooltip": {
+    "/Game/Widget/Component/Inventory/WBP_InventoryItemTooltip": {
         "UI_ItemNameText",
         "UI_ItemDescriptionText",
         "UI_ItemWeightText",
@@ -26,7 +26,7 @@ ASSETS = {
         "UI_EquippedItemStatsContainer",
         "UI_ComparisonStatsContainer",
     },
-    "/Game/Widget/Menu/Equipment/WBP_EquipmentSlotAction": {
+    "/Game/Widget/Component/Equipment/WBP_EquipmentSlotAction": {
         "UI_ActionDismissButton",
         "UI_EquipmentSlotActionSize",
         "UI_EquipmentSlotActionFrame",
@@ -35,15 +35,15 @@ ASSETS = {
         "UI_UnequipButtonText",
         "UI_ActionResultText",
     },
-    "/Game/Widget/Menu/Inventory/WBP_BagTab": {"UI_BagTabButton", "UI_BagNameText"},
-    "/Game/Widget/Menu/Inventory/WBP_InventoryWindow": {
+    "/Game/Widget/Component/Inventory/WBP_BagTab": {"UI_BagTabButton", "UI_BagNameText"},
+    "/Game/Widget/Component/Inventory/WBP_InventoryWindow": {
         "UI_WindowRoot",
         "UI_WindowDragHandle",
         "UI_InventoryGridFrame",
         "UI_InventoryGrid",
         "UI_InventoryItemCanvas",
     },
-    "/Game/Widget/Menu/Equipment/WBP_EquipmentWindow": {
+    "/Game/Widget/Component/Equipment/WBP_EquipmentWindow": {
         "UI_WindowRoot",
         "UI_WindowDragHandle",
         "UI_EquipmentSlotContainer",
@@ -72,20 +72,20 @@ ASSETS = {
         "UI_FeetSlotLocationText",
         "UI_NecklaceSlotLocationText",
     },
-    "/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry": {"UI_SkillIconImage", "UI_SkillNameText"},
-    "/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow": {"UI_SkillListContainer"},
+    "/Game/Widget/Component/SkillTree/WBP_SkillTreeEntry": {"UI_SkillIconImage", "UI_SkillNameText"},
+    "/Game/Widget/Component/SkillTree/WBP_SkillTreeWindow": {"UI_SkillListContainer"},
 }
 CLASS_REFERENCES = {
-    "/Game/Widget/Menu/Inventory/WBP_InventoryWindow": {
-        "inventory_cell_widget_class": "/Game/Widget/Menu/Inventory/WBP_InventoryCell",
-        "inventory_item_widget_class": "/Game/Widget/Menu/Inventory/WBP_InventoryItem",
+    "/Game/Widget/Component/Inventory/WBP_InventoryWindow": {
+        "inventory_cell_widget_class": "/Game/Widget/Component/Inventory/WBP_InventoryCell",
+        "inventory_item_widget_class": "/Game/Widget/Component/Inventory/WBP_InventoryItem",
     },
-    "/Game/Widget/Menu/Equipment/WBP_EquipmentWindow": {
-        "equipment_item_tooltip_widget_class": "/Game/Widget/Menu/Inventory/WBP_InventoryItemTooltip",
-        "equipment_slot_action_widget_class": "/Game/Widget/Menu/Equipment/WBP_EquipmentSlotAction",
+    "/Game/Widget/Component/Equipment/WBP_EquipmentWindow": {
+        "equipment_item_tooltip_widget_class": "/Game/Widget/Component/Inventory/WBP_InventoryItemTooltip",
+        "equipment_slot_action_widget_class": "/Game/Widget/Component/Equipment/WBP_EquipmentSlotAction",
     },
-    "/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow": {
-        "skill_tree_entry_widget_class": "/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry",
+    "/Game/Widget/Component/SkillTree/WBP_SkillTreeWindow": {
+        "skill_tree_entry_widget_class": "/Game/Widget/Component/SkillTree/WBP_SkillTreeEntry",
     },
 }
 STARTER_EQUIPMENT_STATS = {
@@ -247,7 +247,7 @@ def main():
                 f"[Rogue10mMenuValidation] REF {owner_path}.{property_name} -> {expected_path}"
             )
     inventory_item_cdo = unreal.get_default_object(
-        load_blueprint_class("/Game/Widget/Menu/Inventory/WBP_InventoryItem")
+        load_blueprint_class("/Game/Widget/Component/Inventory/WBP_InventoryItem")
     )
     tooltip_class = inventory_item_cdo.get_editor_property(
         "inventory_item_tooltip_widget_class"

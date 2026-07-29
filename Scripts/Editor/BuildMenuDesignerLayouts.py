@@ -6,15 +6,15 @@ import unreal
 
 
 ASSETS = {
-    "inventory_cell": "/Game/Widget/Menu/Inventory/WBP_InventoryCell",
-    "inventory_item": "/Game/Widget/Menu/Inventory/WBP_InventoryItem",
-    "inventory_item_tooltip": "/Game/Widget/Menu/Inventory/WBP_InventoryItemTooltip",
-    "equipment_slot_action": "/Game/Widget/Menu/Equipment/WBP_EquipmentSlotAction",
-    "bag_tab": "/Game/Widget/Menu/Inventory/WBP_BagTab",
-    "inventory": "/Game/Widget/Menu/Inventory/WBP_InventoryWindow",
-    "equipment": "/Game/Widget/Menu/Equipment/WBP_EquipmentWindow",
-    "entry": "/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry",
-    "skill_tree": "/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow",
+    "inventory_cell": "/Game/Widget/Component/Inventory/WBP_InventoryCell",
+    "inventory_item": "/Game/Widget/Component/Inventory/WBP_InventoryItem",
+    "inventory_item_tooltip": "/Game/Widget/Component/Inventory/WBP_InventoryItemTooltip",
+    "equipment_slot_action": "/Game/Widget/Component/Equipment/WBP_EquipmentSlotAction",
+    "bag_tab": "/Game/Widget/Component/Inventory/WBP_BagTab",
+    "inventory": "/Game/Widget/Component/Inventory/WBP_InventoryWindow",
+    "equipment": "/Game/Widget/Component/Equipment/WBP_EquipmentWindow",
+    "entry": "/Game/Widget/Component/SkillTree/WBP_SkillTreeEntry",
+    "skill_tree": "/Game/Widget/Component/SkillTree/WBP_SkillTreeWindow",
 }
 REQUIRED_WIDGETS = {
     "inventory_cell": {"UI_InventoryCellFrame"},

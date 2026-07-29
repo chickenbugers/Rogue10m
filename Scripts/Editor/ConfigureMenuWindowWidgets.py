@@ -7,13 +7,13 @@ The operation is idempotent: existing assets are reused, compiled, and reassigne
 import unreal
 
 
-WIDGET_ROOT = "/Game/Widget/Menu"
+WIDGET_ROOT = "/Game/Widget/Component"
 PLAYER_CONTROLLER_BP_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonPlayerController"
 WIDGETS = {
-    "inventory": ("/Game/Widget/Menu/Inventory/WBP_InventoryWindow", "/Script/Rogue10m.Rogue10mInventoryWindowWidget"),
-    "equipment": ("/Game/Widget/Menu/Equipment/WBP_EquipmentWindow", "/Script/Rogue10m.Rogue10mEquipmentWindowWidget"),
-    "skill_tree_entry": ("/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry", "/Script/Rogue10m.Rogue10mSkillTreeEntryWidget"),
-    "skill_tree": ("/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow", "/Script/Rogue10m.Rogue10mSkillTreeWindowWidget"),
+    "inventory": ("/Game/Widget/Component/Inventory/WBP_InventoryWindow", "/Script/Rogue10m.Rogue10mInventoryWindowWidget"),
+    "equipment": ("/Game/Widget/Component/Equipment/WBP_EquipmentWindow", "/Script/Rogue10m.Rogue10mEquipmentWindowWidget"),
+    "skill_tree_entry": ("/Game/Widget/Component/SkillTree/WBP_SkillTreeEntry", "/Script/Rogue10m.Rogue10mSkillTreeEntryWidget"),
+    "skill_tree": ("/Game/Widget/Component/SkillTree/WBP_SkillTreeWindow", "/Script/Rogue10m.Rogue10mSkillTreeWindowWidget"),
 }
 
 

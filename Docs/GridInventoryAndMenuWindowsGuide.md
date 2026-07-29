@@ -201,9 +201,9 @@ BP_FirstPersonPlayerController의 Menu Windows 설정은 다음과 같이 연결
 현재 `WBP_InventoryWindow`는 `PrimaryContainerIndex=0`만 렌더링하고 Drop 대상으로 사용합니다. `UI_BagTabContainer`와 BagTab 클래스 참조는 Window에서 제거되어 화면에는 단일 인벤토리만 표시됩니다.
 ## 메뉴 에셋 폴더
 
-- Inventory: `/Game/Widget/Menu/Inventory`
-- Equipment: `/Game/Widget/Menu/Equipment`
-- SkillTree: `/Game/Widget/Menu/SkillTree`
+- Inventory: `/Game/Widget/Component/Inventory`
+- Equipment: `/Game/Widget/Component/Equipment`
+- SkillTree: `/Game/Widget/Component/SkillTree`
 
 에셋을 다시 구성할 때는 `Scripts/Editor/OrganizeMenuWidgetAssets.py`로 Unreal Asset API 이동을 수행하고, `Scripts/Editor/ValidateMenuWidgetAssets.py`로 Designer 필수 위젯과 내부 WidgetClass 참조를 검증합니다.
 ## Inventory Grid 시각 스타일 기준

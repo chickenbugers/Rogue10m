@@ -9,6 +9,7 @@
 #include "Rogue10mBasicMonster.generated.h"
 
 class ARogue10mCharacter;
+class UBehaviorTree;
 class UAbilitySystemComponent;
 class URogue10mAbilitySystemComponent;
 class URogue10mAttributeSet;
@@ -25,7 +26,6 @@ public:
 	ARogue10mBasicMonster();
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-	virtual void Tick(float DeltaSeconds) override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual bool CanReceiveRogue10mAttack_Implementation(AActor* AttackSource) const override;
 	virtual FVector GetRogue10mDamageIndicatorLocation_Implementation() const override;
@@ -47,6 +47,19 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Rogue10m|Monster")
 	bool IsDead() const { return bIsDead; }
+
+	float GetDetectionRange() const { return DetectionRange; }
+	float GetLoseSightRange() const { return LoseSightRange; }
+	float GetForgetTargetSeconds() const { return ForgetTargetSeconds; }
+	float GetPatrolRadius() const { return PatrolRadius; }
+	float GetPatrolWaitSeconds() const { return PatrolWaitSeconds; }
+	float GetMaxChaseDistance() const { return MaxChaseDistance; }
+	float GetStopDistance() const { return StopDistance; }
+	float GetEffectiveAttackRange() const;
+	UBehaviorTree* ResolveBehaviorTreeAsset() const;
+	void SetAITarget(ARogue10mCharacter* NewTarget);
+	void ClearAITarget();
+	void ExecuteAICombat(ARogue10mCharacter* Target);
 
 protected:
 	virtual void BeginPlay() override;
@@ -81,6 +94,24 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Movement", meta=(ClampMin="0.0"))
 	float StopDistance = 140.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|AI")
+	TSoftObjectPtr<UBehaviorTree> BehaviorTreeAsset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.0"))
+	float LoseSightRange = 2200.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.1", Units="s"))
+	float ForgetTargetSeconds = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.0"))
+	float PatrolRadius = 600.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.0", Units="s"))
+	float PatrolWaitSeconds = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.0"))
+	float MaxChaseDistance = 2500.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rogue10m|Monster|Combat")
 	TObjectPtr<URogue10mAttackSkillData> AttackSkillData;
 
@@ -97,8 +128,6 @@ protected:
 	bool bDestroyOnDeath = true;
 
 private:
-	void UpdateTarget();
-	void MoveTowardTarget(float DistanceToTarget);
 	void TryAttackTarget(float DistanceToTarget);
 	void StartMonsterAttackSequence();
 	void ExecuteMonsterAttackPulse();

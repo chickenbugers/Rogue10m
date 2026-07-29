@@ -1,8 +1,9 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rogue10mBasicMonster.h"
 
 #include "AIController.h"
+#include "BehaviorTree/BehaviorTree.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/DamageType.h"
 #include "Kismet/GameplayStatics.h"
@@ -14,13 +15,14 @@
 #include "Rogue10mPlayerController.h"
 #include "Rogue10mPlayerState.h"
 #include "Rogue10mMonsterDataAsset.h"
+#include "AI/Rogue10mMonsterAIController.h"
 #include "Rogue10mVitalRegenerationComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "TimerManager.h"
 
 ARogue10mBasicMonster::ARogue10mBasicMonster()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	AbilitySystemComponent = CreateDefaultSubobject<URogue10mAbilitySystemComponent>(TEXT("Ability System Component"));
 	AbilitySystemComponent->SetIsReplicated(true);
@@ -29,7 +31,7 @@ ARogue10mBasicMonster::ARogue10mBasicMonster()
 	VitalRegenerationComponent = CreateDefaultSubobject<URogue10mVitalRegenerationComponent>(TEXT("Vital Regeneration Component"));
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	AIControllerClass = AAIController::StaticClass();
+	AIControllerClass = ARogue10mMonsterAIController::StaticClass();
 	GetCharacterMovement()->MaxWalkSpeed = 260.0f;
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	bUseControllerRotationYaw = false;
@@ -53,13 +55,13 @@ void ARogue10mBasicMonster::BeginPlay()
 		switch (MonsterData->MonsterRank)
 		{
 		case ERogue10mMonsterRank::MidBoss:
-			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "MidBossRank", "중간 보스");
+			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "MidBossRank", "以묎컙 蹂댁뒪");
 			break;
 		case ERogue10mMonsterRank::FinalBoss:
-			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "FinalBossRank", "최종 보스");
+			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "FinalBossRank", "理쒖쥌 蹂댁뒪");
 			break;
 		default:
-			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "NormalRank", "일반");
+			MonsterAttributeText = NSLOCTEXT("Rogue10mMonster", "NormalRank", "?쇰컲");
 			break;
 		}
 		MaxHealth = MonsterData->MaxHealth;
@@ -68,6 +70,12 @@ void ARogue10mBasicMonster::BeginPlay()
 		ExperienceReward = MonsterData->ExperienceReward;
 		DetectionRange = MonsterData->DetectionRange;
 		StopDistance = MonsterData->StopDistance;
+		BehaviorTreeAsset = MonsterData->BehaviorTreeAsset;
+		LoseSightRange = MonsterData->LoseSightRange;
+		ForgetTargetSeconds = MonsterData->ForgetTargetSeconds;
+		PatrolRadius = MonsterData->PatrolRadius;
+		PatrolWaitSeconds = MonsterData->PatrolWaitSeconds;
+		MaxChaseDistance = MonsterData->MaxChaseDistance;
 		AttackSkillData = MonsterData->AttackSkill;
 		AttackRange = MonsterData->AttackRange;
 		AttackDamage = MonsterData->AttackDamage;
@@ -85,33 +93,11 @@ void ARogue10mBasicMonster::BeginPlay()
 			MonsterData->ManaRegenerationPerSecond);
 	}
 	AttributeSet->InitializeVitals(MaxHealth, InitialStamina, InitialMana);
-	UpdateTarget();
-}
 
-void ARogue10mBasicMonster::Tick(float DeltaSeconds)
-{
-	Super::Tick(DeltaSeconds);
-	if (bIsDead)
+	if (ARogue10mMonsterAIController* MonsterController =
+		Cast<ARogue10mMonsterAIController>(GetController()))
 	{
-		return;
-	}
-
-	if (!TargetCharacter.IsValid() || TargetCharacter->IsDead())
-	{
-		UpdateTarget();
-	}
-
-	ARogue10mCharacter* Target = TargetCharacter.Get();
-	if (!Target || Target->IsDead())
-	{
-		return;
-	}
-
-	const float Distance = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
-	if (Distance <= DetectionRange)
-	{
-		MoveTowardTarget(Distance);
-		TryAttackTarget(Distance);
+		MonsterController->InitializeMonsterAI();
 	}
 }
 
@@ -126,9 +112,15 @@ float ARogue10mBasicMonster::TakeDamage(
 	}
 
 	LastDamageInstigator = EventInstigator;
+	AActor* AggroSource = EventInstigator ? EventInstigator->GetPawn() : DamageCauser;
+	if (ARogue10mMonsterAIController* MonsterController =
+		Cast<ARogue10mMonsterAIController>(GetController()))
+	{
+		MonsterController->NotifyDamageStimulus(AggroSource, AppliedDamage);
+	}
 	AttributeSet->SetHealth(AttributeSet->GetHealth() - AppliedDamage);
 	UE_LOG(
-		LogRogue10m, Log, TEXT("%s 피해 %.1f, 체력 %.1f / %.1f"),
+		LogRogue10m, Log, TEXT("%s ?쇳빐 %.1f, 泥대젰 %.1f / %.1f"),
 		*GetNameSafe(this), AppliedDamage, AttributeSet->GetHealth(), AttributeSet->GetMaxHealth());
 
 	ARogue10mPlayerController* PlayerController = EventInstigator
@@ -137,7 +129,7 @@ float ARogue10mBasicMonster::TakeDamage(
 	if (PlayerController)
 	{
 		PlayerController->AddCombatLogMessage(
-			FString::Printf(TEXT("몬스터에게 피해 %.0f"), AppliedDamage),
+			FString::Printf(TEXT("紐ъ뒪?곗뿉寃??쇳빐 %.0f"), AppliedDamage),
 			FLinearColor(1.0f, 0.72f, 0.22f, 1.0f));
 	}
 
@@ -161,20 +153,41 @@ FVector ARogue10mBasicMonster::GetRogue10mDamageIndicatorLocation_Implementation
 	return BoundsOrigin + FVector(0.0f, 0.0f, BoundsExtent.Z + 30.0f);
 }
 
-void ARogue10mBasicMonster::UpdateTarget()
+
+UBehaviorTree* ARogue10mBasicMonster::ResolveBehaviorTreeAsset() const
 {
-	TargetCharacter = Cast<ARogue10mCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
+	return BehaviorTreeAsset.LoadSynchronous();
 }
 
-void ARogue10mBasicMonster::MoveTowardTarget(float DistanceToTarget)
+float ARogue10mBasicMonster::GetEffectiveAttackRange() const
 {
-	ARogue10mCharacter* Target = TargetCharacter.Get();
-	if (Target && DistanceToTarget > StopDistance)
+	return AttackSkillData ? AttackSkillData->AttackRange : AttackRange;
+}
+
+void ARogue10mBasicMonster::SetAITarget(ARogue10mCharacter* NewTarget)
+{
+	TargetCharacter = NewTarget;
+}
+
+void ARogue10mBasicMonster::ClearAITarget()
+{
+	TargetCharacter.Reset();
+	LockedAttackTarget.Reset();
+	if (GetWorld())
 	{
-		AddMovementInput((Target->GetActorLocation() - GetActorLocation()).GetSafeNormal2D(), 1.0f);
+		GetWorld()->GetTimerManager().ClearTimer(AttackSequenceTimer);
 	}
 }
 
+void ARogue10mBasicMonster::ExecuteAICombat(ARogue10mCharacter* Target)
+{
+	if (!Target || Target->IsDead() || bIsDead)
+	{
+		return;
+	}
+	TargetCharacter = Target;
+	TryAttackTarget(FVector::Dist2D(GetActorLocation(), Target->GetActorLocation()));
+}
 void ARogue10mBasicMonster::TryAttackTarget(float DistanceToTarget)
 {
 	ARogue10mCharacter* Target = TargetCharacter.Get();
@@ -226,7 +239,7 @@ void ARogue10mBasicMonster::ExecuteMonsterAttackPulse()
 			}
 		}
 		UGameplayStatics::ApplyDamage(Target, Damage, GetController(), this, UDamageType::StaticClass());
-		UE_LOG(LogRogue10m, Log, TEXT("%s 공격 %d/%d: %s에게 %.1f 피해%s"), *GetNameSafe(this), CompletedAttackPulses, Count, *GetNameSafe(Target), Damage, bCriticalHit ? TEXT(" (치명타)") : TEXT(""));
+		UE_LOG(LogRogue10m, Log, TEXT("%s 怨듦꺽 %d/%d: %s?먭쾶 %.1f ?쇳빐%s"), *GetNameSafe(this), CompletedAttackPulses, Count, *GetNameSafe(Target), Damage, bCriticalHit ? TEXT(" (移섎챸?)") : TEXT(""));
 	}
 	if (CompletedAttackPulses >= Count || (AttackSkillData && AttackSkillData->HitMode == ERogue10mAttackHitMode::MultiHit && !LockedAttackTarget.IsValid())) GetWorld()->GetTimerManager().ClearTimer(AttackSequenceTimer);
 }
@@ -267,19 +280,24 @@ void ARogue10mBasicMonster::Die()
 			{
 				RewardState->AddExperience(ExperienceReward);
 				RewardController->AddCombatLogMessage(
-					FString::Printf(TEXT("%s 처치: 경험치 +%d"),
+					FString::Printf(TEXT("%s 泥섏튂: 寃쏀뿕移?+%d"),
 						*MonsterDisplayName.ToString(), ExperienceReward),
 					FLinearColor(0.42f, 0.9f, 0.58f, 1.0f));
-				UE_LOG(LogRogue10m, Log, TEXT("%s 처치 보상: 경험치 +%d"),
+				UE_LOG(LogRogue10m, Log, TEXT("%s 泥섏튂 蹂댁긽: 寃쏀뿕移?+%d"),
 					*MonsterDisplayName.ToString(), ExperienceReward);
 			}
 		}
+	}
+	if (ARogue10mMonsterAIController* MonsterController =
+		Cast<ARogue10mMonsterAIController>(GetController()))
+	{
+		MonsterController->StopMonsterAI();
 	}
 	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(AttackSequenceTimer);
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 	SetActorEnableCollision(false);
-	UE_LOG(LogRogue10m, Log, TEXT("%s 사망"), *GetNameSafe(this));
+	UE_LOG(LogRogue10m, Log, TEXT("%s ?щ쭩"), *GetNameSafe(this));
 
 	if (bDestroyOnDeath)
 	{

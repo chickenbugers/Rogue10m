@@ -95,3 +95,117 @@ IDE 전체 빌드에서 장비 프리뷰와 캐릭터 커스터마이징 프리�
 ## Notion 요약 후보
 
 > 캐릭터 선택 후 Pawn이 스폰·Possess되는 시점에 기본 직업 `모험가`, 기본 무기 `Unarmed`, 좌클릭 Primary 주먹 공격을 재적용하도록 초기화 흐름을 개선했다. CharacterData가 기본 설정을 소유하고 PlayerState가 런타임 상태를 소유하며, PossessedBy/OnRep_PlayerState에서 CombatComponent가 로드아웃과 GAS Ability를 다시 구성한다. UE 5.8 전체 빌드와 Editor Python 에셋 검증, 6개 상속 캐릭터 검증을 통과했다.
+## Sprint#3-4 - 로스트아크형 3인 캐릭터 선택 무대
+
+### 작업 목표
+
+기존 캐릭터 생성·삭제·선택·게임 접속 기능을 유지하면서 저장된 최대 3명의 캐릭터가 판타지 배경 앞에 동시에 서 있는 전체 화면 선택 로비를 구성했다.
+
+### 주요 변경
+
+- `Sprint#3-4-character-selection-stage` 브랜치 생성
+- 오리지널 판타지 성채 테라스 16:9 배경 제작 및 Unreal Texture Import
+- CharacterLobbyWidget에 슬롯 프리뷰 3개와 생성용 Draft 프리뷰 1개 구성
+- 선택 캐릭터 명도·슬롯 카드 강조, 비선택 캐릭터 감광 처리
+- 빈 슬롯 Render Target 비활성화와 기존 생성 모드 전환 유지
+- 선택·생성 모드 좌클릭 드래그 회전 유지
+- Preview Actor에 숨김 Manny Idle 소스와 종족별 Retarget AnimBP 연결
+- WBP_CharacterLobby를 상단 타이틀·중앙 3인 무대·하단 슬롯 카드 구조로 재배치
+- 기존 필수 Widget 바인딩 이름과 ProfileSubsystem 저장 흐름 유지
+
+### 검증 결과
+
+- UE 5.8 Rogue10mEditor Win64 Development 전체 빌드 성공
+- 기존 캐릭터 커스터마이징 Validator 통과
+- 신규 캐릭터 선택 무대 Validator 통과
+- 최종 WBP 별도 프로세스 재로드 시 Blueprint/Python 오류 없음
+- Windows UI 자동화는 ACL로 차단, UE 오프스크린 캡처는 종료 명령 미처리로 수동 PIE 육안 QA가 남음
+
+### 에셋과 스크립트
+
+- `SourceArt/UI/CharacterLobby/T_CharacterLobby_Background.png`
+- `/Game/Texture/UI/CharacterLobby/T_CharacterLobby_Background`
+- `/Game/Widget/Character/WBP_CharacterLobby`
+- `Scripts/Editor/ConfigureCharacterSelectionStage.py`
+- `Scripts/Editor/ValidateCharacterSelectionStage.py`
+
+## Notion 요약 후보 - 3인 캐릭터 선택 무대
+
+> 캐릭터 선택 로비를 전체 화면 판타지 무대로 개편했다. 저장된 최대 3명의 캐릭터를 오리지널 성채 배경 앞에 동시에 표시하고 선택 캐릭터를 명도와 슬롯 카드로 강조한다. 기존 생성·삭제·접속과 외형 편집 기능은 그대로 유지했으며, 숨김 Manny Idle 포즈를 기존 종족별 Retarget AnimBP로 변환해 선택 캐릭터가 자연스럽게 서 있도록 구성했다. UE 5.8 전체 빌드와 기존·신규 에셋 Validator를 통과했다.
+
+## Sprint#3-4 보완 - 메인 메뉴와 캐릭터 로비 경로 재구성
+
+### 작업 목표
+
+캐릭터 선택 무대의 비율과 동작을 보완하고, 공용 위젯과 게임 시작 메뉴의 폴더 책임을 분리했다. 게임의 첫 화면을 기본 메뉴로 만들고 `Menu → Lobby → Start Map` 흐름을 연결했다.
+
+### 구현 내용
+
+- `WBP_CharacterLobby`를 `Content/Widget/Lobby`로 이동
+- 기존 Inventory·Equipment·SkillTree 위젯을 `Content/Widget/Component`로 이동
+- `Content/Widget/Menu/WBP_MainMenu` 신규 생성
+- 게임 시작·게임 종료 버튼과 PlayerController 화면 상태 전환 연결
+- 캐릭터 프리뷰 3개의 폭을 각각 360px(1920 기준 18.75%)로 축소
+- `UI_SelectedCharacterInfoText` 제거
+- 각 캐릭터 프리뷰 아래에 선택/생성 슬롯 버튼 배치
+- 캐릭터가 없는 슬롯 클릭 시 캐릭터 생성 기능 진입
+- 캐릭터 프리뷰 또는 하단 슬롯 정보 더블클릭 시 게임 접속
+- 하단 게임 접속·캐릭터 삭제 버튼 유지
+- 공용 메뉴 C++·Editor Python 기본 경로를 Component로 갱신
+
+### 검증 결과
+
+- UE 5.8 Rogue10mEditor Win64 Development 빌드 성공
+- Widget Flow Validator 통과
+- Character Selection Stage Validator 통과
+- Character Customization 및 Inherited Character 회귀 검증 통과
+- Main Menu/Lobby/Component 에셋 경로와 필수 바인딩 확인
+- Slot Preview 폭 384px 이하 및 `UI_SelectedCharacterInfoText` 제거 확인
+
+### 남은 QA
+
+- 언리얼 에디터 PIE에서 Main Menu → Lobby → 캐릭터 접속 체감 확인
+- 캐릭터 프리뷰와 하단 슬롯 정보 각각의 더블클릭 확인
+- 게임 종료는 Standalone 또는 패키지 실행에서 확인
+- `Start Map → Cell 단위 오픈월드`는 World Partition 맵 설계 후 후속 구현
+
+## Notion 요약 후보 - 메인 메뉴와 캐릭터 로비 흐름
+
+> 게임 최초 화면에 시작·종료 버튼이 있는 기본 메뉴를 추가하고, 시작 버튼에서 캐릭터 로비로 진입하도록 연결했다. 로비는 최대 3명의 캐릭터를 화면 폭 20% 이하의 프리뷰로 표시하며, 각 프리뷰 아래 선택/생성 버튼을 배치했다. 빈 슬롯은 캐릭터 생성을 지원하고 캐릭터 또는 하단 슬롯 정보를 더블클릭하면 바로 게임에 접속한다. 위젯 경로는 Menu(최초 메뉴), Lobby(캐릭터 선택), Component(Inventory·Equipment·SkillTree)로 책임을 분리했다. UE 5.8 Editor 빌드와 전체 에셋 회귀 검증을 통과했으며, Cell 단위 오픈월드는 World Partition 설계 후 다음 단계에서 구현한다.
+## Sprint#3-5 - 몬스터 Behavior Tree 전투 AI
+
+### 작업 목표
+
+몬스터가 플레이어를 무조건 매 프레임 추적하지 않고, 홈 위치 주변에서 제한적으로 순찰하다가 거리 감지 또는 피격 조건으로만 전투를 시작하도록 UE 5.8 표준 AI 구조를 적용했다. 동시에 캐릭터 선택 로비의 불필요한 상태 텍스트, 프리뷰 방향, 배경 비율을 보완했다.
+
+### 주요 구현
+
+- `ARogue10mBasicMonster`의 Tick 기반 추적 제거
+- `ARogue10mMonsterAIController`와 `UBTTask_Rogue10mMonsterDecision` 추가
+- AI Perception Sight/Damage Sense로 거리 감지와 피격 어그로 처리
+- 홈 위치, 순찰 반경, 추적 해제 거리, 기억 시간, 최대 추격 거리 적용
+- NavMesh 기반 무작위 순찰, 목적지 도착 뒤 순찰 대기, 추적 해제 후 홈 복귀
+- 공격 거리 안에서는 기존 몬스터 공격 로직을 재사용
+- 몬스터 데이터 적용이 `OnPossess`보다 늦을 수 있는 UE 생명주기를 고려해 `BeginPlay` 후 AI 재초기화
+- `/Game/AI/Monster/BB_Monster`, `/Game/AI/Monster/BT_Monster` 생성
+- 25개 몬스터 데이터 에셋에 BT 연결 및 거리 관계 정규화
+- 외부 BT/BB 누락 시 런타임 기본 트리로 복구
+- `UI_StatusText` 제거, 프리뷰 정면 배치, 로비 배경 16:9 전체 채움
+
+### 검증 결과
+
+- UE 5.8 `Rogue10mEditor Win64 Development` 빌드 성공
+- Character Selection Stage Validator 통과
+- Monster Behavior Tree AI Validator 통과: Blackboard 8키, Decision/Wait Task, 몬스터 데이터 25개
+- 프로젝트 파일 재생성 성공
+- 실제 이동·전투 체감은 NavMesh가 있는 PIE 레벨에서 수동 확인 필요
+
+### 관련 문서
+
+- `Feature/architect/2026-07-28_monster-behavior-tree-ai.md`
+- `Feature/doc/2026-07-28_monster-behavior-tree-ai.md`
+- `Docs/CurrentProjectArchitecture.md`
+
+## Notion 요약 후보 - 몬스터 Behavior Tree 전투 AI
+
+> 몬스터 AI를 Tick 기반 무조건 추적에서 UE 5.8의 AIController, AI Perception, Blackboard, Behavior Tree, NavigationSystem 구조로 교체했다. 몬스터는 홈 반경 안에서 순찰하고 시야 거리 또는 피격으로 플레이어를 인식하며, 공격 거리에서는 기존 공격을 실행한다. 대상이나 몬스터가 최대 추격 거리를 벗어나거나 기억 시간이 만료되면 타깃을 해제하고 홈으로 복귀한다. 25개 몬스터 데이터에 공통 BT를 연결했고 외부 에셋 누락 시 런타임 기본 트리로 복구한다. 로비에서는 UI_StatusText를 제거하고 3개 캐릭터 프리뷰를 정면으로 맞췄으며 배경을 16:9 전체 영역에 채웠다. UE 5.8 빌드와 에셋 Validator를 통과했으며 NavMesh 기반 PIE 체감 QA가 남아 있다.

@@ -70,3 +70,22 @@ TryAddGridItem 성공 → PlayerController::AddItemAcquisitionItem → RunHUD Vi
 3. 몬스터 Blueprint의 Monster Data에 생성한 에셋을 지정합니다.
 4. WBP_MonsterInfo는 UI_MonsterNameText, UI_MonsterHealthBar, UI_MonsterHealthText 이름을 유지합니다.
 5. WBP_ItemAcquisitionLine은 UI_ItemIconImage, UI_ItemCountText 이름을 유지합니다.
+## 화면 흐름과 위젯 경로
+
+- 게임 실행: `/Game/Widget/Menu/WBP_MainMenu`
+- 캐릭터 선택: `/Game/Widget/Lobby/WBP_CharacterLobby`
+- 인게임 공용 UI: `/Game/Widget/Component/Inventory`, `Equipment`, `SkillTree`
+- 현재 실행 흐름: `L_Menu → Main Menu → Character Lobby → Lvl_FirstPerson(StartRun=1)`
+- 후속 실행 흐름: `Start Map → World Partition 기반 Cell 단위 오픈월드`
+
+`ARogue10mPlayerController`가 Main Menu, Lobby, In-game 상태에 따라 위젯 표시·게임 일시정지·입력 모드를 전환한다. Cell 오픈월드 전환은 별도 맵과 스트리밍 정책을 설계한 뒤 추가한다.
+## 몬스터 AI 참조 경로
+
+- 런타임 몬스터 본체: `Source/Rogue10m/Enemy/Rogue10mBasicMonster.*`
+- AI Controller와 BT Task: `Source/Rogue10m/Enemy/AI/`
+- 몬스터 조정 데이터: `Source/Rogue10m/Data/Rogue10mMonsterDataAsset.h`, `/Game/DataAsset/Monster/`
+- Blackboard/Behavior Tree: `/Game/AI/Monster/BB_Monster`, `/Game/AI/Monster/BT_Monster`
+- 에디터 구성·검증: `Scripts/Editor/ConfigureMonsterBehaviorTreeAI.py`, `Scripts/Editor/ValidateMonsterBehaviorTreeAI.py`
+- 레벨 전제: 이동 가능 영역을 덮는 `NavMeshBoundsVolume`
+
+몬스터 AI 작업은 먼저 위 경로만 확인한다. 캐릭터 코드 작업은 `Source/Rogue10m/Character`, 위젯 작업은 `Content/Widget`과 `Source/Rogue10m/UI`를 우선 참조한다.

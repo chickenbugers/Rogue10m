@@ -7,6 +7,7 @@
 #include "Rogue10mMonsterDataAsset.generated.h"
 
 class UAnimInstance;
+class UBehaviorTree;
 class USkeletalMesh;
 class UTexture2D;
 class URogue10mAttackSkillData;
@@ -91,6 +92,24 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Movement", meta=(ClampMin="0.0"))
 	float StopDistance = 140.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|AI")
+	TSoftObjectPtr<UBehaviorTree> BehaviorTreeAsset;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.0"))
+	float LoseSightRange = 2200.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.1", Units="s"))
+	float ForgetTargetSeconds = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.0"))
+	float PatrolRadius = 600.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.0", Units="s"))
+	float PatrolWaitSeconds = 2.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|AI", meta=(ClampMin="0.0"))
+	float MaxChaseDistance = 2500.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Rogue10m|Monster|Combat")
 	TObjectPtr<URogue10mAttackSkillData> AttackSkill;

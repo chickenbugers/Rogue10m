@@ -7,6 +7,7 @@
 #include "Blueprint/GameViewportSubsystem.h"
 
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
 #include "EnhancedInputSubsystems.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
@@ -21,10 +22,12 @@
 #include "Rogue10mCombatComponent.h"
 #include "Rogue10mGameMode.h"
 #include "Rogue10mInventoryComponent.h"
+#include "Rogue10mMenuGameMode.h"
 #include "Rogue10mGameState.h"
 #include "Rogue10mRunHUD.h"
 #include "Widgets/Rogue10mCharacterLobbyWidget.h"
 #include "Widgets/Rogue10mDamageIndicatorWidget.h"
+#include "Widgets/Rogue10mMainMenuWidget.h"
 #include "Widgets/Rogue10mMenuWindowWidgets.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 #include "UObject/ConstructorHelpers.h"
@@ -61,18 +64,31 @@ ARogue10mPlayerController::ARogue10mPlayerController()
 	DefaultRunHUDClass = TSoftClassPtr<URogue10mRunHUD>(
 		FSoftClassPath(TEXT("/Game/Widget/WBP_Rogue10mMainHUD.WBP_Rogue10mMainHUD_C")));
 	DefaultInventoryWindowWidgetClass = TSoftClassPtr<URogue10mInventoryWindowWidget>(
-		FSoftClassPath(TEXT("/Game/Widget/Menu/Inventory/WBP_InventoryWindow.WBP_InventoryWindow_C")));
+		FSoftClassPath(TEXT("/Game/Widget/Component/Inventory/WBP_InventoryWindow.WBP_InventoryWindow_C")));
 	DefaultEquipmentWindowWidgetClass = TSoftClassPtr<URogue10mEquipmentWindowWidget>(
-		FSoftClassPath(TEXT("/Game/Widget/Menu/Equipment/WBP_EquipmentWindow.WBP_EquipmentWindow_C")));
+		FSoftClassPath(TEXT("/Game/Widget/Component/Equipment/WBP_EquipmentWindow.WBP_EquipmentWindow_C")));
 	DefaultSkillTreeWindowWidgetClass = TSoftClassPtr<URogue10mSkillTreeWindowWidget>(
-		FSoftClassPath(TEXT("/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow.WBP_SkillTreeWindow_C")));
+		FSoftClassPath(TEXT("/Game/Widget/Component/SkillTree/WBP_SkillTreeWindow.WBP_SkillTreeWindow_C")));
 	DefaultCharacterLobbyWidgetClass = TSoftClassPtr<URogue10mCharacterLobbyWidget>(
-		FSoftClassPath(TEXT("/Game/Widget/Character/WBP_CharacterLobby.WBP_CharacterLobby_C")));
+		FSoftClassPath(TEXT("/Game/Widget/Lobby/WBP_CharacterLobby.WBP_CharacterLobby_C")));
+	DefaultMainMenuWidgetClass = TSoftClassPtr<URogue10mMainMenuWidget>(
+		FSoftClassPath(TEXT("/Game/Widget/Menu/WBP_MainMenu.WBP_MainMenu_C")));
+	GameplayMap = TSoftObjectPtr<UWorld>(
+		FSoftObjectPath(TEXT("/Game/FirstPerson/Lvl_FirstPerson.Lvl_FirstPerson")));
 }
 
 void ARogue10mPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	SetFpsLimit(CurrentFpsLimit);
+	if (IsMenuWorld())
+	{
+		InitializeCharacterLobby();
+		InitializeMainMenu();
+		RefreshInputMode();
+		return;
+	}
 
 	if (ShouldUseTouchControls() && IsLocalPlayerController())
 	{
@@ -87,19 +103,24 @@ void ARogue10mPlayerController::BeginPlay()
 		}
 	}
 
-	SetFpsLimit(CurrentFpsLimit);
 	InitializeRunHUD();
 	InitializeMenuWindows();
 	InitializeDamageIndicatorPool();
-	InitializeCharacterLobby();
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
+	UGameplayStatics::SetGamePaused(this, false);
 	RefreshInputMode();
 }
-
 void ARogue10mPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
 	if (!IsLocalPlayerController())
+	{
+		return;
+	}
+
+	if (IsMenuWorld())
 	{
 		return;
 	}
@@ -186,6 +207,23 @@ void ARogue10mPlayerController::EnterSelectedCharacter()
 		? GetGameInstance()->GetSubsystem<URogue10mCharacterProfileSubsystem>()
 		: nullptr;
 	const FRogue10mCharacterProfile* Profile = Profiles ? Profiles->GetSelectedProfile() : nullptr;
+	if (!Profile)
+	{
+		UE_LOG(LogRogue10m, Error,
+			TEXT("Cannot enter gameplay without a selected character profile."));
+		return;
+	}
+
+	if (IsMenuWorld())
+	{
+		if (!TravelToGameplayMap())
+		{
+			UE_LOG(LogRogue10m, Error,
+				TEXT("Character selection succeeded, but gameplay map travel failed."));
+		}
+		return;
+	}
+
 	ARogue10mGameMode* GameMode =
 		GetWorld() ? GetWorld()->GetAuthGameMode<ARogue10mGameMode>() : nullptr;
 	ARogue10mCharacter* RogueCharacter = GameMode
@@ -211,18 +249,88 @@ void ARogue10mPlayerController::EnterSelectedCharacter()
 	{
 		MobileControlsWidget->SetVisibility(ESlateVisibility::Visible);
 	}
-	SetIgnoreMoveInput(false);
-	SetIgnoreLookInput(false);
+	ResetIgnoreMoveInput();
+	ResetIgnoreLookInput();
 	UGameplayStatics::SetGamePaused(this, false);
 	RefreshInputMode();
+	UE_LOG(LogRogue10m, Log,
+		TEXT("Gameplay input restored. Pawn=%s MoveIgnored=%d LookIgnored=%d Paused=%d"),
+		*GetNameSafe(GetPawn()), IsMoveInputIgnored(), IsLookInputIgnored(),
+		UGameplayStatics::IsGamePaused(this));
 	AddCombatLogMessage(
 		FString::Printf(TEXT("%s 캐릭터로 접속했습니다."), *Profile->CharacterName),
 		FLinearColor(0.55f, 0.88f, 1.0f, 1.0f));
 }
 
+
+bool ARogue10mPlayerController::IsMenuWorld() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetAuthGameMode<ARogue10mMenuGameMode>() != nullptr;
+}
+
+bool ARogue10mPlayerController::TravelToGameplayMap()
+{
+	const FSoftObjectPath MapPath = GameplayMap.ToSoftObjectPath();
+	const FString MapPackageName = MapPath.GetLongPackageName();
+	if (!MapPath.IsValid() || MapPackageName.IsEmpty())
+	{
+		UE_LOG(LogRogue10m, Error,
+			TEXT("Gameplay map is not configured. Path=%s"),
+			*MapPath.ToString());
+		return false;
+	}
+
+	bMainMenuVisible = false;
+	bCharacterLobbyVisible = false;
+	UGameplayStatics::SetGamePaused(this, false);
+	UE_LOG(LogRogue10m, Log,
+		TEXT("Traveling from menu to gameplay map. Map=%s Options=StartRun=1"),
+		*MapPackageName);
+	UGameplayStatics::OpenLevel(
+		this, FName(*MapPackageName), true, TEXT("StartRun=1"));
+	return true;
+}
+void ARogue10mPlayerController::OpenCharacterLobbyFromMainMenu()
+{
+	if (!CharacterLobbyWidget)
+	{
+		UE_LOG(LogRogue10m, Error, TEXT("Character Lobby Widget is unavailable."));
+		return;
+	}
+
+	bMainMenuVisible = false;
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	bCharacterLobbyVisible = true;
+	CharacterLobbyWidget->SetVisibility(ESlateVisibility::Visible);
+	if (RunHUD)
+	{
+		RunHUD->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (MobileControlsWidget)
+	{
+		MobileControlsWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	CloseAllBlockingPanels();
+	bCharacterLobbyVisible = true;
+	if (!IsMoveInputIgnored())
+	{
+		SetIgnoreMoveInput(true);
+	}
+	if (!IsLookInputIgnored())
+	{
+		SetIgnoreLookInput(true);
+	}
+	UGameplayStatics::SetGamePaused(this, true);
+	RefreshInputMode();
+}
 bool ARogue10mPlayerController::IsAnyBlockingWindowVisible() const
 {
-	return bCharacterLobbyVisible || bInventoryVisible || bItemWindowVisible || bSkillTreeVisible || bSettingsVisible;
+	return bMainMenuVisible || bCharacterLobbyVisible || bInventoryVisible
+		|| bItemWindowVisible || bSkillTreeVisible || bSettingsVisible;
 }
 
 void ARogue10mPlayerController::SetLookSensitivity(float NewSensitivityX, float NewSensitivityY)
@@ -682,7 +790,36 @@ void ARogue10mPlayerController::InitializeCharacterLobby()
 	}
 	CharacterLobbyWidget->InitializeCharacterLobby(this);
 	CharacterLobbyWidget->AddToPlayerScreen(1000);
-	bCharacterLobbyVisible = true;
+	CharacterLobbyWidget->SetVisibility(ESlateVisibility::Collapsed);
+	bCharacterLobbyVisible = false;
+}
+
+void ARogue10mPlayerController::InitializeMainMenu()
+{
+	if (!IsLocalPlayerController())
+	{
+		return;
+	}
+
+	const TSubclassOf<URogue10mMainMenuWidget> ResolvedClass =
+		ResolveMenuWidgetClass(MainMenuWidgetClass, DefaultMainMenuWidgetClass);
+	if (!ResolvedClass)
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("Main Menu Widget is unavailable; opening Character Lobby."));
+		OpenCharacterLobbyFromMainMenu();
+		return;
+	}
+
+	MainMenuWidget = CreateWidget<URogue10mMainMenuWidget>(this, ResolvedClass);
+	if (!MainMenuWidget)
+	{
+		UE_LOG(LogRogue10m, Warning, TEXT("Failed to create Main Menu Widget; opening Character Lobby."));
+		OpenCharacterLobbyFromMainMenu();
+		return;
+	}
+
+	MainMenuWidget->AddToPlayerScreen(1100);
+	bMainMenuVisible = true;
 	if (RunHUD)
 	{
 		RunHUD->SetVisibility(ESlateVisibility::Collapsed);
@@ -691,15 +828,29 @@ void ARogue10mPlayerController::InitializeCharacterLobby()
 	{
 		MobileControlsWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
-	CloseAllBlockingPanels();
-	bCharacterLobbyVisible = true;
-	SetIgnoreMoveInput(true);
-	SetIgnoreLookInput(true);
+	if (!IsMoveInputIgnored())
+	{
+		SetIgnoreMoveInput(true);
+	}
+	if (!IsLookInputIgnored())
+	{
+		SetIgnoreLookInput(true);
+	}
 	UGameplayStatics::SetGamePaused(this, true);
 }
-
 void ARogue10mPlayerController::RefreshInputMode()
 {
+	if (bMainMenuVisible && MainMenuWidget)
+	{
+		bShowMouseCursor = true;
+		bEnableClickEvents = true;
+		bEnableMouseOverEvents = true;
+		FInputModeUIOnly InputMode;
+		InputMode.SetWidgetToFocus(MainMenuWidget->TakeWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(InputMode);
+		return;
+	}
 	if (bCharacterLobbyVisible && CharacterLobbyWidget)
 	{
 		bShowMouseCursor = true;

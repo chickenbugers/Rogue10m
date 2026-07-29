@@ -14,7 +14,7 @@ PROFILE_PATH = "/Game/DataAsset/SkillProfile/DA_SkillProfile_Unarmed"
 CHARACTER_DATA_PATH = "/Game/DataAsset/Character/DA_Character_Default"
 CHARACTER_BP_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"
 PLAYER_CONTROLLER_BP_PATH = "/Game/FirstPerson/Blueprints/BP_FirstPersonPlayerController"
-WIDGET_ROOT = "/Game/Widget/Menu"
+WIDGET_ROOT = "/Game/Widget/Component"
 CHARACTER_STATS_MODE = "character_stats"
 
 ATTACK_ASSETS = {
@@ -27,10 +27,10 @@ ATTACK_ASSETS = {
 }
 
 WIDGETS = {
-    "Inventory": ("/Game/Widget/Menu/Inventory/WBP_InventoryWindow", "/Script/Rogue10m.Rogue10mInventoryWindowWidget"),
-    "Equipment": ("/Game/Widget/Menu/Equipment/WBP_EquipmentWindow", "/Script/Rogue10m.Rogue10mEquipmentWindowWidget"),
-    "SkillTreeEntry": ("/Game/Widget/Menu/SkillTree/WBP_SkillTreeEntry", "/Script/Rogue10m.Rogue10mSkillTreeEntryWidget"),
-    "SkillTree": ("/Game/Widget/Menu/SkillTree/WBP_SkillTreeWindow", "/Script/Rogue10m.Rogue10mSkillTreeWindowWidget"),
+    "Inventory": ("/Game/Widget/Component/Inventory/WBP_InventoryWindow", "/Script/Rogue10m.Rogue10mInventoryWindowWidget"),
+    "Equipment": ("/Game/Widget/Component/Equipment/WBP_EquipmentWindow", "/Script/Rogue10m.Rogue10mEquipmentWindowWidget"),
+    "SkillTreeEntry": ("/Game/Widget/Component/SkillTree/WBP_SkillTreeEntry", "/Script/Rogue10m.Rogue10mSkillTreeEntryWidget"),
+    "SkillTree": ("/Game/Widget/Component/SkillTree/WBP_SkillTreeWindow", "/Script/Rogue10m.Rogue10mSkillTreeWindowWidget"),
 }
 
 
