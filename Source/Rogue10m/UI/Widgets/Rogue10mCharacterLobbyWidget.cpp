@@ -227,15 +227,30 @@ void URogue10mCharacterLobbyWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+FReply URogue10mCharacterLobbyWidget::NativeOnMouseButtonDown(
+	const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		int32 PreviewSlotIndex = INDEX_NONE;
+		if (TryGetPreviewSlotAtScreenPosition(
+			InMouseEvent.GetScreenSpacePosition(), PreviewSlotIndex))
+		{
+			SelectSlot(PreviewSlotIndex);
+			return FReply::Handled();
+		}
+	}
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
 FReply URogue10mCharacterLobbyWidget::NativeOnMouseButtonDoubleClick(
 	const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		int32 PreviewSlotIndex = INDEX_NONE;
-		if (GetPreviewActorAtScreenPosition(
-			InMouseEvent.GetScreenSpacePosition(), PreviewSlotIndex)
-			&& PreviewSlotIndex != INDEX_NONE)
+		if (TryGetPreviewSlotAtScreenPosition(
+			InMouseEvent.GetScreenSpacePosition(), PreviewSlotIndex))
 		{
 			EnterSlotCharacter(PreviewSlotIndex);
 			return FReply::Handled();
@@ -432,15 +447,13 @@ void URogue10mCharacterLobbyWidget::RefreshStagePreviews()
 	}
 }
 
-ARogue10mCharacterCustomizationPreviewActor*
-URogue10mCharacterLobbyWidget::GetPreviewActorAtScreenPosition(
+bool URogue10mCharacterLobbyWidget::TryGetPreviewSlotAtScreenPosition(
 	const FVector2D& ScreenPosition, int32& OutSlotIndex) const
 {
 	OutSlotIndex = INDEX_NONE;
-	if (bCreationMode && PreviewActor && UI_CharacterPreviewImage
-		&& UI_CharacterPreviewImage->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+	if (bCreationMode)
 	{
-		return PreviewActor;
+		return false;
 	}
 
 	UImage* SlotImages[] =
@@ -451,15 +464,14 @@ URogue10mCharacterLobbyWidget::GetPreviewActorAtScreenPosition(
 	};
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(SlotImages); ++Index)
 	{
-		if (SlotPreviewActors.IsValidIndex(Index) && SlotPreviewActors[Index]
-			&& SlotImages[Index]->IsVisible()
+		if (SlotImages[Index] && SlotImages[Index]->IsVisible()
 			&& SlotImages[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
 		{
 			OutSlotIndex = Index;
-			return SlotPreviewActors[Index];
+			return true;
 		}
 	}
-	return nullptr;
+	return false;
 }
 
 void URogue10mCharacterLobbyWidget::SelectSlot(int32 SlotIndex)

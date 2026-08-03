@@ -32,6 +32,8 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual FReply NativeOnMouseButtonDown(
+		const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDoubleClick(
 		const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
@@ -173,7 +175,7 @@ private:
 	void RefreshDraft();
 	void RefreshPreview(const FRogue10mCharacterAppearance& Appearance);
 	void RefreshStagePreviews();
-	ARogue10mCharacterCustomizationPreviewActor* GetPreviewActorAtScreenPosition(
+	bool TryGetPreviewSlotAtScreenPosition(
 		const FVector2D& ScreenPosition, int32& OutSlotIndex) const;
 	void SelectSlot(int32 SlotIndex);
 	void EnterSlotCharacter(int32 SlotIndex);

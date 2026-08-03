@@ -1076,3 +1076,23 @@
   - Feature/doc/2026-07-28_character-selection-stage.md
 
 - 추가 런타임 검증: Menu Map PIE에서 Lobby 표시 및 프리뷰 액터 4개 생성, 관련 로드 오류 0건
+
+## Sprint#4-1 - 로비 프리뷰-슬롯 선택 동기화
+
+- 브랜치: `Sprint#4-1-lobby-preview-slot-selection`
+- 목표: 로비의 캐릭터 프리뷰 클릭과 하단 캐릭터 슬롯 선택 상태를 일치시킨다.
+- 주요 변경:
+  - 프리뷰 단일 좌클릭 입력 처리 추가
+  - 프리뷰 화면 좌표를 슬롯 인덱스로 판정
+  - 프리뷰와 하단 슬롯 버튼이 기존 `SelectSlot()` 경로 공유
+  - 프리뷰 더블클릭 즉시 접속 기능 유지
+  - 생성 화면에서는 슬롯 선택 입력 제외
+- 검증:
+  - UE 5.8 Rogue10mEditor Win64 Development 빌드 성공
+  - `Scripts/CheckGeneratedChanges.ps1` 통과
+  - `git diff --check` 통과
+- 상태: 코드 및 자동 검증 완료, Menu Map PIE 수동 클릭 QA 대기
+- 관련 문서:
+  - `Feature/architect/2026-08-04_lobby-preview-slot-selection.md`
+  - `Feature/doc/2026-08-04_lobby-preview-slot-selection.md`
+  - `DevLog/20260804.txt`
